@@ -52,5 +52,12 @@ CREATE POLICY "Permitir leitura do histórico" ON public.historical_metrics
 CREATE POLICY "Permitir escrita do histórico" ON public.historical_metrics
     FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Permitir exclusão do histórico" ON public.historical_metrics
+    FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+CREATE POLICY "Permitir atualização do histórico" ON public.historical_metrics
+    FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 -- 3. Inserir dados padrão de teste para novos usuários (Seed Script - OPCIONAL)
 -- Nota: O seed pode ser feito via código JavaScript se o banco estiver vazio.
+

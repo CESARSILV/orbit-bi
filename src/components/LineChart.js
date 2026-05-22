@@ -28,12 +28,25 @@ export default function LineChart({ timeline }) {
       ctx.scale(ratio, ratio);
       ctx.clearRect(0, 0, clientWidth, clientHeight);
 
+      if (!timeline || timeline.length === 0) {
+        ctx.fillStyle = "rgba(245, 247, 251, 0.42)";
+        ctx.font = "14px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Nenhum dado histórico disponível", clientWidth / 2, clientHeight / 2);
+        return;
+      }
+
       const padding = 34;
       const width = clientWidth - padding * 2;
       const height = 180; // slightly smaller to give breathing room for labels
       const values = timeline.map((item) => item[metric]);
-      const max = Math.max(...values) * 1.14;
-      const min = metric === "cpa" ? Math.min(...values) * 0.82 : 0;
+      
+      // Prevent Math.max/min crashing if values is empty or single
+      const maxValue = Math.max(...values);
+      const minValue = Math.min(...values);
+      const max = maxValue === minValue ? maxValue + 1 : maxValue * 1.14;
+      const min = metric === "cpa" ? (maxValue === minValue ? minValue - 1 : minValue * 0.82) : 0;
 
       // Draw grid lines
       ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
@@ -46,9 +59,11 @@ export default function LineChart({ timeline }) {
         ctx.stroke();
       }
 
+      const divisor = values.length - 1 || 1;
+      const range = max - min || 1;
       const points = values.map((value, index) => ({
-        x: padding + (width / (values.length - 1)) * index,
-        y: padding + height - ((value - min) / (max - min)) * height,
+        x: padding + (width / divisor) * index,
+        y: padding + height - ((value - min) / range) * height,
         value,
       }));
 

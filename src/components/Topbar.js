@@ -1,6 +1,6 @@
 "use client";
 
-export default function Topbar({ onRefresh, onGenerateReport }) {
+export default function Topbar({ onRefresh, onGenerateReport, onClearData }) {
   return (
     <header className="topbar">
       <div>
@@ -8,6 +8,9 @@ export default function Topbar({ onRefresh, onGenerateReport }) {
         <h1>Copiloto de performance para Google Ads e Meta Ads</h1>
       </div>
       <div className="topbar-actions">
+        <button className="danger-btn" id="btnClearData" onClick={onClearData}>
+          Limpar Dados
+        </button>
         <button className="ghost-btn" id="btnDemo" onClick={onRefresh}>
           Atualizar leitura
         </button>

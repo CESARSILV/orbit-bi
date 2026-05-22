@@ -251,6 +251,21 @@ h2 {
   font-size: 1.2rem;
 }
 
+.danger-btn {
+  padding: 0 14px;
+  background: rgba(255, 75, 75, 0.12);
+  border: 1px solid rgba(255, 75, 75, 0.32);
+  color: #ff8c8c;
+  cursor: pointer;
+}
+
+.danger-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 75, 75, 0.22);
+  border-color: rgba(255, 75, 75, 0.52);
+  color: #ffb3b3;
+}
+
 .primary-btn:hover,
 .ghost-btn:hover,
 .icon-btn:hover,
@@ -746,7 +761,8 @@ td {
 
   .primary-btn,
   .ghost-btn,
-  .icon-btn {
+  .icon-btn,
+  .danger-btn {
     width: 100%;
   }
 }

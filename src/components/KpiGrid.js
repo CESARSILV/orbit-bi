@@ -37,7 +37,7 @@ function AnimatedNumber({ value, formatFn }) {
   return <>{formatFn(displayValue)}</>;
 }
 
-function KpiCard({ label, value, formatFn, delta, direction, meta, accent, index }) {
+function KpiCard({ label, value, formatFn, delta, direction, meta, accent, index, showDelta }) {
   return (
     <article
       className="kpi-card"
@@ -51,7 +51,7 @@ function KpiCard({ label, value, formatFn, delta, direction, meta, accent, index
         <AnimatedNumber value={value} formatFn={formatFn} />
       </div>
       <div className="kpi-meta">
-        <span className={`delta ${direction}`}>{delta}</span>
+        {showDelta && <span className={`delta ${direction}`}>{delta}</span>}
         <span>{meta}</span>
       </div>
     </article>
@@ -170,10 +170,12 @@ export default function KpiGrid({ totals }) {
     },
   ];
 
+  const showDeltas = totals.investimento > 0 || totals.receita > 0;
+
   return (
     <section className="kpi-grid" id="kpiGrid" aria-label="Principais indicadores">
       {kpis.map((kpi, index) => (
-        <KpiCard key={kpi.label} {...kpi} index={index} />
+        <KpiCard key={kpi.label} {...kpi} index={index} showDelta={showDeltas} />
       ))}
     </section>
   );

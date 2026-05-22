@@ -17,23 +17,9 @@ import AuthModal from "@/components/AuthModal";
 // Formatting helpers
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
-const INITIAL_CAMPAIGNS = [
-  { nome: "Pesquisa | Fundo de Funil | Marca", plataforma: "Google Ads", tipo: "google", investimento: 42800, receita: 381900, roas: 8.92, cpa: 42.1, ctr: 7.8, cpc: 2.4, conversoes: 1017, status: "Escalar com cautela" },
-  { nome: "Shopping | Produtos Heróis", plataforma: "Google Ads", tipo: "google", investimento: 76300, receita: 512600, roas: 6.72, cpa: 58.4, ctr: 3.9, cpc: 3.1, conversoes: 1307, status: "Vencedora" },
-  { nome: "Meta | Lookalike Compradores 3%", plataforma: "Meta Ads", tipo: "meta", investimento: 58500, receita: 284200, roas: 4.86, cpa: 66.8, ctr: 2.6, cpc: 1.92, conversoes: 875, status: "Oportunidade de escala" },
-  { nome: "Meta | Remarketing 14 dias", plataforma: "Meta Ads", tipo: "meta", investimento: 31900, receita: 222700, roas: 6.98, cpa: 37.5, ctr: 4.3, cpc: 1.48, conversoes: 851, status: "Manter pressão" },
-  { nome: "YouTube | Prova Social", plataforma: "Google Ads", tipo: "google", investimento: 27400, receita: 69200, roas: 2.53, cpa: 118.6, ctr: 1.1, cpc: 4.8, conversoes: 231, status: "Revisar criativo" },
-  { nome: "Meta | Interesse Amplo", plataforma: "Meta Ads", tipo: "meta", investimento: 48800, receita: 109400, roas: 2.24, cpa: 132.2, ctr: 1.4, cpc: 2.76, conversoes: 369, status: "Cortar desperdício" },
-];
+const INITIAL_CAMPAIGNS = [];
 
-const INITIAL_TIMELINE = [
-  { mes: "Jan", receita: 612000, investimento: 151000, roas: 4.05, cpa: 92 },
-  { mes: "Fev", receita: 684000, investimento: 158000, roas: 4.33, cpa: 87 },
-  { mes: "Mar", receita: 731000, investimento: 169000, roas: 4.33, cpa: 84 },
-  { mes: "Abr", receita: 802000, investimento: 176000, roas: 4.56, cpa: 79 },
-  { mes: "Mai", receita: 934000, investimento: 199000, roas: 4.69, cpa: 74 },
-  { mes: "Jun", receita: 1058200, investimento: 228000, roas: 4.64, cpa: 76 },
-];
+const INITIAL_TIMELINE = [];
 
 export default function Home() {
   // Authentication State
@@ -222,6 +208,36 @@ export default function Home() {
     }
   };
 
+  const handleClearData = async () => {
+    if (window.confirm("Tem certeza que deseja excluir todas as campanhas e histórico? Esta ação é irreversível e apagará os dados do banco de dados.")) {
+      setCampaigns([]);
+      setTimeline([]);
+      if (user && isSupabaseConfigured) {
+        try {
+          const { error: campaignsErr } = await supabase
+            .from("campaigns")
+            .delete()
+            .eq("user_id", user.id);
+            
+          const { error: timelineErr } = await supabase
+            .from("historical_metrics")
+            .delete()
+            .eq("user_id", user.id);
+
+          if (campaignsErr) throw campaignsErr;
+          if (timelineErr) throw timelineErr;
+          
+          triggerToast("Dados excluídos com sucesso do Supabase!");
+        } catch (err) {
+          console.error("Error clearing Supabase database records:", err);
+          triggerToast("Erro ao excluir dados do banco. Verifique suas permissões.");
+        }
+      } else {
+        triggerToast("Modo de demonstração zerado com sucesso!");
+      }
+    }
+  };
+
   const handleAuthSuccess = (authenticatedUser) => {
     if (authenticatedUser) {
       setUser(authenticatedUser);
@@ -272,6 +288,17 @@ export default function Home() {
 
   // Highlight analysis strings
   const getInsights = () => {
+    if (filteredCampaigns.length === 0) {
+      return {
+        summary: "Nenhum dado de campanha disponível no momento. Faça o upload de um arquivo CSV de campanhas ou integre sua conta para que o copiloto de IA possa gerar um diagnóstico estratégico em tempo real.",
+        list: [
+          { title: "Aguardando dados", text: "Você pode subir planilhas exportadas do Google Ads ou Meta Ads arrastando o arquivo no campo acima." },
+          { title: "Colunas recomendadas", text: "Para uma análise completa, inclua colunas como Campanha, Investimento, Receita, Cliques, Conversões." },
+          { title: "Dashboard Dinâmico", text: "Assim que os dados forem inseridos, todos os gráficos, tabelas e relatórios em PDF serão ativados." },
+        ]
+      };
+    }
+
     const sorted = [...filteredCampaigns].sort((a, b) => b.roas - a.roas);
     const best = sorted[0] || { nome: "Nenhuma", roas: 0 };
     const worst = sorted[sorted.length - 1] || { nome: "Nenhuma", roas: 0 };
@@ -606,6 +633,11 @@ export default function Home() {
   // Helper simulated answers for offline mode or missing API keys
   const getSimulatedAnswer = (text) => {
     const q = text.toLowerCase();
+    
+    if (filteredCampaigns.length === 0) {
+      return "Não há campanhas ou dados carregados no momento. Por favor, faça o upload de um arquivo CSV contendo os dados das suas campanhas de marketing (como nome, plataforma, investimento, receita, etc.) para que eu possa analisar o CPA, o ROAS e te dar recomendações estratégicas.";
+    }
+
     const sorted = [...filteredCampaigns].sort((a, b) => b.roas - a.roas);
     const best = sorted[0] || { nome: "Nenhuma", roas: 0 };
     const worst = sorted[sorted.length - 1] || { nome: "Nenhuma", roas: 0 };
@@ -620,6 +652,9 @@ export default function Home() {
       return `${worst.nome} é o principal ponto de desperdício: ROAS de ${worst.roas.toFixed(2).replace(".", ",")}x e CPA de ${brl.format(worst.cpa)}. Corte inicial sugerido: 25% do orçamento e teste novos criativos antes de reescalar.`;
     }
     if (q.includes("6 meses") || q.includes("compare")) {
+      if (timeline.length === 0) {
+        return "Atualmente não há histórico de meses carregado no sistema para fazer a comparação do semestre.";
+      }
       return `Nos últimos 6 meses, a receita evoluiu de ${brl.format(timeline[0].receita)} para ${brl.format(timeline[timeline.length - 1].receita)}. O crescimento acumulado é forte, mas o ROAS estabilizou; o próximo ganho deve vir de mix de verba e melhoria criativa.`;
     }
     return `Minha leitura executiva: receita de ${brl.format(totals.receita)}, ROAS de ${totals.roas.toFixed(2).replace(".", ",")}x e lucro estimado de ${brl.format(totals.lucro)}. A melhor decisão agora é proteger campanhas vencedoras e reduzir verba onde há fadiga ou baixa intenção.`;
@@ -811,7 +846,11 @@ export default function Home() {
         />
 
         <main className="workspace">
-          <Topbar onRefresh={handleRefreshData} onGenerateReport={handleGenerateReport} />
+          <Topbar 
+            onRefresh={handleRefreshData} 
+            onGenerateReport={handleGenerateReport} 
+            onClearData={handleClearData} 
+          />
 
           <ControlStrip
             platform={platform}

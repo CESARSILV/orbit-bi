@@ -29,21 +29,29 @@ export default function CampaignTable({ campaigns }) {
             </tr>
           </thead>
           <tbody>
-            {sortedCampaigns.map((item, index) => (
-              <tr key={index}>
-                <td>
-                  <strong>{item.nome}</strong>
-                </td>
-                <td>{item.plataforma}</td>
-                <td>{brl.format(item.investimento)}</td>
-                <td>{brl.format(item.receita)}</td>
-                <td>{item.roas.toFixed(2).replace(".", ",")}x</td>
-                <td>{brl.format(item.cpa)}</td>
-                <td>
-                  <span className="tag">{item.status}</span>
+            {sortedCampaigns.length === 0 ? (
+              <tr>
+                <td colSpan={7} style={{ textAlign: "center", padding: "32px", color: "rgba(245, 247, 251, 0.42)", fontStyle: "italic" }}>
+                  Nenhuma campanha cadastrada. Faça upload de um arquivo CSV de campanhas para começar.
                 </td>
               </tr>
-            ))}
+            ) : (
+              sortedCampaigns.map((item, index) => (
+                <tr key={index}>
+                  <td>
+                    <strong>{item.nome}</strong>
+                  </td>
+                  <td>{item.plataforma}</td>
+                  <td>{brl.format(item.investimento)}</td>
+                  <td>{brl.format(item.receita)}</td>
+                  <td>{item.roas.toFixed(2).replace(".", ",")}x</td>
+                  <td>{brl.format(item.cpa)}</td>
+                  <td>
+                    <span className="tag">{item.status}</span>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

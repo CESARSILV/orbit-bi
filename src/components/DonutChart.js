@@ -31,7 +31,8 @@ export default function DonutChart({ campaigns }) {
 
       const google = campaigns.filter((item) => item.tipo === "google").reduce((sum, item) => sum + item.investimento, 0);
       const meta = campaigns.filter((item) => item.tipo === "meta").reduce((sum, item) => sum + item.investimento, 0);
-      const total = google + meta || 1; // prevent division by zero
+      const totalInvest = google + meta;
+      const total = totalInvest || 1; // prevent division by zero
 
       const centerX = clientWidth / 2;
       const centerY = 102;
@@ -58,7 +59,7 @@ export default function DonutChart({ campaigns }) {
       ctx.font = "800 22px Inter, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(brl.format(total), centerX, centerY - 5);
+      ctx.fillText(brl.format(totalInvest), centerX, centerY - 5);
 
       ctx.fillStyle = "rgba(245, 247, 251, 0.62)";
       ctx.font = "12px Inter, sans-serif";
