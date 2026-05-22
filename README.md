@@ -1,53 +1,36 @@
-# Orbit BI
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Plataforma SaaS de Business Intelligence com IA para análise executiva de mídia paga em Google Ads e Meta Ads.
+## Getting Started
 
-Toda a experiência foi criada em português do Brasil, incluindo dashboards, KPIs, insights, chat de IA, exportações e relatórios.
-
-## O que o app entrega
-
-- Dashboard executivo premium em dark mode
-- KPIs animados de mídia paga
-- Comparação entre Google Ads e Meta Ads
-- Ranking inteligente de campanhas
-- Upload de CSV, XLSX, PDFs e imagens
-- Chat de IA para análise estratégica em PT-BR
-- Exportação de planilha para Downloads
-- Geração de PDF executivo para Downloads
-- Interface responsiva e pronta para demonstração
-
-## Como abrir
-
-Abra o arquivo `index.html` no navegador.
-
-Para testar como servidor local:
+First, run the development server:
 
 ```bash
-python3 -m http.server 4173
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-Depois acesse:
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-```text
-http://127.0.0.1:4173/
-```
+You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
 
-## Estrutura
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-```text
-.
-├── index.html
-├── styles.css
-├── app.js
-├── README.md
-└── .gitignore
-```
+## Learn More
 
-## Próximos passos técnicos
+To learn more about Next.js, take a look at the following resources:
 
-- Conectar OpenAI multimodal para OCR e análise real de imagens, PDFs e planilhas
-- Adicionar Supabase para autenticação, banco de dados e armazenamento de arquivos
-- Criar pipeline de normalização para exports de Google Ads e Meta Ads
-- Gerar relatórios PDF com gráficos dinâmicos do dataset real
-- Transformar a base estática em app React/Next.js quando o produto evoluir
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
