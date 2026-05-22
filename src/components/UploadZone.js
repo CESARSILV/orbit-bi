@@ -61,12 +61,20 @@ export default function UploadZone({ files, onFilesSelected }) {
         {files.length === 0 ? (
           <span>Nenhum arquivo analisado ainda.</span>
         ) : (
-          files.map((file, index) => (
-            <div key={index} className="file-item">
-              <span>{file.name}</span>
-              <span>Analisado</span>
-            </div>
-          ))
+          files.map((file, index) => {
+            const isObj = typeof file === "object" && file !== null;
+            const name = isObj ? file.name : String(file);
+            const status = isObj ? file.status : "sucesso";
+            const message = isObj ? file.message : "Analisado";
+            const statusClass = `status-${status}`;
+            
+            return (
+              <div key={index} className={`file-item ${statusClass}`}>
+                <span style={{ wordBreak: "break-all" }}>{name}</span>
+                <span className="file-status-badge">{message}</span>
+              </div>
+            );
+          })
         )}
       </div>
     </article>

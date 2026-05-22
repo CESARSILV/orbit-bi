@@ -459,6 +459,29 @@ select {
   color: var(--soft);
 }
 
+.file-status-badge {
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.file-item.status-processando .file-status-badge {
+  color: #ffd481;
+  background: rgba(255, 212, 129, 0.1);
+}
+
+.file-item.status-sucesso .file-status-badge {
+  color: var(--green);
+  background: rgba(124, 247, 190, 0.1);
+}
+
+.file-item.status-erro .file-status-badge {
+  color: #ff8b8b;
+  background: rgba(255, 139, 139, 0.1);
+}
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(150px, 1fr));

@@ -767,11 +767,18 @@ export default function Home() {
     });
   };
 
+  const updateFileStatus = (fileName, status, message = "") => {
+    setFiles((prev) =>
+      prev.map((f) => (f.name === fileName ? { ...f, status, message } : f))
+    );
+  };
+
   const handleFilesSelected = async (selectedFiles) => {
     const list = [...selectedFiles];
     if (!list.length) return;
 
     const validFiles = [];
+    const newFilesState = [];
     for (const file of list) {
       // 4MB limit
       if (file.size > 4 * 1024 * 1024) {
@@ -779,11 +786,18 @@ export default function Home() {
         continue;
       }
       validFiles.push(file);
+      newFilesState.push({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        status: "processando",
+        message: "Lendo..."
+      });
     }
 
     if (!validFiles.length) return;
 
-    setFiles((prev) => [...prev, ...validFiles]);
+    setFiles((prev) => [...prev, ...newFilesState]);
 
     for (const file of validFiles) {
       // Read visual files/pdfs as base64 for Gemini multimodal OCR context
@@ -794,68 +808,115 @@ export default function Home() {
             ...prev,
             { name: file.name, mimeType: file.type, base64: e.target.result }
           ]);
+          updateFileStatus(file.name, "sucesso", "Pronto para IA");
+        };
+        reader.onerror = () => {
+          updateFileStatus(file.name, "erro", "Erro ao ler");
         };
         reader.readAsDataURL(file);
       }
 
-      // If CSV, import campaign data
+      // If CSV, parse and import or send to AI context
       if (file.name.toLowerCase().endsWith(".csv")) {
         const reader = new FileReader();
         reader.onload = async (e) => {
           const text = e.target.result;
-          const parsed = parseCsv(text);
-          
-          if (user && isSupabaseConfigured && parsed.length > 0) {
-            try {
-              const newCampaigns = parsed.map(row => {
-                const invest = parseFormattedFloat(row.investimento || row.spend || row["investimento (brl)"] || 0);
-                const rec = parseFormattedFloat(row.receita || row.revenue || row["receita (brl)"] || 0);
-                return {
-                  nome: row.campanha || row.name || row.campaign || "Campanha Importada",
-                  plataforma: row.plataforma || row.platform || "Outros",
-                  tipo: (row.plataforma || row.platform || "").toLowerCase().includes("meta") ? "meta" : "google",
-                  investimento: invest,
-                  receita: rec,
-                  roas: invest > 0 ? rec / invest : parseFormattedFloat(row.roas || 0),
-                  cpa: parseFormattedFloat(row.cpa || 0),
-                  ctr: parseFormattedFloat(row.ctr || 0),
-                  cpc: parseFormattedFloat(row.cpc || 0),
-                  conversoes: Math.round(parseFormattedFloat(row.conversoes || row.conversions || 0)),
-                  status: row.status || "Ativa",
-                  user_id: user.id
-                };
-              });
-
-              const { data, error } = await supabase
-                .from("campaigns")
-                .insert(newCampaigns)
-                .select();
-              
-              if (error) throw error;
-              if (data) {
-                setCampaigns(prev => [...prev, ...data.map(c => ({
-                  id: c.id,
-                  nome: c.nome,
-                  plataforma: c.plataforma,
-                  tipo: c.tipo,
-                  investimento: Number(c.investimento),
-                  receita: Number(c.receita),
-                  roas: Number(c.roas),
-                  cpa: Number(c.cpa),
-                  ctr: Number(c.ctr),
-                  cpc: Number(c.cpc),
-                  conversoes: Number(c.conversoes),
-                  status: c.status
-                }))]);
-              }
-              triggerToast(`CSV carregado com sucesso: ${newCampaigns.length} campanhas salvas no Supabase.`);
-            } catch (err) {
-              console.error("Error importing campaigns:", err);
-              triggerToast("Erro ao sincronizar CSV com o banco.");
+          try {
+            const parsed = parseCsv(text);
+            if (parsed.length === 0) {
+              updateFileStatus(file.name, "erro", "CSV Vazio");
+              triggerToast(`O arquivo "${file.name}" está vazio ou em formato incompatível.`);
+              return;
             }
-          } else {
-            triggerToast(`CSV interpretado localmente: ${parsed.length} linhas estruturadas.`);
+
+            // Check if this CSV actually contains campaign data or is demographic/support data
+            const firstRow = parsed[0];
+            const hasCampanha = firstRow.campanha !== undefined || firstRow.name !== undefined || firstRow.campaign !== undefined || firstRow.campanhas !== undefined;
+            const hasMetrics = firstRow.investimento !== undefined || firstRow.spend !== undefined || firstRow.receita !== undefined || firstRow.revenue !== undefined || firstRow.conversoes !== undefined || firstRow.conversions !== undefined;
+
+            if (!hasCampanha && !hasMetrics) {
+              // It's a support report (demographics, keywords, networks, devices, time-series)
+              // Convert text to base64 and feed it to the AI as a support document
+              const safeTextToBase64 = (str) => {
+                try {
+                  return btoa(
+                    encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function toSolidBytes(match, p1) {
+                      return String.fromCharCode(parseInt(p1, 16));
+                    })
+                  );
+                } catch (err2) {
+                  return btoa(unescape(encodeURIComponent(str)));
+                }
+              };
+
+              const base64Data = safeTextToBase64(text);
+              setBase64Files((prev) => [
+                ...prev,
+                { name: file.name, mimeType: "text/plain", base64: `data:text/plain;base64,${base64Data}` }
+              ]);
+
+              updateFileStatus(file.name, "sucesso", "Dados de Suporte (IA)");
+              triggerToast(`Dados de suporte "${file.name}" carregados para a IA.`);
+            } else {
+              // It's a campaigns file, try importing
+              if (user && isSupabaseConfigured) {
+                updateFileStatus(file.name, "processando", "Importando...");
+                const newCampaigns = parsed.map(row => {
+                  const invest = parseFormattedFloat(row.investimento || row.spend || row["investimento (brl)"] || 0);
+                  const rec = parseFormattedFloat(row.receita || row.revenue || row["receita (brl)"] || 0);
+                  return {
+                    nome: row.campanha || row.name || row.campaign || "Campanha Importada",
+                    plataforma: row.plataforma || row.platform || "Outros",
+                    tipo: (row.plataforma || row.platform || "").toLowerCase().includes("meta") ? "meta" : "google",
+                    investimento: invest,
+                    receita: rec,
+                    roas: invest > 0 ? rec / invest : parseFormattedFloat(row.roas || 0),
+                    cpa: parseFormattedFloat(row.cpa || 0),
+                    ctr: parseFormattedFloat(row.ctr || 0),
+                    cpc: parseFormattedFloat(row.cpc || 0),
+                    conversoes: Math.round(parseFormattedFloat(row.conversoes || row.conversions || 0)),
+                    status: row.status || "Ativa",
+                    user_id: user.id
+                  };
+                });
+
+                const { data, error } = await supabase
+                  .from("campaigns")
+                  .insert(newCampaigns)
+                  .select();
+                
+                if (error) throw error;
+                if (data) {
+                  setCampaigns(prev => [...prev, ...data.map(c => ({
+                    id: c.id,
+                    nome: c.nome,
+                    plataforma: c.plataforma,
+                    tipo: c.tipo,
+                    investimento: Number(c.investimento),
+                    receita: Number(c.receita),
+                    roas: Number(c.roas),
+                    cpa: Number(c.cpa),
+                    ctr: Number(c.ctr),
+                    cpc: Number(c.cpc),
+                    conversoes: Number(c.conversoes),
+                    status: c.status
+                  }))]);
+                }
+                updateFileStatus(file.name, "sucesso", "Sincronizado");
+                triggerToast(`CSV carregado com sucesso: ${newCampaigns.length} campanhas salvas no Supabase.`);
+              } else {
+                updateFileStatus(file.name, "sucesso", "Simulado Local");
+                triggerToast(`CSV interpretado localmente: ${parsed.length} linhas estruturadas.`);
+              }
+            }
+          } catch (err) {
+            console.error("Error importing campaigns:", err);
+            updateFileStatus(file.name, "erro", "Erro no processamento");
+            triggerToast("Erro ao sincronizar CSV.");
           }
+        };
+        reader.onerror = () => {
+          updateFileStatus(file.name, "erro", "Erro de leitura");
         };
         reader.readAsText(file);
       }
@@ -867,19 +928,14 @@ export default function Home() {
           const fileName = `${Math.random()}.${fileExt}`;
           const filePath = `${user.id}/${fileName}`;
 
-          const { error: uploadError } = await supabase.storage
+          await supabase.storage
             .from("campaign-uploads")
             .upload(filePath, file);
-
-          if (uploadError) throw uploadError;
-          triggerToast(`Arquivo ${file.name} armazenado no Supabase Storage.`);
         } catch (err) {
           console.error("Storage upload error:", err);
         }
       }
     }
-
-    triggerToast("Arquivos recebidos. Envie uma mensagem para a IA analisar.");
   };
 
   const handleToggleAutomation = () => {
