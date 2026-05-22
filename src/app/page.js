@@ -25,7 +25,7 @@ export default function Home() {
   // Authentication State
   const [user, setUser] = useState(null);
   const [authBypassed, setAuthBypassed] = useState(false);
-  const [authChecking, setAuthChecking] = useState(true);
+  const [authChecking, setAuthChecking] = useState(isSupabaseConfigured);
 
   // Application State
   const [platform, setPlatform] = useState("todas");
@@ -63,9 +63,115 @@ export default function Home() {
   // Auth setup and Session check
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      setAuthChecking(false);
       return;
     }
+
+    // Seed default data for new database users
+    const seedUserData = async (userId) => {
+      try {
+        const seededCampaigns = INITIAL_CAMPAIGNS.map(c => ({
+          nome: c.nome,
+          plataforma: c.plataforma,
+          tipo: c.tipo,
+          investimento: c.investimento,
+          receita: c.receita,
+          roas: c.roas,
+          cpa: c.cpa,
+          ctr: c.ctr,
+          cpc: c.cpc,
+          conversoes: c.conversoes,
+          status: c.status,
+          user_id: userId
+        }));
+
+        const seededTimeline = INITIAL_TIMELINE.map(t => ({
+          mes: t.mes,
+          receita: t.receita,
+          investimento: t.investimento,
+          roas: t.roas,
+          cpa: t.cpa,
+          user_id: userId
+        }));
+
+        const { data: cData, error: cErr } = await supabase.from("campaigns").insert(seededCampaigns).select();
+        if (cErr) throw cErr;
+
+        const { error: tErr } = await supabase.from("historical_metrics").insert(seededTimeline);
+        if (tErr) throw tErr;
+
+        if (cData) {
+          setCampaigns(cData.map(c => ({
+            id: c.id,
+            nome: c.nome,
+            plataforma: c.plataforma,
+            tipo: c.tipo,
+            investimento: Number(c.investimento),
+            receita: Number(c.receita),
+            roas: Number(c.roas),
+            cpa: Number(c.cpa),
+            ctr: Number(c.ctr),
+            cpc: Number(c.cpc),
+            conversoes: Number(c.conversoes),
+            status: c.status
+          })));
+        }
+        triggerToast("Seu painel Supabase foi inicializado com dados de teste!");
+      } catch (err) {
+        console.error("Error seeding user database data:", err);
+      }
+    };
+
+    // Fetch campaigns and metrics from Supabase
+    const fetchUserData = async (userId) => {
+      try {
+        const { data: campaignsData, error: campaignsError } = await supabase
+          .from("campaigns")
+          .select("*");
+
+        if (campaignsError) throw campaignsError;
+
+        const { data: timelineData, error: timelineError } = await supabase
+          .from("historical_metrics")
+          .select("*")
+          .order("created_at", { ascending: true });
+
+        if (timelineError) throw timelineError;
+
+        if (campaignsData && campaignsData.length > 0) {
+          // Map DB campaigns back to UI format
+          setCampaigns(campaignsData.map(c => ({
+            id: c.id,
+            nome: c.nome,
+            plataforma: c.plataforma,
+            tipo: c.tipo,
+            investimento: Number(c.investimento),
+            receita: Number(c.receita),
+            roas: Number(c.roas),
+            cpa: Number(c.cpa),
+            ctr: Number(c.ctr),
+            cpc: Number(c.cpc),
+            conversoes: Number(c.conversoes),
+            status: c.status
+          })));
+        } else {
+          // Seed DB if it's a new user
+          await seedUserData(userId);
+        }
+
+        if (timelineData && timelineData.length > 0) {
+          setTimeline(timelineData.map(t => ({
+            mes: t.mes,
+            receita: Number(t.receita),
+            investimento: Number(t.investimento),
+            roas: Number(t.roas),
+            cpa: Number(t.cpa)
+          })));
+        }
+      } catch (err) {
+        console.error("Error fetching database data:", err);
+        triggerToast("Erro ao carregar dados do Supabase. Usando simulação local.");
+      }
+    };
 
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -90,114 +196,8 @@ export default function Home() {
     });
 
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Fetch campaigns and metrics from Supabase
-  const fetchUserData = async (userId) => {
-    try {
-      const { data: campaignsData, error: campaignsError } = await supabase
-        .from("campaigns")
-        .select("*");
-
-      if (campaignsError) throw campaignsError;
-
-      const { data: timelineData, error: timelineError } = await supabase
-        .from("historical_metrics")
-        .select("*")
-        .order("created_at", { ascending: true });
-
-      if (timelineError) throw timelineError;
-
-      if (campaignsData && campaignsData.length > 0) {
-        // Map DB campaigns back to UI format
-        setCampaigns(campaignsData.map(c => ({
-          id: c.id,
-          nome: c.nome,
-          plataforma: c.plataforma,
-          tipo: c.tipo,
-          investimento: Number(c.investimento),
-          receita: Number(c.receita),
-          roas: Number(c.roas),
-          cpa: Number(c.cpa),
-          ctr: Number(c.ctr),
-          cpc: Number(c.cpc),
-          conversoes: Number(c.conversoes),
-          status: c.status
-        })));
-      } else {
-        // Seed DB if it's a new user
-        await seedUserData(userId);
-      }
-
-      if (timelineData && timelineData.length > 0) {
-        setTimeline(timelineData.map(t => ({
-          mes: t.mes,
-          receita: Number(t.receita),
-          investimento: Number(t.investimento),
-          roas: Number(t.roas),
-          cpa: Number(t.cpa)
-        })));
-      }
-    } catch (err) {
-      console.error("Error fetching database data:", err);
-      triggerToast("Erro ao carregar dados do Supabase. Usando simulação local.");
-    }
-  };
-
-  // Seed default data for new database users
-  const seedUserData = async (userId) => {
-    try {
-      const seededCampaigns = INITIAL_CAMPAIGNS.map(c => ({
-        nome: c.nome,
-        plataforma: c.plataforma,
-        tipo: c.tipo,
-        investimento: c.investimento,
-        receita: c.receita,
-        roas: c.roas,
-        cpa: c.cpa,
-        ctr: c.ctr,
-        cpc: c.cpc,
-        conversoes: c.conversoes,
-        status: c.status,
-        user_id: userId
-      }));
-
-      const seededTimeline = INITIAL_TIMELINE.map(t => ({
-        mes: t.mes,
-        receita: t.receita,
-        investimento: t.investimento,
-        roas: t.roas,
-        cpa: t.cpa,
-        user_id: userId
-      }));
-
-      const { data: cData, error: cErr } = await supabase.from("campaigns").insert(seededCampaigns).select();
-      if (cErr) throw cErr;
-
-      const { error: tErr } = await supabase.from("historical_metrics").insert(seededTimeline);
-      if (tErr) throw tErr;
-
-      if (cData) {
-        setCampaigns(cData.map(c => ({
-          id: c.id,
-          nome: c.nome,
-          plataforma: c.plataforma,
-          tipo: c.tipo,
-          investimento: Number(c.investimento),
-          receita: Number(c.receita),
-          roas: Number(c.roas),
-          cpa: Number(c.cpa),
-          ctr: Number(c.ctr),
-          cpc: Number(c.cpc),
-          conversoes: Number(c.conversoes),
-          status: c.status
-        })));
-      }
-      triggerToast("Seu painel Supabase foi inicializado com dados de teste!");
-    } catch (err) {
-      console.error("Error seeding user database data:", err);
-    }
-  };
 
   const handleSignOut = async () => {
     if (isSupabaseConfigured) {
@@ -709,14 +709,59 @@ export default function Home() {
   };
 
   // File Upload Logic
+  const parseFormattedFloat = (val) => {
+    if (!val) return 0;
+    let cleaned = String(val)
+      .replace(/[R$\s%]/g, "") // remove currency, percentage and spaces
+      .trim();
+    if (cleaned.includes(",") && !cleaned.includes(".")) {
+      cleaned = cleaned.replace(",", ".");
+    } else if (cleaned.includes(",") && cleaned.includes(".")) {
+      cleaned = cleaned.replaceAll(".", "").replace(",", ".");
+    }
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  const splitCsvLine = (line, delimiter) => {
+    const result = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === delimiter && !inQuotes) {
+        result.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
+
   const parseCsv = (text) => {
     const lines = text.split(/\r?\n/).filter(Boolean);
     if (lines.length < 2) return [];
-    const headers = lines[0].split(",").map((item) => item.trim().toLowerCase());
+    
+    // Autodetect delimiter
+    const headerLine = lines[0];
+    const commas = (headerLine.match(/,/g) || []).length;
+    const semicolons = (headerLine.match(/;/g) || []).length;
+    const delimiter = semicolons > commas ? ";" : ",";
+
+    const headers = splitCsvLine(headerLine, delimiter).map((item) =>
+      item.replace(/^["']|["']$/g, "").trim().toLowerCase()
+    );
+
     return lines.slice(1).map((line) => {
-      const values = line.split(",");
+      const values = splitCsvLine(line, delimiter).map((item) =>
+        item.replace(/^["']|["']$/g, "").trim()
+      );
       return headers.reduce((row, header, index) => {
-        row[header] = values[index]?.trim();
+        row[header] = values[index];
         return row;
       }, {});
     });
@@ -726,9 +771,21 @@ export default function Home() {
     const list = [...selectedFiles];
     if (!list.length) return;
 
-    setFiles((prev) => [...prev, ...list]);
-
+    const validFiles = [];
     for (const file of list) {
+      // 4MB limit
+      if (file.size > 4 * 1024 * 1024) {
+        triggerToast(`O arquivo "${file.name}" excede o limite de 4MB para análise de IA.`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    if (!validFiles.length) return;
+
+    setFiles((prev) => [...prev, ...validFiles]);
+
+    for (const file of validFiles) {
       // Read visual files/pdfs as base64 for Gemini multimodal OCR context
       if (file.type.startsWith("image/") || file.name.toLowerCase().endsWith(".pdf")) {
         const reader = new FileReader();
@@ -751,19 +808,19 @@ export default function Home() {
           if (user && isSupabaseConfigured && parsed.length > 0) {
             try {
               const newCampaigns = parsed.map(row => {
-                const invest = parseFloat(row.investimento || row.spend || 0);
-                const rec = parseFloat(row.receita || row.revenue || 0);
+                const invest = parseFormattedFloat(row.investimento || row.spend || row["investimento (brl)"] || 0);
+                const rec = parseFormattedFloat(row.receita || row.revenue || row["receita (brl)"] || 0);
                 return {
                   nome: row.campanha || row.name || row.campaign || "Campanha Importada",
                   plataforma: row.plataforma || row.platform || "Outros",
                   tipo: (row.plataforma || row.platform || "").toLowerCase().includes("meta") ? "meta" : "google",
                   investimento: invest,
                   receita: rec,
-                  roas: invest > 0 ? rec / invest : parseFloat(row.roas || 0),
-                  cpa: parseFloat(row.cpa || 0),
-                  ctr: parseFloat(row.ctr || 0),
-                  cpc: parseFloat(row.cpc || 0),
-                  conversoes: parseInt(row.conversoes || row.conversions || 0),
+                  roas: invest > 0 ? rec / invest : parseFormattedFloat(row.roas || 0),
+                  cpa: parseFormattedFloat(row.cpa || 0),
+                  ctr: parseFormattedFloat(row.ctr || 0),
+                  cpc: parseFormattedFloat(row.cpc || 0),
+                  conversoes: Math.round(parseFormattedFloat(row.conversoes || row.conversions || 0)),
                   status: row.status || "Ativa",
                   user_id: user.id
                 };

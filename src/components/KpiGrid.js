@@ -32,6 +32,7 @@ function AnimatedNumber({ value, formatFn }) {
 
     const animationId = window.requestAnimationFrame(step);
     return () => window.cancelAnimationFrame(animationId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   return <>{formatFn(displayValue)}</>;
