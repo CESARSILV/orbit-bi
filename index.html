@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Orbit BI | Copiloto Executivo de Mídia Paga</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <canvas id="aurora" aria-hidden="true"></canvas>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navegação principal">
+        <div class="brand">
+          <div class="brand-mark">O</div>
+          <div>
+            <strong>Orbit BI</strong>
+            <span>Inteligência de mídia paga</span>
+          </div>
+        </div>
+
+        <nav class="nav-list">
+          <button class="nav-item active" data-section="visao-geral">Visão geral</button>
+          <button class="nav-item" data-section="comparacao">Comparações</button>
+          <button class="nav-item" data-section="criativos">Criativos</button>
+          <button class="nav-item" data-section="relatorios">Relatórios</button>
+          <button class="nav-item" data-section="automacoes">Automações</button>
+        </nav>
+
+        <div class="sidebar-card">
+          <span class="status-dot"></span>
+          <p>IA multimodal pronta para interpretar imagens, PDFs, CSV, XLSX e exports de Google Ads e Meta Ads.</p>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Painel executivo</p>
+            <h1>Copiloto de performance para Google Ads e Meta Ads</h1>
+          </div>
+          <div class="topbar-actions">
+            <button class="ghost-btn" id="btnDemo">Atualizar leitura</button>
+            <button class="primary-btn" id="btnReport">Gerar PDF executivo</button>
+          </div>
+        </header>
+
+        <section class="control-strip" aria-label="Filtros do painel">
+          <label>
+            Plataforma
+            <select id="platformFilter">
+              <option value="todas">Todas</option>
+              <option value="google">Google Ads</option>
+              <option value="meta">Meta Ads</option>
+            </select>
+          </label>
+          <label>
+            Período
+            <select id="periodFilter">
+              <option value="30">Últimos 30 dias</option>
+              <option value="90">Últimos 90 dias</option>
+              <option value="180">Últimos 6 meses</option>
+            </select>
+          </label>
+          <label>
+            Objetivo
+            <select id="goalFilter">
+              <option value="receita">Receita</option>
+              <option value="leads">Leads</option>
+              <option value="vendas">Vendas</option>
+            </select>
+          </label>
+          <button class="icon-btn" id="btnExport" title="Exportar planilha profissional">⇩</button>
+        </section>
+
+        <section class="hero-grid" id="visao-geral">
+          <article class="intelligence-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Diagnóstico da IA</p>
+                <h2>Resumo estratégico do mês</h2>
+              </div>
+              <span class="confidence">97% confiança</span>
+            </div>
+            <p id="executiveSummary">
+              O investimento está crescendo com eficiência: ROAS acima da meta, CPA controlado e forte concentração de receita em campanhas de fundo de funil.
+            </p>
+            <div class="insight-list" id="insightList"></div>
+          </article>
+
+          <article class="upload-panel">
+            <div class="upload-zone" id="uploadZone">
+              <input id="fileInput" type="file" multiple accept=".csv,.xlsx,.xls,.pdf,image/*" aria-label="Selecionar arquivos para análise" />
+              <div class="upload-icon">+</div>
+              <h2>Enviar dados ou prints</h2>
+              <p>Arraste CSV, XLSX, PDFs, screenshots, fotos de dashboards ou exports de anúncios.</p>
+              <button class="ghost-btn" id="btnSelectFiles" type="button">Selecionar arquivos</button>
+            </div>
+            <div class="file-feed" id="fileFeed">
+              <span>Nenhum arquivo analisado ainda.</span>
+            </div>
+          </article>
+        </section>
+
+        <section class="kpi-grid" id="kpiGrid" aria-label="Principais indicadores"></section>
+
+        <section class="analytics-grid">
+          <article class="chart-panel wide" id="comparacao">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Evolução histórica</p>
+                <h2>Receita, investimento e ROAS</h2>
+              </div>
+              <div class="segmented" role="tablist">
+                <button class="active" data-chart="receita">Receita</button>
+                <button data-chart="roas">ROAS</button>
+                <button data-chart="cpa">CPA</button>
+              </div>
+            </div>
+            <canvas id="mainChart" height="260"></canvas>
+          </article>
+
+          <article class="chart-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Distribuição</p>
+                <h2>Investimento por plataforma</h2>
+              </div>
+            </div>
+            <canvas id="donutChart" height="240"></canvas>
+          </article>
+        </section>
+
+        <section class="analytics-grid operations-grid">
+          <article class="table-panel" id="criativos">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Campanhas</p>
+                <h2>Ranking de performance</h2>
+              </div>
+              <span class="live-pill">Tempo real</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Campanha</th>
+                    <th>Plataforma</th>
+                    <th>Investimento</th>
+                    <th>Receita</th>
+                    <th>ROAS</th>
+                    <th>CPA</th>
+                    <th>Status IA</th>
+                  </tr>
+                </thead>
+                <tbody id="campaignRows"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="assistant-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Assistente nativo</p>
+                <h2>Analista IA</h2>
+              </div>
+            </div>
+            <div class="chat-feed" id="chatFeed">
+              <div class="message ai">Olá. Já analisei o painel atual e posso explicar ROAS, CPA, públicos vencedores, desperdício de verba e próximos passos.</div>
+            </div>
+            <form class="chat-form" id="chatForm">
+              <input id="chatInput" type="text" placeholder="Pergunte em PT-BR sobre campanhas, períodos ou oportunidades..." />
+              <button type="submit">Enviar</button>
+            </form>
+          </article>
+        </section>
+
+        <section class="report-grid" id="relatorios">
+          <article>
+            <p class="eyebrow">Relatório executivo</p>
+            <h2>PDF premium para reuniões</h2>
+            <p>Gere um resumo com storytelling, gráficos, variações percentuais, conclusões estratégicas e próximos passos em linguagem executiva.</p>
+            <button class="primary-btn" id="btnReportBottom">Criar relatório agora</button>
+          </article>
+          <article id="automacoes">
+            <p class="eyebrow">Automações inteligentes</p>
+            <h2>Alertas de performance</h2>
+            <p>Monitore queda de ROAS, aumento de CPA, fadiga criativa, desperdício de verba e oportunidades de escala antes que virem problema.</p>
+            <button class="ghost-btn" id="btnAutomation">Ativar monitoramento</button>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
