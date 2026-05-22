@@ -1212,3 +1212,329 @@ td {
   color: var(--text-muted);
   margin: 0;
 }
+
+/* Presentation & Slide Deck styles */
+.pres-wrapper {
+  min-height: 100vh;
+  background: #05070e;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  overflow-x: hidden;
+}
+
+.pres-header {
+  width: 100%;
+  max-width: 1000px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  z-index: 100;
+}
+
+.pres-nav-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.pres-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.pres-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.pres-btn.primary {
+  background: var(--blue);
+  border-color: rgba(90, 160, 255, 0.3);
+  color: #fff;
+}
+
+.pres-btn.primary:hover {
+  background: #6aa3f0;
+  box-shadow: 0 0 12px rgba(123, 183, 255, 0.3);
+}
+
+.pres-indicators {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pres-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pres-dot.active {
+  background: var(--blue);
+  width: 24px;
+  border-radius: 4px;
+}
+
+/* Slide Deck Box */
+.slide-deck {
+  width: 100%;
+  max-width: 1000px;
+  aspect-ratio: 16 / 9;
+  background: rgba(11, 15, 26, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.slide-content {
+  flex: 1;
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+}
+
+.slide-footer {
+  padding: 16px 48px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.slide-footer-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Slide Styles */
+.slide-cover {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.slide-title-large {
+  font-size: 52px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #7bb7ff 0%, #7cf7be 50%, #ffd481 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.slide-subtitle-large {
+  font-size: 18px;
+  color: var(--text-muted);
+  margin-bottom: 40px;
+}
+
+.slide-cover-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 24px 32px;
+  border-radius: 12px;
+  max-width: 640px;
+}
+
+.slide-cover-card h4 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--blue);
+  margin-bottom: 8px;
+}
+
+.slide-cover-card p {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Feature Slide Layouts */
+.slide-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 24px;
+}
+
+.slide-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.slide-num {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue);
+}
+
+.slide-grid-2x2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.slide-feature-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px;
+  border-radius: 12px;
+  transition: transform 0.2s ease;
+}
+
+.slide-feature-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.slide-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.slide-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(90, 160, 255, 0.1);
+  color: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slide-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.slide-card-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Slide 3 Grid */
+.slide-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+/* PRINT CSS STYLE RULES */
+@media print {
+  /* Setup page */
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+  
+  html, body {
+    background: #05070e !important;
+    color: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .pres-wrapper {
+    padding: 0 !important;
+    background: #05070e !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Hide controls and backgrounds animations during print */
+  .pres-header,
+  .pres-nav-buttons,
+  .pres-indicators,
+  .no-print,
+  .aurora-bg {
+    display: none !important;
+  }
+
+  /* Force all slides to be printed sequentially, one per page */
+  .slide-deck {
+    display: none !important; /* Hide the interactive single slide wrapper */
+  }
+
+  /* Show the printable static slide layout instead */
+  .print-only-slides {
+    display: block !important;
+    width: 100vw !important;
+    height: 100vh !important;
+  }
+
+  .print-slide {
+    width: 100vw !important;
+    height: 100vh !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    box-sizing: border-box !important;
+    padding: 48px !important;
+    background: #05070e !important;
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    position: relative !important;
+  }
+
+  /* Ensure text colors look bright and legible */
+  .slide-title-large {
+    background: linear-gradient(135deg, #7bb7ff 0%, #7cf7be 50%, #ffd481 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+  }
+}
+
+/* Hide print-only element in browser view */
+.print-only-slides {
+  display: none;
+}

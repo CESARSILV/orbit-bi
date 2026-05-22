@@ -39,6 +39,26 @@ export default function Sidebar({ activeSection, onSectionChange, user, onSignOu
             {item.label}
           </button>
         ))}
+        <a
+          href="/apresentacao"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="nav-item"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            textDecoration: "none",
+            marginTop: "16px",
+            border: "1px dashed rgba(255, 255, 255, 0.2)",
+            background: "rgba(123, 183, 255, 0.05)",
+            color: "var(--blue)",
+            justifyContent: "center",
+            fontWeight: "600"
+          }}
+        >
+          🖥️ Apresentação &amp; PDF
+        </a>
       </nav>
 
       {/* Auth Info Footer inside Sidebar */}
