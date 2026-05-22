@@ -57,7 +57,7 @@ export default function Sidebar({ activeSection, onSectionChange, user, onSignOu
             fontWeight: "600"
           }}
         >
-          🖥️ Apresentação &amp; PDF
+          Apresentação e PDF
         </a>
       </nav>
 
@@ -101,7 +101,7 @@ export default function Sidebar({ activeSection, onSectionChange, user, onSignOu
 
       <div className="sidebar-card">
         <span className="status-dot"></span>
-        <p>IA multimodal pronta para interpretar imagens, PDFs, CSV, XLSX e exports de Google Ads e Meta Ads.</p>
+        <p>IA multimodal pronta para analisar imagens e PDFs no chat, além de estruturar CSV, XLS e XLSX de Google Ads e Meta Ads.</p>
       </div>
     </aside>
   );

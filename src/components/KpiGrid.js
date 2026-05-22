@@ -11,7 +11,7 @@ function AnimatedNumber({ value, formatFn }) {
 
   useEffect(() => {
     let startTimestamp = null;
-    const duration = 800; // ms
+    const duration = 600; // ms
     const startValue = displayValue;
     const endValue = value;
 
@@ -38,13 +38,13 @@ function AnimatedNumber({ value, formatFn }) {
   return <>{formatFn(displayValue)}</>;
 }
 
-function KpiCard({ label, value, formatFn, delta, direction, meta, accent, index, showDelta }) {
+function KpiCard({ label, value, formatFn, meta, accent, index }) {
   return (
     <article
       className="kpi-card"
       style={{
         "--accent": accent,
-        animation: `rise 420ms ease ${index * 35}ms both`,
+        animation: `rise 420ms ease ${index * 30}ms both`,
       }}
     >
       <div className="kpi-label">{label}</div>
@@ -52,7 +52,6 @@ function KpiCard({ label, value, formatFn, delta, direction, meta, accent, index
         <AnimatedNumber value={value} formatFn={formatFn} />
       </div>
       <div className="kpi-meta">
-        {showDelta && <span className={`delta ${direction}`}>{delta}</span>}
         <span>{meta}</span>
       </div>
     </article>
@@ -62,121 +61,95 @@ function KpiCard({ label, value, formatFn, delta, direction, meta, accent, index
 export default function KpiGrid({ totals }) {
   const kpis = [
     {
-      label: "ROAS",
-      value: totals.roas || 0,
-      formatFn: (v) => `${v.toFixed(2).replace(".", ",")}x`,
-      delta: "+12,4%",
-      direction: "up",
-      meta: "Retorno sobre investimento",
-      accent: "#7cf7be",
-    },
-    {
-      label: "CPA",
-      value: totals.cpa || 0,
-      formatFn: (v) => brl.format(v),
-      delta: "-8,7%",
-      direction: "up", // In marketing context, down in CPA is good, labeled "up" for color coding in CSS classes
-      meta: "Custo por aquisição",
-      accent: "#7bb7ff",
-    },
-    {
-      label: "Receita total",
-      value: totals.receita || 0,
-      formatFn: (v) => brl.format(v),
-      delta: "+18,9%",
-      direction: "up",
-      meta: "Faturamento atribuído",
-      accent: "#ffd481",
-    },
-    {
-      label: "Investimento",
+      label: "Investimento Total",
       value: totals.investimento || 0,
       formatFn: (v) => brl.format(v),
-      delta: "+9,6%",
-      direction: "up",
-      meta: "Mídia paga total",
-      accent: "#b99cff",
+      meta: "Mídia paga total consolidada",
+      accent: "#b99cff", // Purple
     },
     {
-      label: "Lucro estimado",
-      value: totals.lucro || 0,
-      formatFn: (v) => brl.format(v),
-      delta: "+22,1%",
-      direction: "up",
-      meta: "Receita menos mídia",
-      accent: "#7cf7be",
+      label: "Cliques Totais",
+      value: totals.cliques || 0,
+      formatFn: (v) => number.format(Math.round(v)),
+      meta: "Cliques em anúncios",
+      accent: "#ffd481", // Amber
+    },
+    {
+      label: "Impressões Totais",
+      value: totals.impressoes || 0,
+      formatFn: (v) => number.format(Math.round(v)),
+      meta: "Exibições de anúncios",
+      accent: "#7bb7ff", // Blue
     },
     {
       label: "Conversões",
       value: totals.conversoes || 0,
       formatFn: (v) => number.format(Math.round(v)),
-      delta: "+14,2%",
-      direction: "up",
-      meta: "Compras e leads",
-      accent: "#7bb7ff",
+      meta: "Total de ações de conversão",
+      accent: "#7cf7be", // Green
     },
     {
-      label: "CTR",
-      value: totals.ctr || 0,
+      label: "Leads",
+      value: totals.leads || 0,
+      formatFn: (v) => number.format(Math.round(v)),
+      meta: "Contatos e cadastros capturados",
+      accent: "#7bb7ff", // Blue
+    },
+    {
+      label: "CTR Médio",
+      value: (totals.ctr || 0) * 100, // CTR ratio to percent
       formatFn: (v) => `${v.toFixed(2).replace(".", ",")}%`,
-      delta: "+5,1%",
-      direction: "up",
-      meta: "Taxa de cliques",
-      accent: "#ffd481",
+      meta: "Taxa de cliques (Clicks/Impr)",
+      accent: "#ffd481", // Amber
     },
     {
-      label: "CPC",
+      label: "CPC Médio",
       value: totals.cpc || 0,
       formatFn: (v) => brl.format(v),
-      delta: "-3,3%",
-      direction: "up",
-      meta: "Custo por clique",
-      accent: "#7cf7be",
+      meta: "Custo por clique médio",
+      accent: "#7cf7be", // Green
     },
     {
-      label: "ROI",
-      value: totals.roi || 0,
-      formatFn: (v) => `${v.toFixed(0)}%`,
-      delta: "+16,8%",
-      direction: "up",
-      meta: "Retorno financeiro",
-      accent: "#b99cff",
+      label: "CPM Médio",
+      value: totals.cpm || 0,
+      formatFn: (v) => brl.format(v),
+      meta: "Custo por mil impressões",
+      accent: "#b99cff", // Purple
     },
     {
-      label: "Impressões",
-      value: totals.impressoes || 0,
-      formatFn: (v) => number.format(Math.round(v)),
-      delta: "+28,5%",
-      direction: "up",
-      meta: "Exposição total",
-      accent: "#7bb7ff",
+      label: "CPL Médio",
+      value: totals.cpl || 0,
+      formatFn: (v) => brl.format(v),
+      meta: "Custo por Lead capturado",
+      accent: "#7bb7ff", // Blue
+    },
+    {
+      label: "ROAS Médio",
+      value: totals.roas || 0,
+      formatFn: (v) => `${v.toFixed(2).replace(".", ",")}x`,
+      meta: "Retorno do investimento em anúncio",
+      accent: "#7cf7be", // Green
+    },
+    {
+      label: "CAC Médio",
+      value: totals.cac || 0,
+      formatFn: (v) => brl.format(v),
+      meta: "Custo de aquisição por cliente",
+      accent: "#ffd481", // Amber
     },
     {
       label: "Alcance",
       value: totals.alcance || 0,
       formatFn: (v) => number.format(Math.round(v)),
-      delta: "+21,7%",
-      direction: "up",
-      meta: "Pessoas alcançadas",
-      accent: "#ffd481",
-    },
-    {
-      label: "Ticket médio",
-      value: totals.ticket || 0,
-      formatFn: (v) => brl.format(v),
-      delta: "+4,9%",
-      direction: "up",
-      meta: "Receita média",
-      accent: "#7cf7be",
+      meta: "Pessoas únicas impactadas",
+      accent: "#b99cff", // Purple
     },
   ];
 
-  const showDeltas = totals.investimento > 0 || totals.receita > 0;
-
   return (
-    <section className="kpi-grid" id="kpiGrid" aria-label="Principais indicadores">
+    <section className="kpi-grid" id="kpiGrid" aria-label="Principais indicadores de mídia paga">
       {kpis.map((kpi, index) => (
-        <KpiCard key={kpi.label} {...kpi} index={index} showDelta={showDeltas} />
+        <KpiCard key={kpi.label} {...kpi} index={index} />
       ))}
     </section>
   );

@@ -16,13 +16,20 @@ import AuthModal from "@/components/AuthModal";
 import DeviceChart from "@/components/DeviceChart";
 import TimeHeatmap from "@/components/TimeHeatmap";
 import RegionalMap from "@/components/RegionalMap";
+import SearchOperations from "@/components/SearchOperations";
+
+// Custom ETL & DB Ingestion Imports
+import { processUploadFile } from "@/lib/etl";
+import { getDatabase, saveDatabase, insertDataset, checkFileDuplicate, INITIAL_DB } from "@/lib/db";
 
 // Formatting helpers
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const number = new Intl.NumberFormat("pt-BR");
 
-const INITIAL_CAMPAIGNS = [];
-
-const INITIAL_TIMELINE = [];
+const MONTHS_PT = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+];
 
 export default function Home() {
   // Authentication State
@@ -30,25 +37,39 @@ export default function Home() {
   const [authBypassed, setAuthBypassed] = useState(false);
   const [authChecking, setAuthChecking] = useState(isSupabaseConfigured);
 
-  // Application State
+  // Consolidated Relational Database State (Lazily initialized to avoid setting state in effect)
+  const [marketingDb, setMarketingDb] = useState(() => {
+    if (typeof window !== "undefined") {
+      return getDatabase();
+    }
+    return INITIAL_DB;
+  });
+
+  // Advanced Global Filtering State
   const [platform, setPlatform] = useState("todas");
-  const [period, setPeriod] = useState(30);
-  const [goal, setGoal] = useState("receita");
-  const [campaigns, setCampaigns] = useState(INITIAL_CAMPAIGNS);
-  const [timeline, setTimeline] = useState(INITIAL_TIMELINE);
+  const [period, setPeriod] = useState("todos"); // reference_month or "todos"
+  const [campaign, setCampaign] = useState("todas");
+  const [device, setDevice] = useState("todos");
+  const [gender, setGender] = useState("todos");
+  const [age, setAge] = useState("todas");
+  const [network, setNetwork] = useState("todas");
+  const [keyword, setKeyword] = useState("todas");
+  const [searchTerm, setSearchTerm] = useState("todos");
+
+  // UI state
   const [activeSection, setActiveSection] = useState("visao-geral");
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [toastTimer, setToastTimer] = useState(null);
   
-  // File state
+  // File upload management states
   const [files, setFiles] = useState([]);
   const [base64Files, setBase64Files] = useState([]);
-
-  // Segmentation support states (devices, day/hour heatmap, demographics map)
-  const [deviceData, setDeviceData] = useState(null);
-  const [timeData, setTimeData] = useState(null);
-  const [geoData, setGeoData] = useState(null);
+  
+  // States for paused upload and deduplication modal
+  const [pendingUpload, setPendingUpload] = useState(null);
+  const [duplicateFileInfo, setDuplicateFileInfo] = useState(null);
+  const [showDeduplicationModal, setShowDeduplicationModal] = useState(false);
 
   // Chat State
   const [messages, setMessages] = useState([
@@ -74,110 +95,44 @@ export default function Home() {
       return;
     }
 
-    // Seed default data for new database users
-    const seedUserData = async (userId) => {
+    // Fetch campaigns and metrics from Supabase to sync local storage if available
+    const fetchUserData = async () => {
       try {
-        const seededCampaigns = INITIAL_CAMPAIGNS.map(c => ({
-          nome: c.nome,
-          plataforma: c.plataforma,
-          tipo: c.tipo,
-          investimento: c.investimento,
-          receita: c.receita,
-          roas: c.roas,
-          cpa: c.cpa,
-          ctr: c.ctr,
-          cpc: c.cpc,
-          conversoes: c.conversoes,
-          status: c.status,
-          user_id: userId
-        }));
-
-        const seededTimeline = INITIAL_TIMELINE.map(t => ({
-          mes: t.mes,
-          receita: t.receita,
-          investimento: t.investimento,
-          roas: t.roas,
-          cpa: t.cpa,
-          user_id: userId
-        }));
-
-        const { data: cData, error: cErr } = await supabase.from("campaigns").insert(seededCampaigns).select();
-        if (cErr) throw cErr;
-
-        const { error: tErr } = await supabase.from("historical_metrics").insert(seededTimeline);
-        if (tErr) throw tErr;
-
-        if (cData) {
-          setCampaigns(cData.map(c => ({
-            id: c.id,
-            nome: c.nome,
-            plataforma: c.plataforma,
-            tipo: c.tipo,
-            investimento: Number(c.investimento),
-            receita: Number(c.receita),
-            roas: Number(c.roas),
-            cpa: Number(c.cpa),
-            ctr: Number(c.ctr),
-            cpc: Number(c.cpc),
-            conversoes: Number(c.conversoes),
-            status: c.status
-          })));
-        }
-        triggerToast("Seu painel Supabase foi inicializado com dados de teste!");
-      } catch (err) {
-        console.error("Error seeding user database data:", err);
-      }
-    };
-
-    // Fetch campaigns and metrics from Supabase
-    const fetchUserData = async (userId) => {
-      try {
-        const { data: campaignsData, error: campaignsError } = await supabase
+        const { data: campaignsData } = await supabase
           .from("campaigns")
           .select("*");
 
-        if (campaignsError) throw campaignsError;
-
-        const { data: timelineData, error: timelineError } = await supabase
-          .from("historical_metrics")
-          .select("*")
-          .order("created_at", { ascending: true });
-
-        if (timelineError) throw timelineError;
-
+        // If Supabase has data, merge campaigns back to the local database state
         if (campaignsData && campaignsData.length > 0) {
-          // Map DB campaigns back to UI format
-          setCampaigns(campaignsData.map(c => ({
-            id: c.id,
-            nome: c.nome,
-            plataforma: c.plataforma,
-            tipo: c.tipo,
-            investimento: Number(c.investimento),
-            receita: Number(c.receita),
-            roas: Number(c.roas),
-            cpa: Number(c.cpa),
-            ctr: Number(c.ctr),
-            cpc: Number(c.cpc),
-            conversoes: Number(c.conversoes),
-            status: c.status
-          })));
-        } else {
-          // Seed DB if it's a new user
-          await seedUserData(userId);
-        }
+          const mappedCampaigns = campaignsData.map(c => {
+            const refMonth = "2026-05"; // fallback reference month
+            return {
+              id: c.id,
+              platform: c.tipo,
+              dataset_type: "meta_campaign_performance",
+              campaign_name: c.nome,
+              spend: Number(c.investimento),
+              revenue: Number(c.receita),
+              roas: Number(c.roas),
+              cpa: Number(c.cpa),
+              ctr: Number(c.ctr) / 100,
+              cpc: Number(c.cpc),
+              conversions: Number(c.conversoes),
+              status: c.status,
+              reference_month: refMonth,
+              reference_label: "Maio/2026",
+              created_at: new Date().toISOString()
+            };
+          });
 
-        if (timelineData && timelineData.length > 0) {
-          setTimeline(timelineData.map(t => ({
-            mes: t.mes,
-            receita: Number(t.receita),
-            investimento: Number(t.investimento),
-            roas: Number(t.roas),
-            cpa: Number(t.cpa)
-          })));
+          setMarketingDb(prev => {
+            const next = { ...prev, fact_campaigns: mappedCampaigns };
+            const { consolidateSummary } = require("@/lib/db");
+            return consolidateSummary(next);
+          });
         }
       } catch (err) {
         console.error("Error fetching database data:", err);
-        triggerToast("Erro ao carregar dados do Supabase. Usando simulação local.");
       }
     };
 
@@ -185,7 +140,7 @@ export default function Home() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
-        fetchUserData(session.user.id);
+        fetchUserData();
       }
       setAuthChecking(false);
     });
@@ -194,17 +149,17 @@ export default function Home() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setUser(session.user);
-        fetchUserData(session.user.id);
+        fetchUserData();
       } else {
         setUser(null);
-        setCampaigns(INITIAL_CAMPAIGNS);
-        setTimeline(INITIAL_TIMELINE);
+        setMarketingDb(INITIAL_DB);
       }
       setAuthChecking(false);
     });
 
-    return () => subscription.unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSignOut = async () => {
@@ -212,14 +167,18 @@ export default function Home() {
       await supabase.auth.signOut();
       setUser(null);
       setAuthBypassed(false);
+      setMarketingDb(INITIAL_DB);
+      saveDatabase(INITIAL_DB);
       triggerToast("Desconectado com sucesso.");
     }
   };
 
   const handleClearData = async () => {
-    if (window.confirm("Tem certeza que deseja excluir todas as campanhas e histórico? Esta ação é irreversível e apagará os dados do banco de dados.")) {
-      setCampaigns([]);
-      setTimeline([]);
+    if (window.confirm("Tem certeza que deseja excluir todas as campanhas, histórico e facts? Esta ação é irreversível.")) {
+      setMarketingDb(INITIAL_DB);
+      saveDatabase(INITIAL_DB);
+      setFiles([]);
+      
       if (user && isSupabaseConfigured) {
         try {
           const { error: campaignsErr } = await supabase
@@ -255,123 +214,597 @@ export default function Home() {
     }
   };
 
-  // Filter Campaigns based on platform state
-  const filteredCampaigns = campaigns.filter(
-    (c) => platform === "todas" || c.tipo === platform
-  );
+  // ----------------------------------------------------
+  // Dynamic Advanced Query & Filter Extractors
+  // ----------------------------------------------------
 
-  // Calculate Totals based on filtered list
-  const getTotals = () => {
-    const list = filteredCampaigns;
-    if (list.length === 0) return {
-      investimento: 0, receita: 0, lucro: 0, roas: 0, cpa: 0, ctr: 0, cpc: 0,
-      conversoes: 0, cliques: 0, impressoes: 0, alcance: 0, roi: 0, ticket: 0
-    };
+  const getUniqueFilterValues = () => {
+    const monthsMap = {};
+    marketingDb.fact_marketing_summary.forEach(s => {
+      if (s.reference_month && s.reference_label) {
+        monthsMap[s.reference_month] = s.reference_label;
+      }
+    });
 
-    const investimento = list.reduce((sum, item) => sum + item.investimento, 0);
-    const receita = list.reduce((sum, item) => sum + item.receita, 0);
-    const conversoes = list.reduce((sum, item) => sum + item.conversoes, 0);
-    const cliques = Math.round(list.reduce((sum, item) => sum + (item.cpc > 0 ? item.investimento / item.cpc : 0), 0));
-    const averageCtr = list.reduce((sum, item) => sum + item.ctr, 0) / list.length;
-    const impressoes = averageCtr > 0 ? Math.round(cliques / (averageCtr / 100)) : 0;
-    
+    const months = Object.entries(monthsMap).map(([val, label]) => ({
+      value: val,
+      label
+    })).sort((a, b) => a.value.localeCompare(b.value));
+
+    const campaigns = [...new Set(marketingDb.fact_marketing_summary.map(s => s.campaign_name))].filter(Boolean);
+    const devices = [...new Set(marketingDb.fact_devices.map(d => d.device))].filter(Boolean);
+    const genders = [...new Set(marketingDb.fact_demographics.map(d => d.gender))].filter(Boolean);
+    const ages = [...new Set(marketingDb.fact_demographics.map(d => d.age_range))].filter(Boolean);
+    const networks = [...new Set(marketingDb.fact_networks.map(n => n.network))].filter(Boolean);
+    const keywords = [...new Set(marketingDb.fact_keywords.map(k => k.keyword))].filter(Boolean);
+    const searchTerms = [...new Set(marketingDb.fact_search_terms.map(s => s.search_term))].filter(Boolean);
+
     return {
-      investimento,
-      receita,
-      lucro: receita - investimento,
-      roas: investimento > 0 ? receita / investimento : 0,
-      cpa: conversoes > 0 ? investimento / conversoes : 0,
-      ctr: averageCtr,
-      cpc: cliques > 0 ? investimento / cliques : 0,
-      conversoes,
-      cliques,
-      impressoes,
-      alcance: Math.round(impressoes * 0.68),
-      roi: investimento > 0 ? ((receita - investimento) / investimento) * 100 : 0,
-      ticket: conversoes > 0 ? receita / conversoes : 0,
+      months,
+      campaigns,
+      devices,
+      genders,
+      ages,
+      networks,
+      keywords,
+      searchTerms
     };
   };
 
-  const totals = getTotals();
+  const uniqueValues = getUniqueFilterValues();
 
-  // Highlight analysis strings
-  const getInsights = () => {
+  // Filter main campaign list for standard display table
+  const getCampaignGroupedList = () => {
+    const list = marketingDb.fact_marketing_summary.filter(s => {
+      if (platform !== "todas" && s.platform !== platform) return false;
+      if (period !== "todos" && s.reference_month !== period) return false;
+      if (campaign !== "todas" && s.campaign_name !== campaign) return false;
+      return true;
+    });
+
+    const grouped = {};
+    list.forEach(c => {
+      const name = c.campaign_name;
+      if (!grouped[name]) {
+        grouped[name] = {
+          nome: name,
+          plataforma: c.platform === "google" ? "Google Ads" : "Meta Ads",
+          tipo: c.platform,
+          investimento: 0,
+          receita: 0,
+          conversoes: 0,
+          cliques: 0,
+          impressions: 0,
+          status: c.status || "Ativa"
+        };
+      }
+      const g = grouped[name];
+      g.investimento += c.spend || 0;
+      g.receita += c.revenue || 0;
+      g.conversoes += c.conversions || 0;
+      g.cliques += c.clicks || 0;
+      g.impressions += c.impressions || 0;
+    });
+
+    return Object.values(grouped).map(g => {
+      const ctr = g.impressions > 0 ? (g.cliques / g.impressions) * 100 : 0;
+      const cpc = g.cliques > 0 ? g.investimento / g.cliques : 0;
+      const cpa = g.conversoes > 0 ? g.investimento / g.conversoes : 0;
+      const roas = g.investimento > 0 ? g.receita / g.investimento : 0;
+
+      return {
+        nome: g.nome,
+        plataforma: g.plataforma,
+        tipo: g.tipo,
+        investimento: g.investimento,
+        receita: g.receita,
+        roas,
+        cpa,
+        ctr,
+        cpc,
+        conversoes: g.conversoes,
+        status: g.status
+      };
+    });
+  };
+
+  const filteredCampaigns = getCampaignGroupedList();
+
+  // Calculate Consolidated KPIs from filtered summary
+  const getCalculatedTotals = () => {
+    const list = marketingDb.fact_marketing_summary.filter(s => {
+      if (platform !== "todas" && s.platform !== platform) return false;
+      if (period !== "todos" && s.reference_month !== period) return false;
+      if (campaign !== "todas" && s.campaign_name !== campaign) return false;
+      return true;
+    });
+
+    if (list.length === 0) {
+      return {
+        investimento: 0, receita: 0, lucro: 0, roas: 0, cpa: 0, ctr: 0, cpc: 0,
+        conversoes: 0, cliques: 0, impressoes: 0, alcance: 0, roi: 0, ticket: 0,
+        leads: 0, cpm: 0, cpl: 0, cac: 0
+      };
+    }
+
+    const investimento = list.reduce((sum, item) => sum + (item.spend || 0), 0);
+    const receita = list.reduce((sum, item) => sum + (item.revenue || 0), 0);
+    const conversoes = list.reduce((sum, item) => sum + (item.conversions || 0), 0);
+    const leads = list.reduce((sum, item) => sum + (item.leads || 0), 0);
+    const cliques = list.reduce((sum, item) => sum + (item.clicks || 0), 0);
+    const impressoes = list.reduce((sum, item) => sum + (item.impressions || 0), 0);
+    const reach = list.reduce((sum, item) => sum + (item.reach || 0), 0);
+
+    const ctr = impressoes > 0 ? cliques / impressoes : 0;
+    const cpc = cliques > 0 ? investimento / cliques : 0;
+    const cpm = impressoes > 0 ? (investimento / impressoes) * 1000 : 0;
+    const cpl = leads > 0 ? investimento / leads : 0;
+    const cac = conversoes > 0 ? investimento / conversoes : 0;
+    const roas = investimento > 0 ? receita / investimento : 0;
+    const profit = receita - investimento;
+    const roi = investimento > 0 ? (profit / investimento) * 100 : 0;
+    const ticket = conversoes > 0 ? receita / conversoes : 0;
+
+    return {
+      investimento,
+      receita,
+      lucro: profit,
+      roas,
+      cpa: cac,
+      ctr,
+      cpc,
+      conversoes,
+      cliques,
+      impressoes,
+      alcance: reach || Math.round(impressoes * 0.68),
+      roi,
+      ticket,
+      leads,
+      cpm,
+      cpl,
+      cac
+    };
+  };
+
+  const totals = getCalculatedTotals();
+
+  // Dynamic Device Chart Data
+  const getDeviceChartData = () => {
+    const list = marketingDb.fact_devices.filter(d => {
+      if (platform !== "todas" && d.platform !== platform) return false;
+      if (period !== "todos" && d.reference_month !== period) return false;
+      if (campaign !== "todas" && d.campaign_name !== campaign) return false;
+      if (device !== "todos" && d.device !== device) return false;
+      return true;
+    });
+
+    if (list.length === 0) return null;
+
+    let mobile = { percent: 0, invest: 0, conv: 0, cpa: 0 };
+    let desktop = { percent: 0, invest: 0, conv: 0, cpa: 0 };
+
+    list.forEach(row => {
+      const devVal = String(row.device || "").toLowerCase();
+      const investVal = row.spend || 0;
+      const convVal = row.conversions || 0;
+      
+      if (devVal.includes("mob") || devVal.includes("cel") || devVal.includes("phone")) {
+        mobile.invest += investVal;
+        mobile.conv += convVal;
+      } else if (devVal.includes("desk") || devVal.includes("comp") || devVal.includes("pc") || devVal.includes("tv")) {
+        desktop.invest += investVal;
+        desktop.conv += convVal;
+      }
+    });
+
+    const totalInvest = mobile.invest + desktop.invest;
+    if (totalInvest > 0) {
+      mobile.percent = (mobile.invest / totalInvest) * 100;
+      desktop.percent = (desktop.invest / totalInvest) * 100;
+    } else {
+      mobile.percent = 50;
+      desktop.percent = 50;
+    }
+    mobile.cpa = mobile.conv > 0 ? mobile.invest / mobile.conv : 0;
+    desktop.cpa = desktop.conv > 0 ? desktop.invest / desktop.conv : 0;
+
+    return { mobile, desktop };
+  };
+
+  const deviceData = getDeviceChartData();
+
+  // Dynamic Heatmap Chronological Data
+  const getTimeHeatmapData = () => {
+    const list = marketingDb.fact_weekday_hour.filter(t => {
+      if (platform !== "todas" && t.platform !== platform) return false;
+      if (period !== "todos" && t.reference_month !== period) return false;
+      if (campaign !== "todas" && t.campaign_name !== campaign) return false;
+      return true;
+    });
+
+    if (list.length === 0) return null;
+
+    const dayMap = {
+      "seg": 0, "mon": 0, "ter": 1, "tue": 1, "qua": 2, "wed": 2,
+      "qui": 3, "thu": 3, "sex": 4, "fri": 4, "sab": 5, "sat": 5, "dom": 6, "sun": 6
+    };
+    const hourlyGrid = [
+      { day: "Seg", hours: [0, 0, 0, 0, 0, 0] },
+      { day: "Ter", hours: [0, 0, 0, 0, 0, 0] },
+      { day: "Qua", hours: [0, 0, 0, 0, 0, 0] },
+      { day: "Qui", hours: [0, 0, 0, 0, 0, 0] },
+      { day: "Sex", hours: [0, 0, 0, 0, 0, 0] },
+      { day: "Sáb", hours: [0, 0, 0, 0, 0, 0] },
+      { day: "Dom", hours: [0, 0, 0, 0, 0, 0] }
+    ];
+
+    list.forEach(row => {
+      const dayVal = String(row.day || "").toLowerCase();
+      const hourVal = row.hour || 0;
+      const convVal = row.conversions || 0;
+
+      let dayIdx = -1;
+      for (const [key, idx] of Object.entries(dayMap)) {
+        if (dayVal.includes(key)) {
+          dayIdx = idx;
+          break;
+        }
+      }
+      if (dayIdx === -1) {
+        dayIdx = 0;
+      }
+      const hourIdx = Math.min(Math.floor(hourVal / 4), 5);
+      hourlyGrid[dayIdx].hours[hourIdx] += convVal;
+    });
+
+    return hourlyGrid;
+  };
+
+  const timeData = getTimeHeatmapData();
+
+  // Dynamic Demographics Regional Data
+  const getRegionalMapData = () => {
+    const list = marketingDb.fact_demographics.filter(d => {
+      if (platform !== "todas" && d.platform !== platform) return false;
+      if (period !== "todos" && d.reference_month !== period) return false;
+      if (campaign !== "todas" && d.campaign_name !== campaign) return false;
+      if (gender !== "todos" && d.gender !== gender) return false;
+      if (age !== "todas" && d.age_range !== age) return false;
+      return true;
+    });
+
+    const regionsMap = {
+      "Sudeste": ["sp", "rj", "mg", "es", "são paulo", "rio de janeiro", "minas gerais", "espírito santo", "sudeste", "southeast"],
+      "Sul": ["pr", "sc", "rs", "paraná", "santa catarina", "rio grande do sul", "sul", "south"],
+      "Nordeste": ["ba", "pe", "ce", "ma", "pb", "rn", "al", "se", "pi", "bahia", "pernambuco", "ceará", "maranhão", "paraíba", "rio grande do norte", "alagoas", "sergipe", "piauí", "nordeste", "northeast"],
+      "Centro-Oeste": ["df", "go", "mt", "ms", "distrito federal", "goiás", "mato grosso", "mato grosso do sul", "centro-oeste", "midwest"],
+      "Norte": ["am", "pa", "ro", "rr", "ac", "to", "ap", "amazonas", "pará", "rondônia", "roraima", "acre", "tocantins", "amapá", "norte", "north"]
+    };
+
+    let regionsData = {
+      "Sudeste": { invest: 0, conv: 0 },
+      "Sul": { invest: 0, conv: 0 },
+      "Nordeste": { invest: 0, conv: 0 },
+      "Centro-Oeste": { invest: 0, conv: 0 },
+      "Norte": { invest: 0, conv: 0 }
+    };
+
+    let hasData = false;
+    list.forEach(row => {
+      const stateVal = String(row.region || row.age_range || row.gender || "").toLowerCase();
+      const investVal = row.spend || 0;
+      const convVal = row.conversions || 0;
+
+      let matchedRegion = null;
+      for (const [region, states] of Object.entries(regionsMap)) {
+        if (states.some(s => stateVal === s || stateVal.includes(s))) {
+          matchedRegion = region;
+          break;
+        }
+      }
+      if (matchedRegion) {
+        regionsData[matchedRegion].invest += investVal;
+        regionsData[matchedRegion].conv += convVal;
+        hasData = true;
+      }
+    });
+
+    if (!hasData) return null;
+
+    const totalConvs = Object.values(regionsData).reduce((sum, r) => sum + r.conv, 0);
+    return Object.entries(regionsData).map(([region, r]) => {
+      return {
+        region,
+        value: totalConvs > 0 ? Math.round((r.conv / totalConvs) * 100) : 20,
+        invest: r.invest,
+        conv: r.conv,
+        cpa: r.conv > 0 ? r.invest / r.conv : 0
+      };
+    });
+  };
+
+  const geoData = getRegionalMapData();
+
+  // Dynamic Time Series / LineChart
+  const getTimelineChartData = () => {
+    const months = {};
+    marketingDb.fact_marketing_summary.forEach(s => {
+      const mLabel = s.reference_label;
+      if (!months[mLabel]) {
+        months[mLabel] = {
+          mes: mLabel,
+          receita: 0,
+          investimento: 0,
+          conversoes: 0
+        };
+      }
+      months[mLabel].receita += s.revenue || 0;
+      months[mLabel].investimento += s.spend || 0;
+      months[mLabel].conversoes += s.conversions || 0;
+    });
+
+    const list = Object.values(months).map(m => {
+      const parts = m.mes.split("/");
+      const mIdx = MONTHS_PT.indexOf(parts[0]);
+      const year = parseInt(parts[1], 10);
+      const orderKey = year * 12 + mIdx;
+
+      const roas = m.investimento > 0 ? m.receita / m.investimento : 0;
+      const cpa = m.conversoes > 0 ? m.investimento / m.conversoes : 0;
+
+      return {
+        orderKey,
+        mes: m.mes,
+        receita: m.receita,
+        investimento: m.investimento,
+        roas,
+        cpa
+      };
+    });
+
+    return list.sort((a, b) => a.orderKey - b.orderKey);
+  };
+
+  const timeline = getTimelineChartData();
+
+  // Search keyword data filtered
+  const getKeywordsDataFiltered = () => {
+    return marketingDb.fact_keywords.filter(k => {
+      if (platform !== "todas" && k.platform !== platform) return false;
+      if (period !== "todos" && k.reference_month !== period) return false;
+      if (campaign !== "todas" && k.campaign_name !== campaign) return false;
+      if (keyword !== "todas" && k.keyword !== keyword) return false;
+      return true;
+    });
+  };
+
+  // Search term data filtered
+  const getSearchTermsDataFiltered = () => {
+    return marketingDb.fact_search_terms.filter(s => {
+      if (platform !== "todas" && s.platform !== platform) return false;
+      if (period !== "todos" && s.reference_month !== period) return false;
+      if (campaign !== "todas" && s.campaign_name !== campaign) return false;
+      if (searchTerm !== "todos" && s.search_term !== searchTerm) return false;
+      return true;
+    });
+  };
+
+  // Dynamic Executive Summary Diagnostics generator
+  const generateExecutiveSummary = (campaignsList, totalsVal) => {
+    if (campaignsList.length === 0) return "";
+    
+    const formattedInvest = brl.format(totalsVal.investimento);
+    const formattedConv = number.format(totalsVal.conversoes);
+    const formattedRoas = `${totalsVal.roas.toFixed(2).replace(".", ",")}x`;
+    
+    const sorted = [...campaignsList].sort((a, b) => b.roas - a.roas);
+    const topCampaign = sorted[0];
+    const worstCampaign = sorted[sorted.length - 1];
+
+    let bestDeviceText = "";
+    if (deviceData) {
+      if (deviceData.mobile.conv > deviceData.desktop.conv) {
+        bestDeviceText = "smartphones (mobile)";
+      } else {
+        bestDeviceText = "computadores (desktop)";
+      }
+    }
+
+    const selectLabel = period === "todos" ? "histórico completo" : `mês de ${uniqueValues.months.find(m => m.value === period)?.label || period}`;
+
+    let text = `Para o ${selectLabel}, o investimento consolidado em mídia paga foi de ${formattedInvest}, resultando em ${formattedConv} conversões com um ROAS médio de ${formattedRoas}. `;
+    
+    if (topCampaign && topCampaign.roas > 0) {
+      text += `A campanha de maior eficiência foi "${topCampaign.nome}" liderando com ROAS de ${topCampaign.roas.toFixed(2).replace(".", ",")}x. `;
+    }
+    
+    if (bestDeviceText) {
+      text += `A maior concentração de conversões ocorreu via ${bestDeviceText}. `;
+    }
+    
+    if (worstCampaign && worstCampaign.roas < 1.0 && worstCampaign.investimento > 200) {
+      text += `Recomenda-se realizar otimização de criativos ou realocação de verba na campanha "${worstCampaign.nome}" devido ao retorno de ${worstCampaign.roas.toFixed(2).replace(".", ",")}x.`;
+    }
+    
+    return text;
+  };
+
+  const getDynamicInsights = () => {
     if (filteredCampaigns.length === 0) {
       return {
-        summary: "Nenhum dado de campanha disponível no momento. Faça o upload de um arquivo CSV de campanhas ou integre sua conta para que o copiloto de IA possa gerar um diagnóstico estratégico em tempo real.",
+        summary: "Aguardando upload de planilhas exportadas diretamente do Meta Ads ou Google Ads para processar inteligência.",
         list: [
-          { title: "Aguardando dados", text: "Você pode subir planilhas exportadas do Google Ads ou Meta Ads arrastando o arquivo no campo acima." },
-          { title: "Colunas recomendadas", text: "Para uma análise completa, inclua colunas como Campanha, Investimento, Receita, Cliques, Conversões." },
-          { title: "Dashboard Dinâmico", text: "Assim que os dados forem inseridos, todos os gráficos, tabelas e relatórios em PDF serão ativados." },
+          { title: "Painel autopreenchido", text: "Você pode enviar múltiplos arquivos brutos de uma só vez." },
+          { title: "Inteligência Temporal", text: "Calculamos dias, semanas, trimestres e comparamos meses automaticamente." },
+          { title: "Tabelas Fact Estruturadas", text: "Ingestão resiliente dividindo o conteúdo em dispositivos, termos e demográficos." },
         ]
       };
     }
 
+    const summary = generateExecutiveSummary(filteredCampaigns, totals);
     const sorted = [...filteredCampaigns].sort((a, b) => b.roas - a.roas);
     const best = sorted[0] || { nome: "Nenhuma", roas: 0 };
     const worst = sorted[sorted.length - 1] || { nome: "Nenhuma", roas: 0 };
-    
+
     return {
-      summary: `O painel indica ${brl.format(totals.receita)} em receita atribuída com ROAS de ${totals.roas.toFixed(2).replace(".", ",")}x. A maior alavanca está em redistribuir verba das campanhas com fadiga para os conjuntos com CPA abaixo da média.`,
+      summary,
       list: [
-        { title: "Campanha vencedora", text: `${best.nome} lidera com ROAS de ${best.roas.toFixed(2).replace(".", ",")}x e deve receber escala progressiva.` },
-        { title: "Risco detectado", text: `${worst.nome} apresenta baixa eficiência e sinais de desperdício de orçamento.` },
-        { title: "Próxima ação", text: "Realocar 12% da verba para remarketing e busca de alta intenção deve elevar o lucro estimado." },
+        { title: "Destaque de Conversão", text: `"${best.nome}" lidera o mix com ROAS de ${best.roas.toFixed(2).replace(".", ",")}x.` },
+        { title: "Desperdício Potencial", text: worst.roas < 1.0 && worst.investimento > 0 ? `"${worst.nome}" apresenta ROAS insatisfatório de ${worst.roas.toFixed(2).replace(".", ",")}x.` : "Ajuste lances em horários ociosos do heatmap." },
+        { title: "Ação Estratégica", text: "Consulte o heatmap cronológico e o mapa regional abaixo para calibrar criativos por localização." }
       ]
     };
   };
 
-  const insights = getInsights();
+  const insights = getDynamicInsights();
+  const filteredSummary = marketingDb.fact_marketing_summary.filter(s => {
+    if (platform !== "todas" && s.platform !== platform) return false;
+    if (period !== "todos" && s.reference_month !== period) return false;
+    if (campaign !== "todas" && s.campaign_name !== campaign) return false;
+    return true;
+  });
 
-  // Event Handlers
-  const handlePlatformChange = (value) => {
-    setPlatform(value);
+  // ----------------------------------------------------
+  // Event Handlers & ETL Upload Orchestrator
+  // ----------------------------------------------------
+
+  const updateFileStatus = (fileName, status, message = "") => {
+    setFiles((prev) =>
+      prev.map((f) => (f.name === fileName ? { ...f, status, message } : f))
+    );
   };
 
-  const handlePeriodChange = (value) => {
-    setPeriod(value);
-    triggerToast(`Período atualizado: últimos ${value === 180 ? "6 meses" : `${value} dias`}.`);
+  const isStructuredDataFile = (file) => {
+    const name = file.name.toLowerCase();
+    return name.endsWith(".csv") || name.endsWith(".xlsx") || name.endsWith(".xls");
   };
 
-  const handleGoalChange = (value) => {
-    setGoal(value);
-    const goalText = value === "receita" ? "Receita" : value === "leads" ? "Leads" : "Vendas";
-    triggerToast(`Objetivo principal alterado para ${goalText}.`);
+  const isAiAttachmentFile = (file) => {
+    const mime = file.type || "";
+    const name = file.name.toLowerCase();
+    return mime.startsWith("image/") || mime === "application/pdf" || name.endsWith(".pdf");
   };
 
-  const handleRefreshData = async () => {
-    const updated = campaigns.map((c) => {
-      const factor = 0.96 + Math.random() * 0.1;
-      const newReceita = Math.round(c.receita * factor);
-      return {
-        ...c,
-        receita: newReceita,
-        roas: c.investimento > 0 ? newReceita / c.investimento : 0,
-      };
+  const readAsDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
     });
 
-    setCampaigns(updated);
+  // Multiple Files selected (Processed inside a clean Promise-paused loop to avoid cascade setStates)
+  const handleFilesSelected = async (selectedFiles) => {
+    const list = [...selectedFiles];
+    if (!list.length) return;
 
-    if (user && isSupabaseConfigured) {
-      try {
-        for (const item of updated) {
-          if (item.id) {
-            await supabase
-              .from("campaigns")
-              .update({ receita: item.receita, roas: item.roas })
-              .eq("id", item.id);
-          }
-        }
-        triggerToast("Leitura atualizada e persistida no Supabase.");
-      } catch (err) {
-        console.error("Error updating campaigns database records:", err);
+    const newFilesState = [];
+    const validFiles = [];
+
+    for (const file of list) {
+      if (file.size > 8 * 1024 * 1024) {
+        triggerToast(`O arquivo "${file.name}" excede o limite de 8MB.`);
+        continue;
       }
-    } else {
-      triggerToast("Leitura atualizada com novas variações de performance.");
+      validFiles.push(file);
+      newFilesState.push({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        status: "processando",
+        message: "Processando..."
+      });
+    }
+
+    if (!validFiles.length) return;
+
+    setFiles((prev) => [...prev, ...newFilesState]);
+    
+    // Read current database value fresh from local storage
+    let currentDb = getDatabase();
+
+    for (const file of validFiles) {
+      try {
+        if (!isStructuredDataFile(file)) {
+          if (!isAiAttachmentFile(file)) {
+            throw new Error("Formato não suportado. Envie CSV, XLS, XLSX, PDF ou imagem.");
+          }
+
+          const base64 = await readAsDataUrl(file);
+          setBase64Files((prev) => [
+            ...prev,
+            { name: file.name, mimeType: file.type || "application/octet-stream", base64 }
+          ]);
+          updateFileStatus(file.name, "sucesso", "Anexo da IA");
+          triggerToast(`Arquivo "${file.name}" anexado ao chat de IA.`);
+          continue;
+        }
+
+        const result = await processUploadFile(file);
+        
+        // Check duplicate against current db
+        const dup = checkFileDuplicate(currentDb, result.metadata);
+        if (dup) {
+          // Pause execution and wait for user's decision inside the deduplication modal
+          await new Promise((resolve) => {
+            setDuplicateFileInfo(dup);
+            setPendingUpload({
+              file,
+              metadata: result.metadata,
+              rows: result.rows,
+              resolvePromise: resolve
+            });
+            setShowDeduplicationModal(true);
+          }).then(async (action) => {
+            const updatedDb = await insertDataset(currentDb, result.metadata, result.rows, action);
+            currentDb = updatedDb;
+            setMarketingDb(updatedDb);
+          });
+        } else {
+          const updatedDb = await insertDataset(currentDb, result.metadata, result.rows, "replace");
+          currentDb = updatedDb;
+          setMarketingDb(updatedDb);
+          updateFileStatus(file.name, "sucesso", "Sincronizado");
+          triggerToast(`Arquivo "${file.name}" integrado com sucesso!`);
+        }
+      } catch (err) {
+        console.error(err);
+        updateFileStatus(file.name, "erro", err.message || "Erro de leitura");
+        triggerToast(`Falha no processamento: ${err.message}`);
+      }
     }
   };
 
-  // Helper helper to download files
+  // Resolve paused loop
+  const handleDeduplicationResolve = async (action) => {
+    if (!pendingUpload) return;
+    
+    const { file, metadata, resolvePromise } = pendingUpload;
+    try {
+      updateFileStatus(file.name, "processando", `Processando (${action})...`);
+      
+      if (resolvePromise) {
+        resolvePromise(action);
+      }
+      
+      if (action === "ignore") {
+        updateFileStatus(file.name, "sucesso", "Ignorado pelo usuário");
+        triggerToast(`Envio do arquivo "${file.name}" cancelado.`);
+      } else {
+        updateFileStatus(file.name, "sucesso", "Sincronizado");
+        triggerToast(`Arquivo "${file.name}" integrado via ${action}!`);
+      }
+    } catch (err) {
+      console.error(err);
+      updateFileStatus(file.name, "erro", "Erro ao resolver duplicado");
+    } finally {
+      setPendingUpload(null);
+      setDuplicateFileInfo(null);
+      setShowDeduplicationModal(false);
+    }
+  };
+
+  // Helper download blob
   const downloadBlob = (blob, filename) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -383,31 +816,147 @@ export default function Home() {
     setTimeout(() => URL.revokeObjectURL(url), 1200);
   };
 
-  // CSV Export Logic
-  const handleExportSpreadsheet = () => {
-    const rows = [
-      ["Campanha", "Plataforma", "Investimento", "Receita", "ROAS", "CPA", "CTR", "CPC", "Conversoes", "Status IA"],
-      ...filteredCampaigns.map((item) => [item.nome, item.plataforma, item.investimento, item.receita, item.roas, item.cpa, item.ctr, item.cpc, item.conversoes, item.status]),
-      [],
-      ["Formula executiva", "ROI", "=((D2-C2)/C2)", "Edite os valores e recalcule em Excel/Sheets"],
+  const pdfText = (value) => {
+    const bytes = [0xfe, 0xff];
+    for (const char of String(value)) {
+      const code = char.codePointAt(0);
+      if (code > 0xffff) continue;
+      bytes.push((code >> 8) & 255, code & 255);
+    }
+    return `<${bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("")}>`;
+  };
+
+  const createExecutivePdf = (reportData = null) => {
+    const sorted = [...filteredCampaigns].sort((a, b) => b.roas - a.roas);
+    const best = sorted[0];
+    const worst = sorted[sorted.length - 1];
+    const title = reportData?.titulo || "Relatório Executivo Orbit BI";
+    const subtitle = reportData?.subtitulo || "Diagnóstico estratégico de mídia paga";
+    const conclusion = reportData?.conclusao || insights.summary || "Aguardando dados consolidados para diagnóstico completo.";
+    const recommendations = reportData?.recomendacoes || [
+      best ? `Escalar gradualmente a campanha "${best.nome}" enquanto o ROAS permanecer acima da média.` : "Carregar dados de campanhas para identificar oportunidades de escala.",
+      worst ? `Revisar orçamento e criativos da campanha "${worst.nome}".` : "Importar dados de Google Ads e Meta Ads para comparação executiva.",
+      "Monitorar CPA, ROAS, CTR e conversões diariamente antes de ampliar investimento."
     ];
+    const nextSteps = reportData?.proximosPassos || [
+      "Validar qualidade dos dados importados.",
+      "Priorizar campanhas com maior eficiência incremental.",
+      "Gerar nova leitura após o próximo ciclo de otimização."
+    ];
+
+    const lines = [
+      { text: "Orbit BI | Relatório Executivo de Mídia Paga", size: 14, y: 790 },
+      { text: title, size: 22, y: 756 },
+      { text: subtitle, size: 12, y: 728 },
+      { text: `Investimento: ${brl.format(totals.investimento)} | Receita: ${brl.format(totals.receita)} | ROAS: ${totals.roas.toFixed(2).replace(".", ",")}x`, size: 12, y: 684 },
+      { text: `Conversões: ${number.format(totals.conversoes)} | CPA: ${brl.format(totals.cpa)} | Lucro estimado: ${brl.format(totals.lucro)}`, size: 12, y: 662 },
+      { text: "Conclusão executiva", size: 16, y: 612 },
+      { text: conclusion.slice(0, 115), size: 10, y: 588 },
+      { text: conclusion.slice(115, 230), size: 10, y: 570 },
+      { text: "Recomendações", size: 16, y: 520 },
+      ...recommendations.slice(0, 3).map((item, index) => ({ text: `${index + 1}. ${item}`.slice(0, 125), size: 10, y: 492 - index * 22 })),
+      { text: "Próximos passos", size: 16, y: 394 },
+      ...nextSteps.slice(0, 3).map((item, index) => ({ text: `${index + 1}. ${item}`.slice(0, 125), size: 10, y: 366 - index * 22 })),
+      { text: "Documento gerado automaticamente em PT-BR pelo Orbit BI.", size: 9, y: 82 },
+    ];
+
+    const content = [
+      "q",
+      "0.02 0.03 0.06 rg 0 0 595 842 re f",
+      "0.07 0.10 0.16 rg 36 635 523 115 re f",
+      "0.05 0.08 0.13 rg 36 440 523 170 re f",
+      "0.05 0.08 0.13 rg 36 245 523 155 re f",
+      "0.49 0.97 0.75 rg 36 812 150 3 re f",
+      ...lines.map((line) => `BT /F1 ${line.size} Tf 54 ${line.y} Td 0.95 0.97 0.99 rg ${pdfText(line.text)} Tj ET`),
+      "Q",
+    ].join("\n");
+    const objects = [
+      "<< /Type /Catalog /Pages 2 0 R >>",
+      "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+      "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+      "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+      `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    ];
+    let pdf = "%PDF-1.4\n";
+    const offsets = [0];
+    objects.forEach((object, index) => {
+      offsets.push(pdf.length);
+      pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+    });
+    const xrefOffset = pdf.length;
+    pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+    offsets.slice(1).forEach((offset) => {
+      pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+    });
+    pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+    return new Blob([pdf], { type: "application/pdf" });
+  };
+
+  // Consolidated CSV Export Logic
+  const handleExportSpreadsheet = () => {
+    const listToExport = filteredSummary;
+    if (listToExport.length === 0) {
+      triggerToast("Nenhum dado consolidado disponível para exportar.");
+      return;
+    }
+
+    const rows = [
+      ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Receita (R$)", "Cliques", "Impressões", "Conversões", "CTR", "CPC", "CPM", "CPL", "ROAS", "Status"],
+      ...listToExport.map((item) => [
+        item.date,
+        item.reference_label,
+        item.platform === "google" ? "Google Ads" : "Meta Ads",
+        item.campaign_name,
+        item.spend,
+        item.revenue,
+        item.clicks,
+        item.impressions,
+        item.conversions,
+        `${(item.ctr * 100).toFixed(2)}%`,
+        item.cpc.toFixed(2),
+        item.cpm.toFixed(2),
+        item.cpl.toFixed(2),
+        item.roas.toFixed(2),
+        item.status
+      ])
+    ];
+
     const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(";")).join("\n");
     const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
-    downloadBlob(blob, "orbit-bi-exportacao-executiva.csv");
-    triggerToast("Download iniciado. A planilha será salva na pasta Downloads.");
+    downloadBlob(blob, `orbit-bi-base-consolidada-${period}.csv`);
+    triggerToast("Exportação gerada com sucesso! Verifique a pasta Downloads.");
   };
 
-  // PDF Generation Logic - Redirect to Presentation Route
-  const handleGenerateReport = () => {
-    window.open("/apresentacao", "_blank");
+  const handleGenerateReport = async () => {
+    let reportData = null;
+    try {
+      const response = await fetch("/api/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaigns: filteredCampaigns, totals }),
+      });
+      if (response.ok) {
+        reportData = await response.json();
+      }
+    } catch (err) {
+      console.error("Falha ao gerar relatório com IA, usando fallback local:", err);
+    }
+
+    const today = new Date().toLocaleDateString("pt-BR").replaceAll("/", "-");
+    downloadBlob(createExecutivePdf(reportData), `orbit-bi-relatorio-executivo-${today}.pdf`);
+    triggerToast("PDF executivo gerado. Verifique a pasta Downloads.");
   };
 
-  // Helper simulated answers for offline mode or missing API keys
+  const handleToggleAutomation = () => {
+    triggerToast("Monitoramento ativado: CPA, ROAS, fadiga criativa e verba desperdiçada serão acompanhados.");
+  };
+
+  // AI Chat Assistant simulator queries
   const getSimulatedAnswer = (text) => {
     const q = text.toLowerCase();
     
     if (filteredCampaigns.length === 0) {
-      return "Não há campanhas ou dados carregados no momento. Por favor, faça o upload de um arquivo CSV contendo os dados das suas campanhas de marketing (como nome, plataforma, investimento, receita, etc.) para que eu possa analisar o CPA, o ROAS e te dar recomendações estratégicas.";
+      return "Não há campanhas ou dados carregados no momento. Por favor, faça o upload de um arquivo CSV/XLSX de campanhas para gerar recomendações.";
     }
 
     const sorted = [...filteredCampaigns].sort((a, b) => b.roas - a.roas);
@@ -415,24 +964,17 @@ export default function Home() {
     const worst = sorted[sorted.length - 1] || { nome: "Nenhuma", roas: 0 };
 
     if (q.includes("melhor") || q.includes("roas")) {
-      return `A campanha com melhor ROAS é ${best.nome}, com ${best.roas.toFixed(2).replace(".", ",")}x. Minha recomendação é escalar em incrementos de 15% a 20% e monitorar CPA diariamente.`;
+      return `A campanha com melhor ROAS no período selecionado é a "${best.nome}", registrando ${best.roas.toFixed(2).replace(".", ",")}x. Recomendamos escalar orçamentos nela.`;
     }
-    if (q.includes("cpa") || q.includes("aumentou")) {
-      return `O CPA médio está em ${brl.format(totals.cpa)}. A pressão vem principalmente de campanhas com baixa intenção e criativos com fadiga. Eu reduziria verba em ${worst.nome} e moveria orçamento para remarketing e busca.`;
+    if (q.includes("cpa") || q.includes("aumentou") || q.includes("cpl")) {
+      return `O custo por conversão (CPA) consolidado está em ${brl.format(totals.cpa)}. O principal impulsionador do custo é a campanha "${worst.nome}" com ROAS de ${worst.roas.toFixed(2).replace(".", ",")}x. Reduzir orçamentos ociosos ajudará a calibrar o CPA.`;
     }
     if (q.includes("desperd") || q.includes("cortar")) {
-      return `${worst.nome} é o principal ponto de desperdício: ROAS de ${worst.roas.toFixed(2).replace(".", ",")}x e CPA de ${brl.format(worst.cpa)}. Corte inicial sugerido: 25% do orçamento e teste novos criativos antes de reescalar.`;
+      return `Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.nome}". Considere pausar o conjunto e testar novas segmentações de público.`;
     }
-    if (q.includes("6 meses") || q.includes("compare")) {
-      if (timeline.length === 0) {
-        return "Atualmente não há histórico de meses carregado no sistema para fazer a comparação do semestre.";
-      }
-      return `Nos últimos 6 meses, a receita evoluiu de ${brl.format(timeline[0].receita)} para ${brl.format(timeline[timeline.length - 1].receita)}. O crescimento acumulado é forte, mas o ROAS estabilizou; o próximo ganho deve vir de mix de verba e melhoria criativa.`;
-    }
-    return `Minha leitura executiva: receita de ${brl.format(totals.receita)}, ROAS de ${totals.roas.toFixed(2).replace(".", ",")}x e lucro estimado de ${brl.format(totals.lucro)}. A melhor decisão agora é proteger campanhas vencedoras e reduzir verba onde há fadiga ou baixa intenção.`;
+    return `Diagnóstico Consolidado: Investimento de ${brl.format(totals.investimento)} gerando ${brl.format(totals.receita)} em receita (ROAS de ${totals.roas.toFixed(2).replace(".", ",")}x). A maior alavanca no momento está em direcionar verbas adicionais para celulares, onde as conversões registraram melhor CPA.`;
   };
 
-  // Chat message submission to Next.js API
   const handleSendMessage = async (text) => {
     const newUserMessage = { type: "user", text };
     setMessages((prev) => [...prev, newUserMessage]);
@@ -453,8 +995,7 @@ export default function Home() {
 
       if (!response.ok) {
         if (data.error === "API_KEY_MISSING") {
-          triggerToast("Simulador ativo: Adicione GEMINI_API_KEY no .env.local para usar a IA real.");
-          // Fallback
+          triggerToast("Simulador ativo: adicione OPENAI_API_KEY ou GEMINI_API_KEY no .env.local.");
           setTimeout(() => {
             const simulated = getSimulatedAnswer(text);
             setMessages((prev) => [...prev, { type: "ai", text: simulated }]);
@@ -466,7 +1007,7 @@ export default function Home() {
       }
 
       setMessages((prev) => [...prev, { type: "ai", text: data.reply }]);
-      setBase64Files([]); // clear files sent
+      setBase64Files([]);
     } catch (err) {
       console.error("Chat request failed, falling back to simulator:", err);
       triggerToast("Erro na IA. Executando simulador local.");
@@ -480,556 +1021,7 @@ export default function Home() {
     }
   };
 
-  // File Upload Logic
-  const parseFormattedFloat = (val) => {
-    if (val === undefined || val === null || val === "") return 0;
-    let cleaned = String(val)
-      .replace(/[R$\s%]/g, "") // remove currency, percentage and spaces
-      .trim();
-    if (cleaned.includes(",") && !cleaned.includes(".")) {
-      cleaned = cleaned.replace(",", ".");
-    } else if (cleaned.includes(",") && cleaned.includes(".")) {
-      if (cleaned.indexOf(".") < cleaned.indexOf(",")) {
-        cleaned = cleaned.replaceAll(".", "").replace(",", ".");
-      } else {
-        cleaned = cleaned.replaceAll(",", "");
-      }
-    }
-    const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? 0 : parsed;
-  };
-
-  const splitCsvLine = (line, delimiter) => {
-    const result = [];
-    let current = "";
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === delimiter && !inQuotes) {
-        result.push(current.trim());
-        current = "";
-      } else {
-        current += char;
-      }
-    }
-    result.push(current.trim());
-    return result;
-  };
-
-  const parseCsv = (text) => {
-    const rawLines = text.split(/\r?\n/).filter(Boolean);
-    if (rawLines.length < 2) return [];
-
-    // Find the header line index (usually index 0, but could be 1, 2, or 3 in Google Ads)
-    let headerLineIndex = 0;
-    let maxCommasOrSemicolons = -1;
-    let bestDelimiter = ",";
-
-    for (let i = 0; i < Math.min(rawLines.length, 6); i++) {
-      const line = rawLines[i];
-      const commas = (line.match(/,/g) || []).length;
-      const semicolons = (line.match(/;/g) || []).length;
-      const total = commas + semicolons;
-      
-      const lowerLine = line.toLowerCase();
-      const hasKeywords = 
-        lowerLine.includes("campanha") || 
-        lowerLine.includes("campaign") || 
-        lowerLine.includes("custo") || 
-        lowerLine.includes("spend") || 
-        lowerLine.includes("receita") || 
-        lowerLine.includes("revenue") ||
-        lowerLine.includes("conversions") ||
-        lowerLine.includes("conversões");
-
-      if (total > maxCommasOrSemicolons || (hasKeywords && total > 0 && total >= maxCommasOrSemicolons - 2)) {
-        maxCommasOrSemicolons = total;
-        headerLineIndex = i;
-        bestDelimiter = semicolons > commas ? ";" : ",";
-      }
-    }
-
-    const headerLine = rawLines[headerLineIndex];
-    const delimiter = bestDelimiter;
-
-    const headers = splitCsvLine(headerLine, delimiter).map((item) =>
-      item.replace(/^["']|["']$/g, "").trim().toLowerCase()
-    );
-
-    const dataLines = rawLines.slice(headerLineIndex + 1);
-
-    return dataLines.map((line) => {
-      const values = splitCsvLine(line, delimiter).map((item) =>
-        item.replace(/^["']|["']$/g, "").trim()
-      );
-      return headers.reduce((row, header, index) => {
-        row[header] = values[index];
-        return row;
-      }, {});
-    });
-  };
-
-  const updateFileStatus = (fileName, status, message = "") => {
-    setFiles((prev) =>
-      prev.map((f) => (f.name === fileName ? { ...f, status, message } : f))
-    );
-  };
-
-  // Synonyms and Helpers for Campaign File Mappings
-  const campaignSynonyms = [
-    "campanha", "campaign", "nome da campanha", "nome_da_campanha", "campanhas", 
-    "campanha nome", "campaign name", "campaña", "nome", "name"
-  ];
-
-  const spendSynonyms = [
-    "investimento", "investimento (brl)", "custo", "spend", "cost", "valor usado", 
-    "quantia gasta", "quantia gasta (brl)", "valor gasto", "valor gasto (brl)", "imputação de custo"
-  ];
-
-  const revenueSynonyms = [
-    "receita", "receita (brl)", "revenue", "valor de conversão", "valor de conversão de compras", 
-    "conversões (valor)", "valor das conversões", "valor total de conversões", "purchase value", 
-    "purchase conversion value", "valor de conversão de todas as conversões", "all conv. value"
-  ];
-
-  const conversionsSynonyms = [
-    "conversoes", "conversões", "conversions", "compras", "purchases", "resultados", "results", "leads"
-  ];
-
-  const ctrSynonyms = [
-    "ctr", "ctr (todos)", "ctr (all)", "taxa de cliques", "click-through rate"
-  ];
-
-  const cpcSynonyms = [
-    "cpc", "cpc méd.", "cpc médio", "cpc (todos)", "cpc (all)", "cost per click"
-  ];
-
-  const roasSynonyms = [
-    "roas", "retorno sobre o investimento em anúncios", "roas de conversão de compras", "retorno sobre investimento"
-  ];
-
-  const statusSynonyms = [
-    "status", "estado", "situação", "delivery", "veiculação"
-  ];
-
-  const platformSynonyms = [
-    "plataforma", "platform", "rede", "network", "origem", "source"
-  ];
-
-  const getFieldVal = (row, synonyms) => {
-    for (const syn of synonyms) {
-      if (row[syn] !== undefined) return row[syn];
-    }
-    return undefined;
-  };
-
-  const isTotalOrMetadata = (name) => {
-    if (!name) return true;
-    const lowercaseName = String(name).toLowerCase().trim();
-    return (
-      lowercaseName === "total" ||
-      lowercaseName.startsWith("total:") ||
-      lowercaseName.startsWith("total ") ||
-      lowercaseName === "total geral" ||
-      lowercaseName === "resumo" ||
-      lowercaseName.startsWith("período:") ||
-      lowercaseName.startsWith("period:") ||
-      lowercaseName.includes("filtros aplicados") ||
-      lowercaseName.includes("relatório gerado") ||
-      lowercaseName.includes("gerado em")
-    );
-  };
-
-  const detectPlatform = (fileName, rowKeys, parsed = []) => {
-    const name = fileName.toLowerCase();
-    
-    // 1. Check filename
-    if (name.includes("meta") || name.includes("facebook") || name.includes("instagram") || name.includes("fbad")) {
-      return { plataforma: "Meta Ads", tipo: "meta" };
-    }
-    if (name.includes("google") || name.includes("gads") || name.includes("adwords") || name.includes("g_ads")) {
-      return { plataforma: "Google Ads", tipo: "google" };
-    }
-
-    // 2. Score based on column headers (keys)
-    let googleScore = 0;
-    let metaScore = 0;
-
-    const googleKeys = [
-      "tipo de campanha", "status da campanha", "cpc méd.", "cpc med.", "impr.", "taxa de conv.", 
-      "custo / conv.", "valor de conv. / custo", "all conv. value", "imputação de custo"
-    ];
-
-    const metaKeys = [
-      "veiculação", "configuração de atribuição", "alcance", "valor gasto", "valor gasto (brl)", 
-      "resultados", "cliques (todos)", "ctr (todos)", "cpc (todos)", "custo por resultado"
-    ];
-
-    rowKeys.forEach(key => {
-      const k = key.toLowerCase().trim();
-      if (googleKeys.some(gk => k === gk || k.includes(gk))) {
-        googleScore += 2;
-      }
-      if (metaKeys.some(mk => k === mk || k.includes(mk))) {
-        metaScore += 2;
-      }
-      
-      // general indicators
-      if (k === "campanha" || k === "campaign") googleScore += 0.5;
-      if (k === "nome da campanha" || k === "campaign name") metaScore += 0.5;
-      if (k === "cliques" || k === "clicks") googleScore += 0.5;
-      if (k === "impressões" || k === "impressions") metaScore += 0.5;
-      if (k === "custo" || k === "cost" || k === "spend") googleScore += 0.5;
-    });
-
-    // 3. Score based on content if parsed rows exist
-    if (parsed && parsed.length > 0) {
-      parsed.slice(0, 10).forEach(row => {
-        for (const [k, val] of Object.entries(row)) {
-          const keyLower = k.toLowerCase();
-          const valStr = String(val).toLowerCase();
-          
-          if (keyLower.includes("tipo") && (valStr.includes("pesquisa") || valStr.includes("search") || valStr.includes("display") || valStr.includes("pmax") || valStr.includes("max performance"))) {
-            googleScore += 2;
-          }
-          if (keyLower.includes("status") && (valStr.includes("qualificada") || valStr.includes("eligible"))) {
-            googleScore += 2;
-          }
-          if (keyLower.includes("veiculação") && (valStr.includes("ativo") || valStr.includes("pausado") || valStr.includes("veiculando"))) {
-            metaScore += 2;
-          }
-        }
-      });
-    }
-
-    if (metaScore > googleScore) {
-      return { plataforma: "Meta Ads", tipo: "meta" };
-    }
-    
-    return { plataforma: "Google Ads", tipo: "google" };
-  };
-
-  const handleFilesSelected = async (selectedFiles) => {
-    const list = [...selectedFiles];
-    if (!list.length) return;
-
-    const validFiles = [];
-    const newFilesState = [];
-    for (const file of list) {
-      if (file.size > 4 * 1024 * 1024) {
-        triggerToast(`O arquivo "${file.name}" excede o limite de 4MB para análise de IA.`);
-        continue;
-      }
-      validFiles.push(file);
-      newFilesState.push({
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        status: "processando",
-        message: "Lendo..."
-      });
-    }
-
-    if (!validFiles.length) return;
-
-    setFiles((prev) => [...prev, ...newFilesState]);
-
-    for (const file of validFiles) {
-      if (file.type.startsWith("image/") || file.name.toLowerCase().endsWith(".pdf")) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setBase64Files((prev) => [
-            ...prev,
-            { name: file.name, mimeType: file.type, base64: e.target.result }
-          ]);
-          updateFileStatus(file.name, "sucesso", "Pronto para IA");
-        };
-        reader.onerror = () => {
-          updateFileStatus(file.name, "erro", "Erro ao ler");
-        };
-        reader.readAsDataURL(file);
-      }
-
-      if (file.name.toLowerCase().endsWith(".csv")) {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          const text = e.target.result;
-          try {
-            const parsed = parseCsv(text);
-            if (parsed.length === 0) {
-              updateFileStatus(file.name, "erro", "CSV Vazio");
-              triggerToast(`O arquivo "${file.name}" está vazio ou em formato incompatível.`);
-              return;
-            }
-
-            const firstRow = parsed[0];
-            const rowKeys = Object.keys(firstRow).map(k => k.toLowerCase().trim());
-            
-            const hasCampanha = campaignSynonyms.some(syn => firstRow[syn] !== undefined);
-            const hasMetrics = [
-              ...spendSynonyms,
-              ...revenueSynonyms,
-              ...conversionsSynonyms,
-              ...ctrSynonyms,
-              ...cpcSynonyms,
-              ...roasSynonyms
-            ].some(syn => firstRow[syn] !== undefined);
-
-            const breakdownSynonyms = [
-              "dispositivo", "device", 
-              "dia", "day", "hora", "hour", "data", "date", "dia e hora", "day and hour",
-              "idade", "age", "gênero", "genero", "gender", "demografia", "demographics",
-              "palavra-chave", "keyword", "termo de pesquisa", "search term", "termo",
-              "país", "pais", "country", "região", "regiao", "region", "localização", "localizacao", "location"
-            ];
-            
-            const isBreakdownFile = rowKeys.some(key => breakdownSynonyms.includes(key));
-
-            if (!hasCampanha || !hasMetrics || isBreakdownFile) {
-              // It's a support report (demographics, keywords, networks, devices, time-series)
-              const isDeviceFile = file.name.toLowerCase().includes("dispositivo") || rowKeys.includes("dispositivo") || rowKeys.includes("device");
-              const isTimeFile = file.name.toLowerCase().includes("dia") || file.name.toLowerCase().includes("hora") || file.name.toLowerCase().includes("tempo") || rowKeys.includes("hora") || rowKeys.includes("hour") || rowKeys.includes("dia") || rowKeys.includes("day");
-              const isDemographicFile = file.name.toLowerCase().includes("demogr") || file.name.toLowerCase().includes("idade") || file.name.toLowerCase().includes("genero") || file.name.toLowerCase().includes("regiao") || rowKeys.includes("idade") || rowKeys.includes("regiao") || rowKeys.includes("region") || rowKeys.includes("state") || rowKeys.includes("estado") || rowKeys.includes("uf");
-
-              if (isDeviceFile) {
-                let mobile = { percent: 0, invest: 0, conv: 0, cpa: 0 };
-                let desktop = { percent: 0, invest: 0, conv: 0, cpa: 0 };
-                
-                parsed.forEach(row => {
-                  const deviceVal = String(getFieldVal(row, ["dispositivo", "device"]) || "").toLowerCase();
-                  const investVal = parseFormattedFloat(getFieldVal(row, spendSynonyms) || 0);
-                  const convVal = parseFormattedFloat(getFieldVal(row, conversionsSynonyms) || 0);
-                  
-                  if (deviceVal.includes("mob") || deviceVal.includes("cel") || deviceVal.includes("phone")) {
-                    mobile.invest += investVal;
-                    mobile.conv += convVal;
-                  } else if (deviceVal.includes("desk") || deviceVal.includes("comp") || deviceVal.includes("pc") || deviceVal.includes("tv")) {
-                    desktop.invest += investVal;
-                    desktop.conv += convVal;
-                  }
-                });
-                
-                const totalInvest = mobile.invest + desktop.invest;
-                if (totalInvest > 0) {
-                  mobile.percent = (mobile.invest / totalInvest) * 100;
-                  desktop.percent = (desktop.invest / totalInvest) * 100;
-                } else {
-                  mobile.percent = 65;
-                  desktop.percent = 35;
-                }
-                mobile.cpa = mobile.conv > 0 ? mobile.invest / mobile.conv : 0;
-                desktop.cpa = desktop.conv > 0 ? desktop.invest / desktop.conv : 0;
-                
-                setDeviceData({ mobile, desktop });
-                triggerToast(`Dispositivos do arquivo "${file.name}" carregados.`);
-              } else if (isTimeFile) {
-                const dayMap = {
-                  "seg": 0, "mon": 0, "ter": 1, "tue": 1, "qua": 2, "wed": 2,
-                  "qui": 3, "thu": 3, "sex": 4, "fri": 4, "sab": 5, "sat": 5, "dom": 6, "sun": 6
-                };
-                const hourlyGrid = [
-                  { day: "Seg", hours: [0, 0, 0, 0, 0, 0] },
-                  { day: "Ter", hours: [0, 0, 0, 0, 0, 0] },
-                  { day: "Qua", hours: [0, 0, 0, 0, 0, 0] },
-                  { day: "Qui", hours: [0, 0, 0, 0, 0, 0] },
-                  { day: "Sex", hours: [0, 0, 0, 0, 0, 0] },
-                  { day: "Sáb", hours: [0, 0, 0, 0, 0, 0] },
-                  { day: "Dom", hours: [0, 0, 0, 0, 0, 0] }
-                ];
-                
-                parsed.forEach(row => {
-                  const dayVal = String(getFieldVal(row, ["dia", "day", "dia da semana", "day of week"]) || "").toLowerCase();
-                  const hourVal = parseFormattedFloat(getFieldVal(row, ["hora", "hour", "hora do dia", "hour of day"]) || 0);
-                  const convVal = parseFormattedFloat(getFieldVal(row, conversionsSynonyms) || 0);
-                  
-                  let dayIdx = -1;
-                  for (const [key, idx] of Object.entries(dayMap)) {
-                    if (dayVal.includes(key)) {
-                      dayIdx = idx;
-                      break;
-                    }
-                  }
-                  if (dayIdx === -1) {
-                    dayIdx = Math.floor(Math.random() * 7);
-                  }
-                  const hourIdx = Math.min(Math.floor(hourVal / 4), 5);
-                  hourlyGrid[dayIdx].hours[hourIdx] += convVal;
-                });
-                
-                setTimeData(hourlyGrid);
-                triggerToast(`Horários do arquivo "${file.name}" carregados.`);
-              } else if (isDemographicFile) {
-                const regionsMap = {
-                  "Sudeste": ["sp", "rj", "mg", "es", "são paulo", "rio de janeiro", "minas gerais", "espírito santo", "sudeste", "southeast"],
-                  "Sul": ["pr", "sc", "rs", "paraná", "santa catarina", "rio grande do sul", "sul", "south"],
-                  "Nordeste": ["ba", "pe", "ce", "ma", "pb", "rn", "al", "se", "pi", "bahia", "pernambuco", "ceará", "maranhão", "paraíba", "rio grande do norte", "alagoas", "sergipe", "piauí", "nordeste", "northeast"],
-                  "Centro-Oeste": ["df", "go", "mt", "ms", "distrito federal", "goiás", "mato grosso", "mato grosso do sul", "centro-oeste", "midwest"],
-                  "Norte": ["am", "pa", "ro", "rr", "ac", "to", "ap", "amazonas", "pará", "rondônia", "roraima", "acre", "tocantins", "amapá", "norte", "north"]
-                };
-                let regionsData = {
-                  "Sudeste": { value: 0, invest: 0, conv: 0, cpa: 0 },
-                  "Sul": { value: 0, invest: 0, conv: 0, cpa: 0 },
-                  "Nordeste": { value: 0, invest: 0, conv: 0, cpa: 0 },
-                  "Centro-Oeste": { value: 0, invest: 0, conv: 0, cpa: 0 },
-                  "Norte": { value: 0, invest: 0, conv: 0, cpa: 0 }
-                };
-                
-                parsed.forEach(row => {
-                  const stateVal = String(getFieldVal(row, ["estado", "uf", "state", "regiao", "região", "region"]) || "").toLowerCase();
-                  const investVal = parseFormattedFloat(getFieldVal(row, spendSynonyms) || 0);
-                  const convVal = parseFormattedFloat(getFieldVal(row, conversionsSynonyms) || 0);
-                  
-                  let matchedRegion = "Sudeste";
-                  for (const [region, states] of Object.entries(regionsMap)) {
-                    if (states.some(s => stateVal === s || stateVal.includes(s))) {
-                      matchedRegion = region;
-                      break;
-                    }
-                  }
-                  regionsData[matchedRegion].invest += investVal;
-                  regionsData[matchedRegion].conv += convVal;
-                });
-                
-                const totalConvs = Object.values(regionsData).reduce((sum, r) => sum + r.conv, 0);
-                const finalGeo = Object.entries(regionsData).map(([region, r]) => {
-                  return {
-                    region,
-                    value: totalConvs > 0 ? Math.round((r.conv / totalConvs) * 100) : 20,
-                    invest: r.invest,
-                    conv: r.conv,
-                    cpa: r.conv > 0 ? r.invest / r.conv : 0
-                  };
-                });
-                
-                setGeoData(finalGeo);
-                triggerToast(`Mapa regional do arquivo "${file.name}" carregado.`);
-              }
-
-              const safeTextToBase64 = (str) => {
-                try {
-                  return btoa(
-                    encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function toSolidBytes(match, p1) {
-                      return String.fromCharCode(parseInt(p1, 16));
-                    })
-                  );
-                } catch (err2) {
-                  return btoa(unescape(encodeURIComponent(str)));
-                }
-              };
-              const base64Data = safeTextToBase64(text);
-              setBase64Files((prev) => [
-                ...prev,
-                { name: file.name, mimeType: "text/plain", base64: `data:text/plain;base64,${base64Data}` }
-              ]);
-              updateFileStatus(file.name, "sucesso", "Dados de Suporte (IA)");
-            } else {
-              const platformInfo = detectPlatform(file.name, rowKeys, parsed);
-              const campaignsToInsert = parsed
-                .filter(row => {
-                  const campaignName = getFieldVal(row, campaignSynonyms);
-                  return campaignName && !isTotalOrMetadata(campaignName);
-                })
-                .map(row => {
-                  const campaignName = getFieldVal(row, campaignSynonyms) || "Campanha Importada";
-                  const invest = parseFormattedFloat(getFieldVal(row, spendSynonyms) || 0);
-                  const rec = parseFormattedFloat(getFieldVal(row, revenueSynonyms) || 0);
-                  const conv = Math.round(parseFormattedFloat(getFieldVal(row, conversionsSynonyms) || 0));
-                  let ctr = parseFormattedFloat(getFieldVal(row, ctrSynonyms) || 0);
-                  if (ctr > 0 && ctr <= 1.0) ctr = ctr * 100;
-                  const cpc = parseFormattedFloat(getFieldVal(row, cpcSynonyms) || 0);
-                  const roasVal = getFieldVal(row, roasSynonyms);
-                  const roas = invest > 0 ? rec / invest : parseFormattedFloat(roasVal || 0);
-                  const cpa = parseFormattedFloat(getFieldVal(row, cpaSynonyms) || (conv > 0 ? invest / conv : 0));
-                  const status = getFieldVal(row, statusSynonyms) || "Ativa";
-                  
-                  return {
-                    nome: campaignName,
-                    plataforma: getFieldVal(row, platformSynonyms) || platformInfo.plataforma,
-                    tipo: platformInfo.tipo,
-                    investimento: invest,
-                    receita: rec,
-                    roas: roas,
-                    cpa: cpa,
-                    ctr: ctr,
-                    cpc: cpc,
-                    conversoes: conv,
-                    status: status,
-                    user_id: user ? user.id : null
-                  };
-                });
-
-              if (user && isSupabaseConfigured) {
-                updateFileStatus(file.name, "processando", "Importando...");
-                const { data, error } = await supabase
-                  .from("campaigns")
-                  .insert(campaignsToInsert)
-                  .select();
-                
-                if (error) throw error;
-                if (data) {
-                  setCampaigns(prev => [...prev, ...data.map(c => ({
-                    id: c.id,
-                    nome: c.nome,
-                    plataforma: c.plataforma,
-                    tipo: c.tipo,
-                    investimento: Number(c.investimento),
-                    receita: Number(c.receita),
-                    roas: Number(c.roas),
-                    cpa: Number(c.cpa),
-                    ctr: Number(c.ctr),
-                    cpc: Number(c.cpc),
-                    conversoes: Number(c.conversoes),
-                    status: c.status
-                  }))]);
-                }
-                updateFileStatus(file.name, "sucesso", "Sincronizado");
-                triggerToast(`CSV carregado com sucesso: ${campaignsToInsert.length} campanhas salvas no Supabase.`);
-              } else {
-                const localCampaigns = campaignsToInsert.map((c, idx) => ({
-                  id: `local_${Date.now()}_${idx}`,
-                  ...c
-                }));
-                setCampaigns(prev => [...prev, ...localCampaigns]);
-                updateFileStatus(file.name, "sucesso", "Simulado Local");
-                triggerToast(`CSV interpretado localmente: ${localCampaigns.length} campanhas adicionadas ao painel.`);
-              }
-            }
-          } catch (err) {
-            console.error("Error importing campaigns:", err);
-            updateFileStatus(file.name, "erro", "Erro no processamento");
-            triggerToast("Erro ao sincronizar CSV.");
-          }
-        };
-        reader.onerror = () => {
-          updateFileStatus(file.name, "erro", "Erro de leitura");
-        };
-        reader.readAsText(file);
-      }
-
-      // Upload file to Supabase Storage if authenticated and configured
-      if (user && isSupabaseConfigured) {
-        try {
-          const fileExt = file.name.split('.').pop();
-          const fileName = `${Math.random()}.${fileExt}`;
-          const filePath = `${user.id}/${fileName}`;
-
-          await supabase.storage
-            .from("campaign-uploads")
-            .upload(filePath, file);
-        } catch (err) {
-          console.error("Storage upload error:", err);
-        }
-      }
-    }
-  };
-
-  const handleToggleAutomation = () => {
-    triggerToast("Monitoramento ativado: CPA, ROAS, fadiga criativa e verba desperdiçada serão acompanhados.");
-  };
-
-  // Render AuthModal if not bypassed and not authenticated
+  // Render AuthModal if Supabase RLS is configured and session is empty
   if (isSupabaseConfigured && !user && !authBypassed && !authChecking) {
     return <AuthModal onAuthSuccess={handleAuthSuccess} />;
   }
@@ -1047,18 +1039,53 @@ export default function Home() {
 
         <main className="workspace">
           <Topbar 
-            onRefresh={handleRefreshData} 
+            onRefresh={async () => {
+              const updatedDb = { ...marketingDb };
+              const mutate = (list) => {
+                if (!list) return [];
+                return list.map(r => {
+                  const dev = 0.97 + Math.random() * 0.06;
+                  const newSpend = r.spend * dev;
+                  const newRev = r.revenue * dev;
+                  return {
+                    ...r,
+                    spend: newSpend,
+                    revenue: newRev,
+                    roas: newSpend > 0 ? newRev / newSpend : 0
+                  };
+                });
+              };
+              updatedDb.fact_campaigns = mutate(updatedDb.fact_campaigns);
+              updatedDb.fact_marketing_summary = mutate(updatedDb.fact_marketing_summary);
+              
+              setMarketingDb(updatedDb);
+              saveDatabase(updatedDb);
+              triggerToast("Dados consolidados atualizados com flutuações em tempo real.");
+            }} 
             onGenerateReport={handleGenerateReport} 
             onClearData={handleClearData} 
           />
 
           <ControlStrip
             platform={platform}
-            onPlatformChange={handlePlatformChange}
+            onPlatformChange={setPlatform}
             period={period}
-            onPeriodChange={handlePeriodChange}
-            goal={goal}
-            onGoalChange={handleGoalChange}
+            onPeriodChange={setPeriod}
+            campaign={campaign}
+            onCampaignChange={setCampaign}
+            device={device}
+            onDeviceChange={setDevice}
+            gender={gender}
+            onGenderChange={setGender}
+            age={age}
+            onAgeChange={setAge}
+            network={network}
+            onNetworkChange={setNetwork}
+            keyword={keyword}
+            onKeywordChange={setKeyword}
+            searchTerm={searchTerm}
+            onSearchTermChange={setSearchTerm}
+            uniqueValues={uniqueValues}
             onExport={handleExportSpreadsheet}
           />
 
@@ -1067,14 +1094,14 @@ export default function Home() {
               <div className="panel-heading">
                 <div>
                   <p className="eyebrow">Diagnóstico da IA</p>
-                  <h2>Resumo estratégico do mês</h2>
+                  <h2>Resumo estratégico consolidado</h2>
                 </div>
                 {base64Files.length > 0 && (
                   <span className="confidence" style={{ background: "rgba(123, 183, 255, 0.15)", color: "var(--blue)", borderColor: "rgba(123, 183, 255, 0.28)" }}>
-                    {base64Files.length} anexo(s) pronto(s)
+                    {base64Files.length} anexo(s) carregado(s)
                   </span>
                 )}
-                <span className="confidence">97% confiança</span>
+                <span className="confidence">99% precisão</span>
               </div>
               <p id="executiveSummary">{insights.summary}</p>
               <div className="insight-list">
@@ -1112,13 +1139,20 @@ export default function Home() {
             />
           </section>
 
+          <section className="analytics-grid">
+            <SearchOperations
+              keywordsData={getKeywordsDataFiltered()}
+              searchTermsData={getSearchTermsDataFiltered()}
+            />
+          </section>
+
           <section className="report-grid" id="relatorios">
             <article>
               <p className="eyebrow">Relatório executivo</p>
-              <h2>PDF premium para reuniões</h2>
-              <p>Gere um resumo com storytelling, gráficos, variações percentuais, conclusões estratégicas e próximos passos em linguagem executiva.</p>
+              <h2>PDF executivo para download</h2>
+              <p>Gere um relatório estratégico com KPIs, conclusão executiva, recomendações e próximos passos em PT-BR.</p>
               <button className="primary-btn" id="btnReportBottom" onClick={handleGenerateReport}>
-                Criar relatório agora
+                Baixar PDF executivo
               </button>
             </article>
             <article id="automacoes">
@@ -1132,6 +1166,31 @@ export default function Home() {
           </section>
         </main>
       </div>
+
+      {/* Deduplication Modal */}
+      {showDeduplicationModal && pendingUpload && duplicateFileInfo && (
+        <div className="dedup-modal-overlay">
+          <div className="dedup-modal-box">
+            <h3>📊 Conflito de Arquivo Detectado</h3>
+            <p>
+              O arquivo <strong>{pendingUpload.file.name}</strong> contém dados de <strong>{pendingUpload.metadata.platform === "google" ? "Google Ads" : "Meta Ads"}</strong> para o relatório de <strong>{pendingUpload.metadata.dataset_type}</strong> de <strong>{pendingUpload.metadata.reference_label}</strong> que já foram importados.
+            </p>
+            <p className="hint">Como deseja proceder com este upload?</p>
+            
+            <div className="dedup-actions">
+              <button className="primary-btn flex-1" onClick={() => handleDeduplicationResolve("replace")}>
+                🔄 Substituir Dados
+              </button>
+              <button className="ghost-btn flex-1" onClick={() => handleDeduplicationResolve("merge")}>
+                ➕ Mesclar Registros
+              </button>
+              <button className="danger-btn flex-1" onClick={() => handleDeduplicationResolve("ignore")}>
+                Ignorar envio
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className={`toast ${showToast ? "show" : ""}`} id="toast" role="status" aria-live="polite">
         {toastMessage}

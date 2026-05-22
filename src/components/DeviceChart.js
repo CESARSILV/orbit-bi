@@ -26,7 +26,7 @@ export default function DeviceChart({ deviceData }) {
       <div className="card-header">
         <div>
           <p className="eyebrow">Desempenho de Dispositivos</p>
-          <h3>Mobile vs Desktop</h3>
+          <h3>Celular vs Computador</h3>
         </div>
         <span className={isDataAvailable ? "badge-suporte" : "badge-suporte-empty"}>
           {isDataAvailable ? "Planilha Atualizada" : "Sem Dados"}
@@ -44,7 +44,7 @@ export default function DeviceChart({ deviceData }) {
           </div>
           <div className="device-info">
             <div className="device-label-row">
-              <span className="device-name">Celular (Mobile)</span>
+              <span className="device-name">Celular</span>
               <span className="device-percentage">{data.mobile.percent.toFixed(0)}%</span>
             </div>
             <div className="device-bar-container">
@@ -78,7 +78,7 @@ export default function DeviceChart({ deviceData }) {
           </div>
           <div className="device-info">
             <div className="device-label-row">
-              <span className="device-name">Computador (Desktop)</span>
+              <span className="device-name">Computador</span>
               <span className="device-percentage">{data.desktop.percent.toFixed(0)}%</span>
             </div>
             <div className="device-bar-container">

@@ -1,22 +1,9 @@
-import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
+import { generateProviderText } from "@/lib/ai-providers";
 
 export async function POST(request) {
   try {
     const { campaigns, totals } = await request.json();
-
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey === "your-gemini-api-key") {
-      return NextResponse.json(
-        {
-          error: "API_KEY_MISSING",
-          message: "A chave GEMINI_API_KEY não está configurada no arquivo .env.local. Adicione-a para ativar o analista de IA real.",
-        },
-        { status: 400 }
-      );
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
 
     // Format BRL function for prompt context
     const brlFormat = (val) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(val);
@@ -52,13 +39,10 @@ Sua resposta deve ser estritamente um objeto JSON válido (com aspas duplas, sem
 }
 `;
 
-    // Call Gemini API
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: systemPrompt,
-      config: {
-        responseMimeType: "application/json"
-      }
+    const response = await generateProviderText({
+      systemPrompt,
+      userText: "Gere o relatório executivo no formato JSON solicitado.",
+      wantsJson: true,
     });
 
     const replyText = response.text || "";
@@ -71,12 +55,12 @@ Sua resposta deve ser estritamente um objeto JSON válido (com aspas duplas, sem
       data = JSON.parse(cleanedText);
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json({ ...data, provider: response.provider });
   } catch (error) {
-    console.error("Gemini API Report Error:", error);
+    console.error("AI Report Error:", error);
     return NextResponse.json(
-      { error: "GENAI_ERROR", message: error.message || "Erro de comunicação com a API do Gemini." },
-      { status: 500 }
+      { error: error.code || "AI_ERROR", message: error.message || "Erro de comunicação com a IA." },
+      { status: error.code === "API_KEY_MISSING" ? 400 : 500 }
     );
   }
 }

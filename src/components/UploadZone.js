@@ -52,7 +52,7 @@ export default function UploadZone({ files, onFilesSelected }) {
         />
         <div className="upload-icon">+</div>
         <h2>Enviar dados ou prints</h2>
-        <p>Arraste CSV, XLSX, PDFs, screenshots, fotos de dashboards ou exports de anúncios.</p>
+        <p>Arraste CSV, XLSX, XLS, PDFs, screenshots, fotos de dashboards ou exports de anúncios.</p>
         <button className="ghost-btn" id="btnSelectFiles" type="button" onClick={triggerFileInput}>
           Selecionar arquivos
         </button>
