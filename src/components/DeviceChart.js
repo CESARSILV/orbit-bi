@@ -12,9 +12,10 @@ export default function DeviceChart({ deviceData }) {
     return () => clearTimeout(timer);
   }, []);
 
+  const isDataAvailable = !!deviceData;
   const data = deviceData || {
-    mobile: { percent: 65, invest: 12400, conv: 320, cpa: 38.75 },
-    desktop: { percent: 35, invest: 6680, conv: 140, cpa: 47.71 }
+    mobile: { percent: 0, invest: 0, conv: 0, cpa: 0 },
+    desktop: { percent: 0, invest: 0, conv: 0, cpa: 0 }
   };
 
   const mobileWidth = animate ? `${data.mobile.percent}%` : "0%";
@@ -27,7 +28,9 @@ export default function DeviceChart({ deviceData }) {
           <p className="eyebrow">Desempenho de Dispositivos</p>
           <h3>Mobile vs Desktop</h3>
         </div>
-        <span className="badge-suporte">Planilha Atualizada</span>
+        <span className={isDataAvailable ? "badge-suporte" : "badge-suporte-empty"}>
+          {isDataAvailable ? "Planilha Atualizada" : "Sem Dados"}
+        </span>
       </div>
 
       <div className="device-distribution">

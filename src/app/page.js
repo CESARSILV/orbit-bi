@@ -878,21 +878,72 @@ export default function Home() {
     );
   };
 
-  const detectPlatform = (fileName, rowKeys) => {
+  const detectPlatform = (fileName, rowKeys, parsed = []) => {
     const name = fileName.toLowerCase();
-    if (name.includes("meta") || name.includes("facebook") || name.includes("instagram")) {
+    
+    // 1. Check filename
+    if (name.includes("meta") || name.includes("facebook") || name.includes("instagram") || name.includes("fbad")) {
       return { plataforma: "Meta Ads", tipo: "meta" };
     }
-    if (name.includes("google") || name.includes("gads") || name.includes("adwords")) {
+    if (name.includes("google") || name.includes("gads") || name.includes("adwords") || name.includes("g_ads")) {
       return { plataforma: "Google Ads", tipo: "google" };
     }
-    const keysStr = rowKeys.join(" ");
-    if (keysStr.includes("facebook") || keysStr.includes("meta")) {
+
+    // 2. Score based on column headers (keys)
+    let googleScore = 0;
+    let metaScore = 0;
+
+    const googleKeys = [
+      "tipo de campanha", "status da campanha", "cpc méd.", "cpc med.", "impr.", "taxa de conv.", 
+      "custo / conv.", "valor de conv. / custo", "all conv. value", "imputação de custo"
+    ];
+
+    const metaKeys = [
+      "veiculação", "configuração de atribuição", "alcance", "valor gasto", "valor gasto (brl)", 
+      "resultados", "cliques (todos)", "ctr (todos)", "cpc (todos)", "custo por resultado"
+    ];
+
+    rowKeys.forEach(key => {
+      const k = key.toLowerCase().trim();
+      if (googleKeys.some(gk => k === gk || k.includes(gk))) {
+        googleScore += 2;
+      }
+      if (metaKeys.some(mk => k === mk || k.includes(mk))) {
+        metaScore += 2;
+      }
+      
+      // general indicators
+      if (k === "campanha" || k === "campaign") googleScore += 0.5;
+      if (k === "nome da campanha" || k === "campaign name") metaScore += 0.5;
+      if (k === "cliques" || k === "clicks") googleScore += 0.5;
+      if (k === "impressões" || k === "impressions") metaScore += 0.5;
+      if (k === "custo" || k === "cost" || k === "spend") googleScore += 0.5;
+    });
+
+    // 3. Score based on content if parsed rows exist
+    if (parsed && parsed.length > 0) {
+      parsed.slice(0, 10).forEach(row => {
+        for (const [k, val] of Object.entries(row)) {
+          const keyLower = k.toLowerCase();
+          const valStr = String(val).toLowerCase();
+          
+          if (keyLower.includes("tipo") && (valStr.includes("pesquisa") || valStr.includes("search") || valStr.includes("display") || valStr.includes("pmax") || valStr.includes("max performance"))) {
+            googleScore += 2;
+          }
+          if (keyLower.includes("status") && (valStr.includes("qualificada") || valStr.includes("eligible"))) {
+            googleScore += 2;
+          }
+          if (keyLower.includes("veiculação") && (valStr.includes("ativo") || valStr.includes("pausado") || valStr.includes("veiculando"))) {
+            metaScore += 2;
+          }
+        }
+      });
+    }
+
+    if (metaScore > googleScore) {
       return { plataforma: "Meta Ads", tipo: "meta" };
     }
-    if (keysStr.includes("google") || keysStr.includes("adwords")) {
-      return { plataforma: "Google Ads", tipo: "google" };
-    }
+    
     return { plataforma: "Google Ads", tipo: "google" };
   };
 
@@ -1110,7 +1161,7 @@ export default function Home() {
               ]);
               updateFileStatus(file.name, "sucesso", "Dados de Suporte (IA)");
             } else {
-              const platformInfo = detectPlatform(file.name, rowKeys);
+              const platformInfo = detectPlatform(file.name, rowKeys, parsed);
               const campaignsToInsert = parsed
                 .filter(row => {
                   const campaignName = getFieldVal(row, campaignSynonyms);

@@ -5,29 +5,28 @@ import { useState } from "react";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 export default function RegionalMap({ geoData }) {
+  const isDataAvailable = !!geoData;
   const data = geoData || [
-    { region: "Sudeste", value: 52, invest: 9800, conv: 242, cpa: 40.50 },
-    { region: "Sul", value: 22, invest: 4200, conv: 102, cpa: 41.17 },
-    { region: "Nordeste", value: 14, invest: 2600, conv: 65, cpa: 40.00 },
-    { region: "Centro-Oeste", value: 8, invest: 1500, conv: 37, cpa: 40.54 },
-    { region: "Norte", value: 4, invest: 800, conv: 18, cpa: 44.44 }
+    { region: "Sudeste", value: 0, invest: 0, conv: 0, cpa: 0 },
+    { region: "Sul", value: 0, invest: 0, conv: 0, cpa: 0 },
+    { region: "Nordeste", value: 0, invest: 0, conv: 0, cpa: 0 },
+    { region: "Centro-Oeste", value: 0, invest: 0, conv: 0, cpa: 0 },
+    { region: "Norte", value: 0, invest: 0, conv: 0, cpa: 0 }
   ];
 
-  const [activeRegion, setActiveRegion] = useState(data[0]);
+  const [activeRegionName, setActiveRegionName] = useState("Sudeste");
+  const activeRegion = data.find(d => d.region === activeRegionName) || data[0];
 
   // Find region in our data array
   const handleMouseEnter = (regionName) => {
-    const found = data.find(d => d.region === regionName);
-    if (found) {
-      setActiveRegion(found);
-    }
+    setActiveRegionName(regionName);
   };
 
   // Helper to determine region color intensity based on value/conversions
   const getRegionOpacity = (regionName) => {
+    if (!isDataAvailable) return 0.08;
     const found = data.find(d => d.region === regionName);
-    if (!found) return 0.25;
-    // max value is around 52
+    if (!found) return 0.08;
     const val = found.value;
     return 0.15 + (val / 55) * 0.85;
   };
@@ -39,7 +38,9 @@ export default function RegionalMap({ geoData }) {
           <p className="eyebrow">Distribuição Demográfica</p>
           <h3>Engajamento por Região</h3>
         </div>
-        <span className="badge-suporte">Geográfico (IA)</span>
+        <span className={isDataAvailable ? "badge-suporte" : "badge-suporte-empty"}>
+          {isDataAvailable ? "Geográfico (IA)" : "Sem Dados"}
+        </span>
       </div>
 
       <div className="map-content-layout">
@@ -121,11 +122,12 @@ export default function RegionalMap({ geoData }) {
           <div className="region-recommendation-box">
             <h5>💡 Insights Regionais</h5>
             <p>
-              {activeRegion.region === "Sudeste" && "Região líder com menor CPA. Recomendável focar 50%+ da verba de conversão aqui."}
-              {activeRegion.region === "Sul" && "Excelente retorno por investimento. Oportunidade de aumentar os lances de público."}
-              {activeRegion.region === "Nordeste" && "CPA equilibrado. Bom volume de leads. Aumentar frequência de anúncios locais."}
-              {activeRegion.region === "Centro-Oeste" && "Público seleto e ticket médio alto. Excelente para campanhas de produtos Premium."}
-              {activeRegion.region === "Norte" && "CPA mais alto da média nacional. Otimizar criativos para atração regionalizada."}
+              {!isDataAvailable && "Aguardando carregamento de planilha de dados demográficos/geográficos para gerar insights."}
+              {isDataAvailable && activeRegion.region === "Sudeste" && "Região líder com menor CPA. Recomendável focar 50%+ da verba de conversão aqui."}
+              {isDataAvailable && activeRegion.region === "Sul" && "Excelente retorno por investimento. Oportunidade de aumentar os lances de público."}
+              {isDataAvailable && activeRegion.region === "Nordeste" && "CPA equilibrado. Bom volume de leads. Aumentar frequência de anúncios locais."}
+              {isDataAvailable && activeRegion.region === "Centro-Oeste" && "Público seleto e ticket médio alto. Excelente para campanhas de produtos Premium."}
+              {isDataAvailable && activeRegion.region === "Norte" && "CPA mais alto da média nacional. Otimizar criativos para atração regionalizada."}
             </p>
           </div>
         </div>

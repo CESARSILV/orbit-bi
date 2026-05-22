@@ -8,14 +8,15 @@ const DAYS_FULL = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feir
 export default function TimeHeatmap({ timeData }) {
   const [hoveredCell, setHoveredCell] = useState(null);
 
+  const isDataAvailable = !!timeData;
   const data = timeData || [
-    { day: "Seg", hours: [10, 20, 45, 80, 60, 30] },
-    { day: "Ter", hours: [15, 25, 50, 95, 70, 35] },
-    { day: "Qua", hours: [12, 22, 48, 90, 65, 28] },
-    { day: "Qui", hours: [18, 30, 55, 110, 85, 40] },
-    { day: "Sex", hours: [20, 35, 60, 115, 90, 45] },
-    { day: "Sáb", hours: [30, 40, 35, 60, 75, 50] },
-    { day: "Dom", hours: [25, 30, 25, 50, 60, 40] }
+    { day: "Seg", hours: [0, 0, 0, 0, 0, 0] },
+    { day: "Ter", hours: [0, 0, 0, 0, 0, 0] },
+    { day: "Qua", hours: [0, 0, 0, 0, 0, 0] },
+    { day: "Qui", hours: [0, 0, 0, 0, 0, 0] },
+    { day: "Sex", hours: [0, 0, 0, 0, 0, 0] },
+    { day: "Sáb", hours: [0, 0, 0, 0, 0, 0] },
+    { day: "Dom", hours: [0, 0, 0, 0, 0, 0] }
   ];
 
   // Find max value for color scaling
@@ -49,7 +50,9 @@ export default function TimeHeatmap({ timeData }) {
           <p className="eyebrow">Análise Cronológica</p>
           <h3>Densidade por Dia e Hora</h3>
         </div>
-        <span className="badge-suporte">Calendário IA</span>
+        <span className={isDataAvailable ? "badge-suporte" : "badge-suporte-empty"}>
+          {isDataAvailable ? "Calendário IA" : "Sem Dados"}
+        </span>
       </div>
 
       <div className="heatmap-container">
@@ -67,29 +70,32 @@ export default function TimeHeatmap({ timeData }) {
               <div className="heatmap-cells">
                 {dayRow.hours.map((val, hourIdx) => {
                   const intensity = val / maxVal;
-                  // Map intensity to green-to-blue gradients with css custom variables or opacity
                   const cellStyle = {
-                    backgroundColor: `rgba(66, 185, 131, ${0.1 + intensity * 0.9})`,
-                    boxShadow: intensity > 0.8 ? "0 0 10px rgba(66, 185, 131, 0.4)" : "none",
+                    backgroundColor: isDataAvailable
+                      ? `rgba(66, 185, 131, ${0.1 + intensity * 0.9})`
+                      : "rgba(255, 255, 255, 0.03)",
+                    boxShadow: isDataAvailable && intensity > 0.8 ? "0 0 10px rgba(66, 185, 131, 0.4)" : "none",
+                    border: isDataAvailable ? "none" : "1px solid rgba(255, 255, 255, 0.05)"
                   };
 
                   return (
                     <div
-                      key={hourIdx}
-                      className="heatmap-cell"
-                      style={cellStyle}
-                      onMouseEnter={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setHoveredCell({
-                          day: DAYS_FULL[dayIdx],
-                          hour: HOURS_LABELS[hourIdx],
-                          value: val,
-                          recommendation: getRecommendation(dayIdx, hourIdx, val),
-                          x: rect.left + rect.width / 2,
-                          y: rect.top - 10
-                        });
-                      }}
-                      onMouseLeave={() => setHoveredCell(null)}
+                       key={hourIdx}
+                       className="heatmap-cell"
+                       style={cellStyle}
+                       onMouseEnter={(e) => {
+                         if (!isDataAvailable) return;
+                         const rect = e.currentTarget.getBoundingClientRect();
+                         setHoveredCell({
+                           day: DAYS_FULL[dayIdx],
+                           hour: HOURS_LABELS[hourIdx],
+                           value: val,
+                           recommendation: getRecommendation(dayIdx, hourIdx, val),
+                           x: rect.left + rect.width / 2,
+                           y: rect.top - 10
+                         });
+                       }}
+                       onMouseLeave={() => setHoveredCell(null)}
                     ></div>
                   );
                 })}
