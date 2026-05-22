@@ -13,6 +13,9 @@ import CampaignTable from "@/components/CampaignTable";
 import ChatAssistant from "@/components/ChatAssistant";
 import UploadZone from "@/components/UploadZone";
 import AuthModal from "@/components/AuthModal";
+import DeviceChart from "@/components/DeviceChart";
+import TimeHeatmap from "@/components/TimeHeatmap";
+import RegionalMap from "@/components/RegionalMap";
 
 // Formatting helpers
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -41,6 +44,11 @@ export default function Home() {
   // File state
   const [files, setFiles] = useState([]);
   const [base64Files, setBase64Files] = useState([]);
+
+  // Segmentation support states (devices, day/hour heatmap, demographics map)
+  const [deviceData, setDeviceData] = useState(null);
+  const [timeData, setTimeData] = useState(null);
+  const [geoData, setGeoData] = useState(null);
 
   // Chat State
   const [messages, setMessages] = useState([
@@ -710,14 +718,18 @@ export default function Home() {
 
   // File Upload Logic
   const parseFormattedFloat = (val) => {
-    if (!val) return 0;
+    if (val === undefined || val === null || val === "") return 0;
     let cleaned = String(val)
       .replace(/[R$\s%]/g, "") // remove currency, percentage and spaces
       .trim();
     if (cleaned.includes(",") && !cleaned.includes(".")) {
       cleaned = cleaned.replace(",", ".");
     } else if (cleaned.includes(",") && cleaned.includes(".")) {
-      cleaned = cleaned.replaceAll(".", "").replace(",", ".");
+      if (cleaned.indexOf(".") < cleaned.indexOf(",")) {
+        cleaned = cleaned.replaceAll(".", "").replace(",", ".");
+      } else {
+        cleaned = cleaned.replaceAll(",", "");
+      }
     }
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? 0 : parsed;
@@ -743,20 +755,48 @@ export default function Home() {
   };
 
   const parseCsv = (text) => {
-    const lines = text.split(/\r?\n/).filter(Boolean);
-    if (lines.length < 2) return [];
-    
-    // Autodetect delimiter
-    const headerLine = lines[0];
-    const commas = (headerLine.match(/,/g) || []).length;
-    const semicolons = (headerLine.match(/;/g) || []).length;
-    const delimiter = semicolons > commas ? ";" : ",";
+    const rawLines = text.split(/\r?\n/).filter(Boolean);
+    if (rawLines.length < 2) return [];
+
+    // Find the header line index (usually index 0, but could be 1, 2, or 3 in Google Ads)
+    let headerLineIndex = 0;
+    let maxCommasOrSemicolons = -1;
+    let bestDelimiter = ",";
+
+    for (let i = 0; i < Math.min(rawLines.length, 6); i++) {
+      const line = rawLines[i];
+      const commas = (line.match(/,/g) || []).length;
+      const semicolons = (line.match(/;/g) || []).length;
+      const total = commas + semicolons;
+      
+      const lowerLine = line.toLowerCase();
+      const hasKeywords = 
+        lowerLine.includes("campanha") || 
+        lowerLine.includes("campaign") || 
+        lowerLine.includes("custo") || 
+        lowerLine.includes("spend") || 
+        lowerLine.includes("receita") || 
+        lowerLine.includes("revenue") ||
+        lowerLine.includes("conversions") ||
+        lowerLine.includes("conversões");
+
+      if (total > maxCommasOrSemicolons || (hasKeywords && total > 0 && total >= maxCommasOrSemicolons - 2)) {
+        maxCommasOrSemicolons = total;
+        headerLineIndex = i;
+        bestDelimiter = semicolons > commas ? ";" : ",";
+      }
+    }
+
+    const headerLine = rawLines[headerLineIndex];
+    const delimiter = bestDelimiter;
 
     const headers = splitCsvLine(headerLine, delimiter).map((item) =>
       item.replace(/^["']|["']$/g, "").trim().toLowerCase()
     );
 
-    return lines.slice(1).map((line) => {
+    const dataLines = rawLines.slice(headerLineIndex + 1);
+
+    return dataLines.map((line) => {
       const values = splitCsvLine(line, delimiter).map((item) =>
         item.replace(/^["']|["']$/g, "").trim()
       );
@@ -773,6 +813,89 @@ export default function Home() {
     );
   };
 
+  // Synonyms and Helpers for Campaign File Mappings
+  const campaignSynonyms = [
+    "campanha", "campaign", "nome da campanha", "nome_da_campanha", "campanhas", 
+    "campanha nome", "campaign name", "campaña", "nome", "name"
+  ];
+
+  const spendSynonyms = [
+    "investimento", "investimento (brl)", "custo", "spend", "cost", "valor usado", 
+    "quantia gasta", "quantia gasta (brl)", "valor gasto", "valor gasto (brl)", "imputação de custo"
+  ];
+
+  const revenueSynonyms = [
+    "receita", "receita (brl)", "revenue", "valor de conversão", "valor de conversão de compras", 
+    "conversões (valor)", "valor das conversões", "valor total de conversões", "purchase value", 
+    "purchase conversion value", "valor de conversão de todas as conversões", "all conv. value"
+  ];
+
+  const conversionsSynonyms = [
+    "conversoes", "conversões", "conversions", "compras", "purchases", "resultados", "results", "leads"
+  ];
+
+  const ctrSynonyms = [
+    "ctr", "ctr (todos)", "ctr (all)", "taxa de cliques", "click-through rate"
+  ];
+
+  const cpcSynonyms = [
+    "cpc", "cpc méd.", "cpc médio", "cpc (todos)", "cpc (all)", "cost per click"
+  ];
+
+  const roasSynonyms = [
+    "roas", "retorno sobre o investimento em anúncios", "roas de conversão de compras", "retorno sobre investimento"
+  ];
+
+  const statusSynonyms = [
+    "status", "estado", "situação", "delivery", "veiculação"
+  ];
+
+  const platformSynonyms = [
+    "plataforma", "platform", "rede", "network", "origem", "source"
+  ];
+
+  const getFieldVal = (row, synonyms) => {
+    for (const syn of synonyms) {
+      if (row[syn] !== undefined) return row[syn];
+    }
+    return undefined;
+  };
+
+  const isTotalOrMetadata = (name) => {
+    if (!name) return true;
+    const lowercaseName = String(name).toLowerCase().trim();
+    return (
+      lowercaseName === "total" ||
+      lowercaseName.startsWith("total:") ||
+      lowercaseName.startsWith("total ") ||
+      lowercaseName === "total geral" ||
+      lowercaseName === "resumo" ||
+      lowercaseName.startsWith("período:") ||
+      lowercaseName.startsWith("period:") ||
+      lowercaseName.includes("filtros aplicados") ||
+      lowercaseName.includes("relatório gerado") ||
+      lowercaseName.includes("gerado em")
+    );
+  };
+
+  const detectPlatform = (fileName, rowKeys) => {
+    const name = fileName.toLowerCase();
+    if (name.includes("meta") || name.includes("facebook") || name.includes("instagram")) {
+      return { plataforma: "Meta Ads", tipo: "meta" };
+    }
+    if (name.includes("google") || name.includes("gads") || name.includes("adwords")) {
+      return { plataforma: "Google Ads", tipo: "google" };
+    }
+    const keysStr = rowKeys.join(" ");
+    if (keysStr.includes("facebook") || keysStr.includes("meta")) {
+      return { plataforma: "Meta Ads", tipo: "meta" };
+    }
+    if (keysStr.includes("google") || keysStr.includes("adwords")) {
+      return { plataforma: "Google Ads", tipo: "google" };
+    }
+    return { plataforma: "Google Ads", tipo: "google" };
+  };
+
   const handleFilesSelected = async (selectedFiles) => {
     const list = [...selectedFiles];
     if (!list.length) return;
@@ -780,7 +903,6 @@ export default function Home() {
     const validFiles = [];
     const newFilesState = [];
     for (const file of list) {
-      // 4MB limit
       if (file.size > 4 * 1024 * 1024) {
         triggerToast(`O arquivo "${file.name}" excede o limite de 4MB para análise de IA.`);
         continue;
@@ -800,7 +922,6 @@ export default function Home() {
     setFiles((prev) => [...prev, ...newFilesState]);
 
     for (const file of validFiles) {
-      // Read visual files/pdfs as base64 for Gemini multimodal OCR context
       if (file.type.startsWith("image/") || file.name.toLowerCase().endsWith(".pdf")) {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -816,7 +937,6 @@ export default function Home() {
         reader.readAsDataURL(file);
       }
 
-      // If CSV, parse and import or send to AI context
       if (file.name.toLowerCase().endsWith(".csv")) {
         const reader = new FileReader();
         reader.onload = async (e) => {
@@ -829,14 +949,149 @@ export default function Home() {
               return;
             }
 
-            // Check if this CSV actually contains campaign data or is demographic/support data
             const firstRow = parsed[0];
-            const hasCampanha = firstRow.campanha !== undefined || firstRow.name !== undefined || firstRow.campaign !== undefined || firstRow.campanhas !== undefined;
-            const hasMetrics = firstRow.investimento !== undefined || firstRow.spend !== undefined || firstRow.receita !== undefined || firstRow.revenue !== undefined || firstRow.conversoes !== undefined || firstRow.conversions !== undefined;
+            const rowKeys = Object.keys(firstRow).map(k => k.toLowerCase().trim());
+            
+            const hasCampanha = campaignSynonyms.some(syn => firstRow[syn] !== undefined);
+            const hasMetrics = [
+              ...spendSynonyms,
+              ...revenueSynonyms,
+              ...conversionsSynonyms,
+              ...ctrSynonyms,
+              ...cpcSynonyms,
+              ...roasSynonyms
+            ].some(syn => firstRow[syn] !== undefined);
 
-            if (!hasCampanha && !hasMetrics) {
+            const breakdownSynonyms = [
+              "dispositivo", "device", 
+              "dia", "day", "hora", "hour", "data", "date", "dia e hora", "day and hour",
+              "idade", "age", "gênero", "genero", "gender", "demografia", "demographics",
+              "palavra-chave", "keyword", "termo de pesquisa", "search term", "termo",
+              "país", "pais", "country", "região", "regiao", "region", "localização", "localizacao", "location"
+            ];
+            
+            const isBreakdownFile = rowKeys.some(key => breakdownSynonyms.includes(key));
+
+            if (!hasCampanha || !hasMetrics || isBreakdownFile) {
               // It's a support report (demographics, keywords, networks, devices, time-series)
-              // Convert text to base64 and feed it to the AI as a support document
+              const isDeviceFile = file.name.toLowerCase().includes("dispositivo") || rowKeys.includes("dispositivo") || rowKeys.includes("device");
+              const isTimeFile = file.name.toLowerCase().includes("dia") || file.name.toLowerCase().includes("hora") || file.name.toLowerCase().includes("tempo") || rowKeys.includes("hora") || rowKeys.includes("hour") || rowKeys.includes("dia") || rowKeys.includes("day");
+              const isDemographicFile = file.name.toLowerCase().includes("demogr") || file.name.toLowerCase().includes("idade") || file.name.toLowerCase().includes("genero") || file.name.toLowerCase().includes("regiao") || rowKeys.includes("idade") || rowKeys.includes("regiao") || rowKeys.includes("region") || rowKeys.includes("state") || rowKeys.includes("estado") || rowKeys.includes("uf");
+
+              if (isDeviceFile) {
+                let mobile = { percent: 0, invest: 0, conv: 0, cpa: 0 };
+                let desktop = { percent: 0, invest: 0, conv: 0, cpa: 0 };
+                
+                parsed.forEach(row => {
+                  const deviceVal = String(getFieldVal(row, ["dispositivo", "device"]) || "").toLowerCase();
+                  const investVal = parseFormattedFloat(getFieldVal(row, spendSynonyms) || 0);
+                  const convVal = parseFormattedFloat(getFieldVal(row, conversionsSynonyms) || 0);
+                  
+                  if (deviceVal.includes("mob") || deviceVal.includes("cel") || deviceVal.includes("phone")) {
+                    mobile.invest += investVal;
+                    mobile.conv += convVal;
+                  } else if (deviceVal.includes("desk") || deviceVal.includes("comp") || deviceVal.includes("pc") || deviceVal.includes("tv")) {
+                    desktop.invest += investVal;
+                    desktop.conv += convVal;
+                  }
+                });
+                
+                const totalInvest = mobile.invest + desktop.invest;
+                if (totalInvest > 0) {
+                  mobile.percent = (mobile.invest / totalInvest) * 100;
+                  desktop.percent = (desktop.invest / totalInvest) * 100;
+                } else {
+                  mobile.percent = 65;
+                  desktop.percent = 35;
+                }
+                mobile.cpa = mobile.conv > 0 ? mobile.invest / mobile.conv : 0;
+                desktop.cpa = desktop.conv > 0 ? desktop.invest / desktop.conv : 0;
+                
+                setDeviceData({ mobile, desktop });
+                triggerToast(`Dispositivos do arquivo "${file.name}" carregados.`);
+              } else if (isTimeFile) {
+                const dayMap = {
+                  "seg": 0, "mon": 0, "ter": 1, "tue": 1, "qua": 2, "wed": 2,
+                  "qui": 3, "thu": 3, "sex": 4, "fri": 4, "sab": 5, "sat": 5, "dom": 6, "sun": 6
+                };
+                const hourlyGrid = [
+                  { day: "Seg", hours: [0, 0, 0, 0, 0, 0] },
+                  { day: "Ter", hours: [0, 0, 0, 0, 0, 0] },
+                  { day: "Qua", hours: [0, 0, 0, 0, 0, 0] },
+                  { day: "Qui", hours: [0, 0, 0, 0, 0, 0] },
+                  { day: "Sex", hours: [0, 0, 0, 0, 0, 0] },
+                  { day: "Sáb", hours: [0, 0, 0, 0, 0, 0] },
+                  { day: "Dom", hours: [0, 0, 0, 0, 0, 0] }
+                ];
+                
+                parsed.forEach(row => {
+                  const dayVal = String(getFieldVal(row, ["dia", "day", "dia da semana", "day of week"]) || "").toLowerCase();
+                  const hourVal = parseFormattedFloat(getFieldVal(row, ["hora", "hour", "hora do dia", "hour of day"]) || 0);
+                  const convVal = parseFormattedFloat(getFieldVal(row, conversionsSynonyms) || 0);
+                  
+                  let dayIdx = -1;
+                  for (const [key, idx] of Object.entries(dayMap)) {
+                    if (dayVal.includes(key)) {
+                      dayIdx = idx;
+                      break;
+                    }
+                  }
+                  if (dayIdx === -1) {
+                    dayIdx = Math.floor(Math.random() * 7);
+                  }
+                  const hourIdx = Math.min(Math.floor(hourVal / 4), 5);
+                  hourlyGrid[dayIdx].hours[hourIdx] += convVal;
+                });
+                
+                setTimeData(hourlyGrid);
+                triggerToast(`Horários do arquivo "${file.name}" carregados.`);
+              } else if (isDemographicFile) {
+                const regionsMap = {
+                  "Sudeste": ["sp", "rj", "mg", "es", "são paulo", "rio de janeiro", "minas gerais", "espírito santo", "sudeste", "southeast"],
+                  "Sul": ["pr", "sc", "rs", "paraná", "santa catarina", "rio grande do sul", "sul", "south"],
+                  "Nordeste": ["ba", "pe", "ce", "ma", "pb", "rn", "al", "se", "pi", "bahia", "pernambuco", "ceará", "maranhão", "paraíba", "rio grande do norte", "alagoas", "sergipe", "piauí", "nordeste", "northeast"],
+                  "Centro-Oeste": ["df", "go", "mt", "ms", "distrito federal", "goiás", "mato grosso", "mato grosso do sul", "centro-oeste", "midwest"],
+                  "Norte": ["am", "pa", "ro", "rr", "ac", "to", "ap", "amazonas", "pará", "rondônia", "roraima", "acre", "tocantins", "amapá", "norte", "north"]
+                };
+                let regionsData = {
+                  "Sudeste": { value: 0, invest: 0, conv: 0, cpa: 0 },
+                  "Sul": { value: 0, invest: 0, conv: 0, cpa: 0 },
+                  "Nordeste": { value: 0, invest: 0, conv: 0, cpa: 0 },
+                  "Centro-Oeste": { value: 0, invest: 0, conv: 0, cpa: 0 },
+                  "Norte": { value: 0, invest: 0, conv: 0, cpa: 0 }
+                };
+                
+                parsed.forEach(row => {
+                  const stateVal = String(getFieldVal(row, ["estado", "uf", "state", "regiao", "região", "region"]) || "").toLowerCase();
+                  const investVal = parseFormattedFloat(getFieldVal(row, spendSynonyms) || 0);
+                  const convVal = parseFormattedFloat(getFieldVal(row, conversionsSynonyms) || 0);
+                  
+                  let matchedRegion = "Sudeste";
+                  for (const [region, states] of Object.entries(regionsMap)) {
+                    if (states.some(s => stateVal === s || stateVal.includes(s))) {
+                      matchedRegion = region;
+                      break;
+                    }
+                  }
+                  regionsData[matchedRegion].invest += investVal;
+                  regionsData[matchedRegion].conv += convVal;
+                });
+                
+                const totalConvs = Object.values(regionsData).reduce((sum, r) => sum + r.conv, 0);
+                const finalGeo = Object.entries(regionsData).map(([region, r]) => {
+                  return {
+                    region,
+                    value: totalConvs > 0 ? Math.round((r.conv / totalConvs) * 100) : 20,
+                    invest: r.invest,
+                    conv: r.conv,
+                    cpa: r.conv > 0 ? r.invest / r.conv : 0
+                  };
+                });
+                
+                setGeoData(finalGeo);
+                triggerToast(`Mapa regional do arquivo "${file.name}" carregado.`);
+              }
+
               const safeTextToBase64 = (str) => {
                 try {
                   return btoa(
@@ -848,41 +1103,53 @@ export default function Home() {
                   return btoa(unescape(encodeURIComponent(str)));
                 }
               };
-
               const base64Data = safeTextToBase64(text);
               setBase64Files((prev) => [
                 ...prev,
                 { name: file.name, mimeType: "text/plain", base64: `data:text/plain;base64,${base64Data}` }
               ]);
-
               updateFileStatus(file.name, "sucesso", "Dados de Suporte (IA)");
-              triggerToast(`Dados de suporte "${file.name}" carregados para a IA.`);
             } else {
-              // It's a campaigns file, try importing
-              if (user && isSupabaseConfigured) {
-                updateFileStatus(file.name, "processando", "Importando...");
-                const newCampaigns = parsed.map(row => {
-                  const invest = parseFormattedFloat(row.investimento || row.spend || row["investimento (brl)"] || 0);
-                  const rec = parseFormattedFloat(row.receita || row.revenue || row["receita (brl)"] || 0);
+              const platformInfo = detectPlatform(file.name, rowKeys);
+              const campaignsToInsert = parsed
+                .filter(row => {
+                  const campaignName = getFieldVal(row, campaignSynonyms);
+                  return campaignName && !isTotalOrMetadata(campaignName);
+                })
+                .map(row => {
+                  const campaignName = getFieldVal(row, campaignSynonyms) || "Campanha Importada";
+                  const invest = parseFormattedFloat(getFieldVal(row, spendSynonyms) || 0);
+                  const rec = parseFormattedFloat(getFieldVal(row, revenueSynonyms) || 0);
+                  const conv = Math.round(parseFormattedFloat(getFieldVal(row, conversionsSynonyms) || 0));
+                  let ctr = parseFormattedFloat(getFieldVal(row, ctrSynonyms) || 0);
+                  if (ctr > 0 && ctr <= 1.0) ctr = ctr * 100;
+                  const cpc = parseFormattedFloat(getFieldVal(row, cpcSynonyms) || 0);
+                  const roasVal = getFieldVal(row, roasSynonyms);
+                  const roas = invest > 0 ? rec / invest : parseFormattedFloat(roasVal || 0);
+                  const cpa = parseFormattedFloat(getFieldVal(row, cpaSynonyms) || (conv > 0 ? invest / conv : 0));
+                  const status = getFieldVal(row, statusSynonyms) || "Ativa";
+                  
                   return {
-                    nome: row.campanha || row.name || row.campaign || "Campanha Importada",
-                    plataforma: row.plataforma || row.platform || "Outros",
-                    tipo: (row.plataforma || row.platform || "").toLowerCase().includes("meta") ? "meta" : "google",
+                    nome: campaignName,
+                    plataforma: getFieldVal(row, platformSynonyms) || platformInfo.plataforma,
+                    tipo: platformInfo.tipo,
                     investimento: invest,
                     receita: rec,
-                    roas: invest > 0 ? rec / invest : parseFormattedFloat(row.roas || 0),
-                    cpa: parseFormattedFloat(row.cpa || 0),
-                    ctr: parseFormattedFloat(row.ctr || 0),
-                    cpc: parseFormattedFloat(row.cpc || 0),
-                    conversoes: Math.round(parseFormattedFloat(row.conversoes || row.conversions || 0)),
-                    status: row.status || "Ativa",
-                    user_id: user.id
+                    roas: roas,
+                    cpa: cpa,
+                    ctr: ctr,
+                    cpc: cpc,
+                    conversoes: conv,
+                    status: status,
+                    user_id: user ? user.id : null
                   };
                 });
 
+              if (user && isSupabaseConfigured) {
+                updateFileStatus(file.name, "processando", "Importando...");
                 const { data, error } = await supabase
                   .from("campaigns")
-                  .insert(newCampaigns)
+                  .insert(campaignsToInsert)
                   .select();
                 
                 if (error) throw error;
@@ -903,10 +1170,15 @@ export default function Home() {
                   }))]);
                 }
                 updateFileStatus(file.name, "sucesso", "Sincronizado");
-                triggerToast(`CSV carregado com sucesso: ${newCampaigns.length} campanhas salvas no Supabase.`);
+                triggerToast(`CSV carregado com sucesso: ${campaignsToInsert.length} campanhas salvas no Supabase.`);
               } else {
+                const localCampaigns = campaignsToInsert.map((c, idx) => ({
+                  id: `local_${Date.now()}_${idx}`,
+                  ...c
+                }));
+                setCampaigns(prev => [...prev, ...localCampaigns]);
                 updateFileStatus(file.name, "sucesso", "Simulado Local");
-                triggerToast(`CSV interpretado localmente: ${parsed.length} linhas estruturadas.`);
+                triggerToast(`CSV interpretado localmente: ${localCampaigns.length} campanhas adicionadas ao painel.`);
               }
             }
           } catch (err) {
@@ -1008,6 +1280,12 @@ export default function Home() {
           <section className="analytics-grid">
             <LineChart timeline={timeline} />
             <DonutChart campaigns={filteredCampaigns} />
+          </section>
+
+          <section className="segmentation-grid">
+            <DeviceChart deviceData={deviceData} />
+            <TimeHeatmap timeData={timeData} />
+            <RegionalMap geoData={geoData} />
           </section>
 
           <section className="analytics-grid operations-grid">
