@@ -1,5 +1,34 @@
 import readXlsxFile from "read-excel-file/browser";
 
+export function sanitizeMojibake(str) {
+  if (str === undefined || str === null) return str;
+  let s = String(str);
+  
+  s = s
+    .replaceAll("Ão", "ão")
+    .replaceAll("Ã£", "ã")
+    .replaceAll("Ãº", "ú")
+    .replaceAll("Ã§", "ç")
+    .replaceAll("Ã³", "ó")
+    .replaceAll("Ãµ", "õ")
+    .replaceAll("Ã©", "é")
+    .replaceAll("Ãª", "ê")
+    .replaceAll("Ã¡", "á")
+    .replaceAll("Ã¢", "â");
+
+  s = s
+    .replace(/inÃc/gi, "iníc")
+    .replace(/inãc/gi, "iníc")
+    .replace(/mÃdi/gi, "mídi")
+    .replace(/mãdi/gi, "mídi")
+    .replace(/perÃod/gi, "períod")
+    .replace(/perãod/gi, "períod")
+    .replace(/tÃtul/gi, "títul")
+    .replace(/tãtul/gi, "títul");
+
+  return s;
+}
+
 // ----------------------------------------------------
 // Formatting & Cleaning Helpers
 // ----------------------------------------------------
@@ -381,7 +410,7 @@ export function parseCsv(text) {
   const delimiter = bestDelimiter;
 
   const headers = splitCsvLine(headerLine, delimiter).map((item) =>
-    item.replace(/^["']|["']$/g, "").trim().toLowerCase()
+    sanitizeMojibake(item.replace(/^["']|["']$/g, "").trim()).toLowerCase()
   );
 
   const dataLines = rawLines.slice(headerLineIndex + 1);
@@ -417,7 +446,7 @@ export async function parseExcelFile(file) {
   });
 
   const headers = rawRows[headerIndex].map((header, index) => {
-    const value = String(header || "").trim().toLowerCase();
+    const value = sanitizeMojibake(String(header || "").trim()).toLowerCase();
     return value || `coluna_${index + 1}`;
   });
 
@@ -597,13 +626,13 @@ export async function processUploadFile(file) {
         id: `row_${reference_month}_${platform}_${idx}_${Date.now()}`,
         platform,
         dataset_type,
-        campaign_name: campName || "Campanha Geral",
-        device: deviceName || null,
-        gender: genderName || null,
-        age_range: ageName || null,
-        keyword: keyName || null,
-        search_term: termName || null,
-        network: netName || null,
+        campaign_name: sanitizeMojibake(campName) || "Campanha Geral",
+        device: sanitizeMojibake(deviceName) || null,
+        gender: sanitizeMojibake(genderName) || null,
+        age_range: sanitizeMojibake(ageName) || null,
+        keyword: sanitizeMojibake(keyName) || null,
+        search_term: sanitizeMojibake(termName) || null,
+        network: sanitizeMojibake(netName) || null,
         
         // Time intelligence attributes
         date: enrichedDate.date,
@@ -636,7 +665,7 @@ export async function processUploadFile(file) {
         cac,
         roas,
         
-        status: getSemanticValue(row, "status") || "Ativo",
+        status: sanitizeMojibake(getSemanticValue(row, "status")) || "Ativo",
         raw_file_name: fileName,
         file_hash,
         created_at: new Date().toISOString()
