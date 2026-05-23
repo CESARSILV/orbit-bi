@@ -309,25 +309,25 @@ export function detectDataset(platform, rowKeys) {
 // ----------------------------------------------------
 
 const SYNONYMS = {
-  campaign_name: ["campanha", "campaign", "nome da campanha", "nome_da_campanha", "campanhas", "campaign name", "campaña", "nome", "name", "campaign name", "campaign name "],
-  spend: ["investimento", "investimento (brl)", "custo", "spend", "cost", "valor usado", "quantia gasta", "valor usado (brl)", "valor gasto", "valor gasto (brl)", "amount spent", "amount spent (brl)", "imputação de custo"],
-  clicks: ["cliques", "clicks", "click", "cliques (todos)", "cliques (no link)"],
-  impressions: ["impressões", "impressoes", "impressions", "impr."],
-  conversions: ["conversoes", "conversões", "conversions", "compras", "purchases", "resultados", "results", "leads", "compras no site", "website purchases", "purchase", "compras (pixel do facebook)", "compras no facebook"],
-  ctr: ["ctr", "ctr (todos)", "ctr (all)", "taxa de cliques", "click-through rate", "taxa de clique"],
-  cpc: ["cpc", "cpc méd.", "cpc médio", "cpc (todos)", "cpc (all)", "cost per click"],
-  reach: ["alcance", "reach"],
-  frequency: ["frequência", "frequencia", "frequency", "freq"],
-  revenue: ["receita", "receita (brl)", "revenue", "valor de conversão", "valor de conversão de compras", "conversões (valor)", "valor das conversões", "valor total de conversões", "valor de compra", "valor de compras", "purchase value", "purchase conversion value", "website purchase conversion value", "valor de conversão de todas as conversões", "all conv. value", "valor de conversão de compras no site", "valor de conversão de compras no facebook", "valor de conversão de compras (brl)", "valor de conversão de compras no site (brl)", "compras no site (valor de conversão)", "compras (valor de conversão)"],
-  device: ["dispositivo", "device", "equipamento"],
-  gender: ["sexo", "gender", "gênero", "genero"],
-  age_range: ["faixa de idade", "age", "idade", "faixa etária", "faixa etaria", "age range", "age_range"],
-  keyword: ["palavra-chave", "keyword", "palavra-chave da rede de pesquisa", "palavras-chave", "palavra chave"],
-  search_term: ["termo de pesquisa", "search term", "pesquisa do google", "pesquisar", "termo pesquisado", "termo", "search_term"],
-  network: ["rede", "network", "rede de publicidade", "rede com parceiros de pesquisa", "canal"],
-  date: ["data", "date", "dia", "day", "início dos relatórios", "inicio dos relatorios", "reporting starts", "reporting start"],
-  hour: ["hora", "hour", "hora de início", "hour of day", "hora de inicio", "horário", "horario"],
-  status: ["status", "estado", "situação", "delivery", "veiculação", "veiculacao"]
+  campaign_name: ["campanha", "campaign", "nome da campanha", "nome_da_campanha", "campanhas", "campaign name", "campaña", "nome", "name", "campaign name ", "campaign name", "campaign_name", "nome_campanha"],
+  spend: ["investimento", "investimento (brl)", "custo", "spend", "cost", "valor usado", "quantia gasta", "valor usado (brl)", "valor gasto", "valor gasto (brl)", "amount spent", "amount spent (brl)", "imputação de custo", "gasto", "gastos", "valor_usado", "valor_gasto", "custo_total", "total cost"],
+  clicks: ["cliques", "clicks", "click", "cliques (todos)", "cliques (no link)", "link clicks", "cliques no link", "clique", "cliques_no_link", "clicks (all)"],
+  impressions: ["impressões", "impressoes", "impressions", "impr.", "impr", "impressões (todos)", "visualizações", "views"],
+  conversions: ["conversoes", "conversões", "conversions", "compras", "purchases", "resultados", "results", "leads", "compras no site", "website purchases", "purchase", "compras (pixel do facebook)", "compras no facebook", "leads (formulário)", "leads (formulario)", "cadastros", "conversões de compras", "leads_total", "conversões totais"],
+  ctr: ["ctr", "ctr (todos)", "ctr (all)", "taxa de cliques", "click-through rate", "taxa de clique", "taxa_de_clique", "ctr_total"],
+  cpc: ["cpc", "cpc méd.", "cpc médio", "cpc (todos)", "cpc (all)", "cost per click", "cpc_medio", "cpc_med"],
+  reach: ["alcance", "reach", "pessoas alcançadas", "alcance total"],
+  frequency: ["frequência", "frequencia", "frequency", "freq", "frequência média"],
+  revenue: ["receita", "receita (brl)", "revenue", "valor de conversão", "valor de conversão de compras", "conversões (valor)", "valor das conversões", "valor total de conversões", "valor de compra", "valor de compras", "purchase value", "purchase conversion value", "website purchase conversion value", "valor de conversão de todas as conversões", "all conv. value", "valor de conversão de compras no site", "valor de conversão de compras no facebook", "valor de conversão de compras (brl)", "valor de conversão de compras no site (brl)", "compras no site (valor de conversão)", "compras (valor de conversão)", "conversion value", "conversion_value", "valor_conversao", "receita_total", "total revenue"],
+  device: ["dispositivo", "device", "equipamento", "tipo de dispositivo", "device category"],
+  gender: ["sexo", "gender", "gênero", "genero", "gêneros"],
+  age_range: ["faixa de idade", "age", "idade", "faixa etária", "faixa etaria", "age range", "age_range", "faixa_etaria", "grupo_idade"],
+  keyword: ["palavra-chave", "keyword", "palavra-chave da rede de pesquisa", "palavras-chave", "palavra chave", "palavras chave", "keyword_name"],
+  search_term: ["termo de pesquisa", "search term", "pesquisa do google", "pesquisar", "termo pesquisado", "termo", "search_term", "query", "pesquisa_usuario"],
+  network: ["rede", "network", "rede de publicidade", "rede com parceiros de pesquisa", "canal", "network_type"],
+  date: ["data", "date", "dia", "day", "início dos relatórios", "inicio dos relatorios", "reporting starts", "reporting start", "data_inicio", "start_date"],
+  hour: ["hora", "hour", "hora de início", "hour of day", "hora de inicio", "horário", "horario", "hora_dia"],
+  status: ["status", "estado", "situação", "delivery", "veiculação", "veiculacao", "status da campanha", "veiculação da campanha", "status_campanha"]
 };
 
 export function getSemanticValue(row, targetField, defaultValue = undefined) {

@@ -774,23 +774,12 @@ export default function Home() {
     // Read current database value fresh from local storage
     let currentDb = getDatabase();
 
-    for (const file of validFiles) {
+    const structuredFiles = validFiles.filter(isStructuredDataFile);
+    const visualFiles = validFiles.filter(isAiAttachmentFile);
+
+    // 1. Process Structured Files (CSV / XLSX)
+    for (const file of structuredFiles) {
       try {
-        if (!isStructuredDataFile(file)) {
-          if (!isAiAttachmentFile(file)) {
-            throw new Error("Formato não suportado. Envie CSV, XLS, XLSX, PDF ou imagem.");
-          }
-
-          const base64 = await readAsDataUrl(file);
-          setBase64Files((prev) => [
-            ...prev,
-            { name: file.name, mimeType: file.type || "application/octet-stream", base64 }
-          ]);
-          updateFileStatus(file.name, "sucesso", "Anexo da IA");
-          triggerToast(`Arquivo "${file.name}" anexado ao chat de IA.`);
-          continue;
-        }
-
         const result = await processUploadFile(file);
         
         // Check duplicate against current db
@@ -826,6 +815,158 @@ export default function Home() {
         processingFilesRef.current.delete(file.name);
       }
     }
+
+    // 2. Process Visual Files (Images / PDFs) via OCR Multimodal API
+    if (visualFiles.length > 0) {
+      try {
+        visualFiles.forEach((file) => {
+          updateFileStatus(file.name, "processando", "Analisando com OCR...");
+        });
+
+        // Read all as base64
+        const readFilesPromises = visualFiles.map(async (file) => {
+          const base64 = await readAsDataUrl(file);
+          return {
+            name: file.name,
+            mimeType: file.type || "application/octet-stream",
+            base64
+          };
+        });
+        const base64Payloads = await Promise.all(readFilesPromises);
+
+        // Also add them to base64Files for the chat assistant context
+        setBase64Files((prev) => [...prev, ...base64Payloads]);
+
+        // Call the parse-file API with all visual files
+        const response = await fetch("/api/parse-file", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ files: base64Payloads })
+        });
+
+        const resData = await response.json();
+        if (!response.ok) {
+          throw new Error(resData.message || "Falha na análise visual de arquivos.");
+        }
+
+        const { data: result } = resData; // result contains { platform, dataset_type, reference_month, reference_label, rows }
+        
+        // Enrich rows with standard properties that the ETL system expects
+        const reference_month = result.reference_month;
+        const reference_label = result.reference_label;
+        const platform = result.platform;
+        const dataset_type = result.dataset_type;
+
+        // Create a fake file_hash for tracking
+        const fileStringSample = JSON.stringify(result.rows.slice(0, 50));
+        let file_hash = 0;
+        for (let i = 0; i < fileStringSample.length; i++) {
+          file_hash = (file_hash << 5) - file_hash + fileStringSample.charCodeAt(i);
+          file_hash |= 0;
+        }
+        const finalHash = Math.abs(file_hash).toString(16);
+
+        const metadata = {
+          platform,
+          dataset_type,
+          reference_month,
+          reference_label,
+          raw_file_name: visualFiles.map(f => f.name).join(", "),
+          file_hash: finalHash,
+          count: result.rows.length
+        };
+
+        const enrichedRows = result.rows.map((row, idx) => {
+          const spend = parseFloat(row.spend) || 0;
+          const clicks = parseInt(row.clicks) || 0;
+          const impressions = parseInt(row.impressions) || 0;
+          const conversions = parseInt(row.conversions) || 0;
+          const revenue = parseFloat(row.revenue) || 0;
+
+          const ctr = impressions > 0 ? clicks / impressions : 0;
+          const cpc = clicks > 0 ? spend / clicks : 0;
+          const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
+          const roas = spend > 0 ? revenue / spend : 0;
+
+          return {
+            id: `ocr_${reference_month}_${platform}_${idx}_${Date.now()}`,
+            platform,
+            dataset_type,
+            campaign_name: row.campaign_name || "Campanha OCR",
+            device: row.device || null,
+            gender: row.gender || null,
+            age_range: row.age_range || null,
+            keyword: row.keyword || null,
+            search_term: row.search_term || null,
+            network: row.network || null,
+            date: row.date || `${reference_month}-01`,
+            day: parseInt(row.date?.split("-")[2]) || 1,
+            week: 1,
+            month: parseInt(reference_month.split("-")[1]) || 5,
+            month_name: reference_label.split("/")[0],
+            quarter: `Q${Math.ceil((parseInt(reference_month.split("-")[1]) || 5) / 3)}`,
+            year: parseInt(reference_month.split("-")[0]) || 2026,
+            year_month: reference_month,
+            reference_month,
+            reference_label,
+            spend,
+            clicks,
+            impressions,
+            conversions,
+            leads: conversions,
+            reach: parseInt(row.reach) || impressions,
+            frequency: parseFloat(row.frequency) || 1.0,
+            revenue,
+            ctr,
+            cpc,
+            cpm,
+            roas,
+            status: row.status || "Ativo",
+            raw_file_name: metadata.raw_file_name,
+            file_hash: finalHash,
+            created_at: new Date().toISOString()
+          };
+        });
+
+        // Check duplicate
+        const dup = checkFileDuplicate(currentDb, metadata);
+        if (dup) {
+          await new Promise((resolve) => {
+            setDuplicateFileInfo(dup);
+            setPendingUpload({
+              file: { name: metadata.raw_file_name, originalNames: visualFiles.map(f => f.name) },
+              metadata,
+              rows: enrichedRows,
+              resolvePromise: resolve
+            });
+            setShowDeduplicationModal(true);
+          }).then(async (action) => {
+            const updatedDb = await insertDataset(currentDb, metadata, enrichedRows, action);
+            currentDb = updatedDb;
+            setMarketingDb(updatedDb);
+          });
+        } else {
+          const updatedDb = await insertDataset(currentDb, metadata, enrichedRows, "replace");
+          currentDb = updatedDb;
+          setMarketingDb(updatedDb);
+          visualFiles.forEach((file) => {
+            updateFileStatus(file.name, "sucesso", "Sincronizado");
+          });
+          triggerToast(`Arquivos integrados com sucesso via OCR de Marketing!`);
+        }
+
+      } catch (err) {
+        console.error(err);
+        visualFiles.forEach((file) => {
+          updateFileStatus(file.name, "erro", err.message || "Erro no OCR");
+        });
+        triggerToast(`Falha no processamento visual (OCR): ${err.message}`);
+      } finally {
+        visualFiles.forEach((file) => {
+          processingFilesRef.current.delete(file.name);
+        });
+      }
+    }
   };
 
   // Resolve paused loop
@@ -833,23 +974,32 @@ export default function Home() {
     if (!pendingUpload) return;
     
     const { file, metadata, resolvePromise } = pendingUpload;
+    const fileNamesToUpdate = file.originalNames || [file.name];
     try {
-      updateFileStatus(file.name, "processando", `Processando (${action})...`);
+      fileNamesToUpdate.forEach((name) => {
+        updateFileStatus(name, "processando", `Processando (${action})...`);
+      });
       
       if (resolvePromise) {
         resolvePromise(action);
       }
       
       if (action === "ignore") {
-        updateFileStatus(file.name, "sucesso", "Ignorado pelo usuário");
+        fileNamesToUpdate.forEach((name) => {
+          updateFileStatus(name, "sucesso", "Ignorado pelo usuário");
+        });
         triggerToast(`Envio do arquivo "${file.name}" cancelado.`);
       } else {
-        updateFileStatus(file.name, "sucesso", "Sincronizado");
+        fileNamesToUpdate.forEach((name) => {
+          updateFileStatus(name, "sucesso", "Sincronizado");
+        });
         triggerToast(`Arquivo "${file.name}" integrado via ${action}!`);
       }
     } catch (err) {
       console.error(err);
-      updateFileStatus(file.name, "erro", "Erro ao resolver duplicado");
+      fileNamesToUpdate.forEach((name) => {
+        updateFileStatus(name, "erro", "Erro ao resolver duplicado");
+      });
     } finally {
       setPendingUpload(null);
       setDuplicateFileInfo(null);
