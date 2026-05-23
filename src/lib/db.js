@@ -17,8 +17,26 @@ export const INITIAL_DB = {
   fact_time_series: [],
   fact_conversions: [],
   fact_marketing_summary: [],
-  uploaded_files: [] // log of files uploaded: { platform, dataset_type, reference_month, raw_file_name, file_hash, created_at }
+  uploaded_files: []
 };
+
+export function createInitialDb() {
+  return {
+    fact_campaigns: [],
+    fact_devices: [],
+    fact_hourly: [],
+    fact_weekday: [],
+    fact_weekday_hour: [],
+    fact_keywords: [],
+    fact_search_terms: [],
+    fact_networks: [],
+    fact_demographics: [],
+    fact_time_series: [],
+    fact_conversions: [],
+    fact_marketing_summary: [],
+    uploaded_files: []
+  };
+}
 
 const STORAGE_KEY = "orbit_marketing_bi_db";
 
@@ -43,18 +61,18 @@ const DATASET_TABLE_MAP = {
 // ----------------------------------------------------
 
 export function getDatabase() {
-  if (typeof window === "undefined") return INITIAL_DB;
+  if (typeof window === "undefined") return createInitialDb();
   try {
     const data = localStorage.getItem(STORAGE_KEY);
-    if (!data) return INITIAL_DB;
+    if (!data) return createInitialDb();
     const parsed = JSON.parse(data);
     
     // Ensure all tables exist in the parsed object
-    const db = { ...INITIAL_DB, ...parsed };
+    const db = { ...createInitialDb(), ...parsed };
     return db;
   } catch (err) {
     console.error("Failed to load local database, resetting:", err);
-    return INITIAL_DB;
+    return createInitialDb();
   }
 }
 
@@ -82,11 +100,29 @@ export function checkFileDuplicate(db, fileMeta) {
 }
 
 export async function insertDataset(db, fileMeta, rows, action = "replace") {
+  // Deep copy / clone the db to prevent mutating the imported INITIAL_DB reference
+  const newDb = {
+    ...db,
+    fact_campaigns: [...(db.fact_campaigns || [])],
+    fact_devices: [...(db.fact_devices || [])],
+    fact_hourly: [...(db.fact_hourly || [])],
+    fact_weekday: [...(db.fact_weekday || [])],
+    fact_weekday_hour: [...(db.fact_weekday_hour || [])],
+    fact_keywords: [...(db.fact_keywords || [])],
+    fact_search_terms: [...(db.fact_search_terms || [])],
+    fact_networks: [...(db.fact_networks || [])],
+    fact_demographics: [...(db.fact_demographics || [])],
+    fact_time_series: [...(db.fact_time_series || [])],
+    fact_conversions: [...(db.fact_conversions || [])],
+    fact_marketing_summary: [...(db.fact_marketing_summary || [])],
+    uploaded_files: [...(db.uploaded_files || [])]
+  };
+
   const targetTable = DATASET_TABLE_MAP[fileMeta.dataset_type] || "fact_campaigns";
   
   // Make sure we have array instances
-  if (!db[targetTable]) db[targetTable] = [];
-  if (!db.uploaded_files) db.uploaded_files = [];
+  if (!newDb[targetTable]) newDb[targetTable] = [];
+  if (!newDb.uploaded_files) newDb.uploaded_files = [];
 
   const platform = fileMeta.platform;
   const dataset_type = fileMeta.dataset_type;
@@ -95,28 +131,27 @@ export async function insertDataset(db, fileMeta, rows, action = "replace") {
   // 1. Handle actions for existing data
   if (action === "replace") {
     // Delete existing records matching this platform, dataset type and month from the target table
-    db[targetTable] = db[targetTable].filter(
+    newDb[targetTable] = newDb[targetTable].filter(
       r => !(r.platform === platform && r.dataset_type === dataset_type && r.reference_month === reference_month)
     );
     
     // If saving campaigns, delete campaigns
     if (targetTable === "fact_campaigns") {
-      db.fact_campaigns = db.fact_campaigns.filter(
+      newDb.fact_campaigns = newDb.fact_campaigns.filter(
         r => !(r.platform === platform && r.reference_month === reference_month)
       );
     }
 
     // Remove file from file logs
-    db.uploaded_files = db.uploaded_files.filter(
+    newDb.uploaded_files = newDb.uploaded_files.filter(
       f => !(f.platform === platform && f.dataset_type === dataset_type && f.reference_month === reference_month)
     );
 
   } else if (action === "ignore") {
     // Return early
-    return db;
+    return newDb;
   } else if (action === "merge") {
     // Merge: we append them, but deduplicate individual rows by unique keys if possible
-    // (e.g. Campaign name + date for campaigns, device for device performance, etc.)
   }
 
   // 2. Append new rows
@@ -126,36 +161,36 @@ export async function insertDataset(db, fileMeta, rows, action = "replace") {
       return `${r.platform}_${r.reference_month}_${r.campaign_name || ""}_${r.date || ""}_${r.device || ""}_${r.keyword || ""}_${r.search_term || ""}_${r.gender || ""}_${r.age_range || ""}_${r.hour || ""}`;
     };
     
-    const existingKeys = new Set(db[targetTable].map(getRowKey));
+    const existingKeys = new Set(newDb[targetTable].map(getRowKey));
     const uniqueNewRows = rows.filter(r => !existingKeys.has(getRowKey(r)));
-    db[targetTable] = [...db[targetTable], ...uniqueNewRows];
+    newDb[targetTable] = [...newDb[targetTable], ...uniqueNewRows];
   } else {
     // Replace simply appends all new rows
-    db[targetTable] = [...db[targetTable], ...rows];
+    newDb[targetTable] = [...newDb[targetTable], ...rows];
   }
 
   // 3. Log the file
-  db.uploaded_files.push({
+  newDb.uploaded_files.push({
     ...fileMeta,
     created_at: new Date().toISOString()
   });
 
   // 4. Consolidate summary table
-  db = consolidateSummary(db);
+  const updatedDb = consolidateSummary(newDb);
 
   // 5. Save database locally
-  saveDatabase(db);
+  saveDatabase(updatedDb);
 
   // 6. Optional Supabase Sync
   if (isSupabaseConfigured && supabase) {
     try {
-      await syncWithSupabase(db);
+      await syncWithSupabase(updatedDb);
     } catch (e) {
       console.error("Failed to sync database to Supabase:", e);
     }
   }
 
-  return db;
+  return updatedDb;
 }
 
 // ----------------------------------------------------

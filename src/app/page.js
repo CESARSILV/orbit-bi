@@ -20,7 +20,7 @@ import SearchOperations from "@/components/SearchOperations";
 
 // Custom ETL & DB Ingestion Imports
 import { processUploadFile } from "@/lib/etl";
-import { getDatabase, saveDatabase, insertDataset, checkFileDuplicate, INITIAL_DB } from "@/lib/db";
+import { getDatabase, saveDatabase, insertDataset, checkFileDuplicate, INITIAL_DB, createInitialDb } from "@/lib/db";
 
 // Formatting helpers
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -49,7 +49,7 @@ export default function Home() {
     if (typeof window !== "undefined") {
       return getDatabase();
     }
-    return INITIAL_DB;
+    return createInitialDb();
   });
 
   // Advanced Global Filtering State
@@ -156,7 +156,7 @@ export default function Home() {
         fetchUserData();
       } else {
         setUser(null);
-        setMarketingDb(INITIAL_DB);
+        setMarketingDb(createInitialDb());
       }
       setAuthChecking(false);
     });
@@ -171,8 +171,8 @@ export default function Home() {
       await supabase.auth.signOut();
       setUser(null);
       setAuthBypassed(false);
-      setMarketingDb(INITIAL_DB);
-      saveDatabase(INITIAL_DB);
+      setMarketingDb(createInitialDb());
+      saveDatabase(createInitialDb());
       triggerToast("Desconectado com sucesso.");
     }
   };
@@ -186,7 +186,7 @@ export default function Home() {
       }
       
       // 2. Resetar todos os estados de métricas e tabelas fact do React
-      setMarketingDb(INITIAL_DB);
+      setMarketingDb(createInitialDb());
       setFiles([]);
       setBase64Files([]);
       setPendingUpload(null);
