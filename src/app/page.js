@@ -414,6 +414,7 @@ export default function Home() {
   // Dynamic Device Chart Data
   const getDeviceChartData = () => {
     const list = marketingDb.fact_devices.filter(d => {
+      if (d.platform !== "google") return false;
       if (!matchesCoreFilters(d)) return false;
       if (device !== "todos" && d.device !== device) return false;
       return true;
@@ -457,6 +458,7 @@ export default function Home() {
   // Dynamic Heatmap Chronological Data
   const getTimeHeatmapData = () => {
     const list = marketingDb.fact_weekday_hour.filter(t => {
+      if (t.platform !== "google") return false;
       if (!matchesCoreFilters(t)) return false;
       return true;
     });
@@ -504,6 +506,7 @@ export default function Home() {
   // Dynamic Demographics Regional Data
   const getRegionalMapData = () => {
     const list = marketingDb.fact_demographics.filter(d => {
+      if (d.platform !== "google") return false;
       if (!matchesCoreFilters(d)) return false;
       if (gender !== "todos" && d.gender !== gender) return false;
       if (age !== "todas" && d.age_range !== age) return false;
