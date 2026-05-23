@@ -1,12 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
 const number = new Intl.NumberFormat("pt-BR");
 
 export default function SearchOperations({ keywordsData = [], searchTermsData = [] }) {
   const [activeTab, setActiveTab] = useState("keywords"); // "keywords" | "search_terms"
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    const timerStart = setTimeout(() => setIsUpdating(true), 0);
+    const timerEnd = setTimeout(() => setIsUpdating(false), 250);
+    return () => {
+      clearTimeout(timerStart);
+      clearTimeout(timerEnd);
+    };
+  }, [keywordsData, searchTermsData, activeTab]);
 
   const hasKeywords = keywordsData && keywordsData.length > 0;
   const hasSearchTerms = searchTermsData && searchTermsData.length > 0;
@@ -83,7 +93,7 @@ export default function SearchOperations({ keywordsData = [], searchTermsData = 
     .slice(0, 5);
 
   return (
-    <article className="glass-card search-ops-card">
+    <article className={`glass-card search-ops-card ${isUpdating ? "is-updating" : ""}`}>
       <div className="card-header">
         <div>
           <p className="eyebrow">Operações de Busca</p>

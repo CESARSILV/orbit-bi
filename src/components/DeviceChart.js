@@ -6,11 +6,21 @@ const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL",
 
 export default function DeviceChart({ deviceData }) {
   const [animate, setAnimate] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimate(true), 150);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const timerStart = setTimeout(() => setIsUpdating(true), 0);
+    const timerEnd = setTimeout(() => setIsUpdating(false), 250);
+    return () => {
+      clearTimeout(timerStart);
+      clearTimeout(timerEnd);
+    };
+  }, [deviceData]);
 
   const isDataAvailable = !!deviceData;
   const data = deviceData || {
@@ -22,7 +32,7 @@ export default function DeviceChart({ deviceData }) {
   const desktopWidth = animate ? `${data.desktop.percent}%` : "0%";
 
   return (
-    <article className="glass-card device-card">
+    <article className={`glass-card device-card ${isUpdating ? "is-updating" : ""}`}>
       <div className="card-header">
         <div>
           <p className="eyebrow">Desempenho de Dispositivos</p>

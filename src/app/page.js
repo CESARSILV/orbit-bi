@@ -84,6 +84,17 @@ export default function Home() {
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [chatPending, setChatPending] = useState(false);
 
+  const [isIntelligenceUpdating, setIsIntelligenceUpdating] = useState(false);
+
+  useEffect(() => {
+    const timerStart = setTimeout(() => setIsIntelligenceUpdating(true), 0);
+    const timerEnd = setTimeout(() => setIsIntelligenceUpdating(false), 250);
+    return () => {
+      clearTimeout(timerStart);
+      clearTimeout(timerEnd);
+    };
+  }, [platform, period, startDate, endDate, campaign, device, gender, age, network, keyword, searchTerm]);
+
   // Trigger Toast Notification
   const triggerToast = (message) => {
     setToastMessage(message);
@@ -1141,7 +1152,7 @@ export default function Home() {
           />
 
           <section className="hero-grid" id="visao-geral">
-            <article className="intelligence-panel">
+            <article className={`intelligence-panel ${isIntelligenceUpdating ? "is-updating" : ""}`}>
               <div className="panel-heading">
                 <div>
                   <p className="eyebrow">Diagnóstico da IA</p>

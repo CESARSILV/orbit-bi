@@ -1,13 +1,26 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 export default function CampaignTable({ campaigns }) {
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    const timerStart = setTimeout(() => setIsUpdating(true), 0);
+    const timerEnd = setTimeout(() => setIsUpdating(false), 250);
+    return () => {
+      clearTimeout(timerStart);
+      clearTimeout(timerEnd);
+    };
+  }, [campaigns]);
+
   // Sort campaigns by ROAS descending like in original app
   const sortedCampaigns = [...campaigns].sort((a, b) => b.roas - a.roas);
 
   return (
-    <article className="table-panel" id="criativos">
+    <article className={`table-panel ${isUpdating ? "is-updating" : ""}`} id="criativos">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">Campanhas</p>

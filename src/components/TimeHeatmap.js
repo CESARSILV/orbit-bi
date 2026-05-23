@@ -1,12 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const HOURS_LABELS = ["0h-4h", "4h-8h", "8h-12h", "12h-16h", "16h-20h", "20h-24h"];
 const DAYS_FULL = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"];
 
 export default function TimeHeatmap({ timeData }) {
   const [hoveredCell, setHoveredCell] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    const timerStart = setTimeout(() => setIsUpdating(true), 0);
+    const timerEnd = setTimeout(() => setIsUpdating(false), 250);
+    return () => {
+      clearTimeout(timerStart);
+      clearTimeout(timerEnd);
+    };
+  }, [timeData]);
 
   const isDataAvailable = !!timeData;
   const data = timeData || [
@@ -44,7 +54,7 @@ export default function TimeHeatmap({ timeData }) {
   };
 
   return (
-    <article className="glass-card heatmap-card">
+    <article className={`glass-card heatmap-card ${isUpdating ? "is-updating" : ""}`}>
       <div className="card-header">
         <div>
           <p className="eyebrow">Análise Cronológica</p>

@@ -5,6 +5,16 @@ import { useEffect, useRef, useState } from "react";
 export default function LineChart({ timeline }) {
   const canvasRef = useRef(null);
   const [metric, setMetric] = useState("receita"); // "receita", "roas", "cpa"
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    const timerStart = setTimeout(() => setIsUpdating(true), 0);
+    const timerEnd = setTimeout(() => setIsUpdating(false), 250);
+    return () => {
+      clearTimeout(timerStart);
+      clearTimeout(timerEnd);
+    };
+  }, [timeline, metric]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -129,7 +139,7 @@ export default function LineChart({ timeline }) {
   }, [metric, timeline]);
 
   return (
-    <article className="chart-panel wide" id="comparacao">
+    <article className={`chart-panel wide ${isUpdating ? "is-updating" : ""}`} id="comparacao">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">Evolução histórica</p>

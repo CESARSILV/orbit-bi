@@ -1,11 +1,21 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 export default function DonutChart({ campaigns }) {
   const canvasRef = useRef(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    const timerStart = setTimeout(() => setIsUpdating(true), 0);
+    const timerEnd = setTimeout(() => setIsUpdating(false), 250);
+    return () => {
+      clearTimeout(timerStart);
+      clearTimeout(timerEnd);
+    };
+  }, [campaigns]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -101,7 +111,7 @@ export default function DonutChart({ campaigns }) {
   }, [campaigns]);
 
   return (
-    <article className="chart-panel">
+    <article className={`chart-panel ${isUpdating ? "is-updating" : ""}`}>
       <div className="panel-heading">
         <div>
           <p className="eyebrow">Distribuição</p>

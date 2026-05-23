@@ -1,10 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 export default function RegionalMap({ geoData }) {
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    const timerStart = setTimeout(() => setIsUpdating(true), 0);
+    const timerEnd = setTimeout(() => setIsUpdating(false), 250);
+    return () => {
+      clearTimeout(timerStart);
+      clearTimeout(timerEnd);
+    };
+  }, [geoData]);
+
   const isDataAvailable = !!geoData;
   const data = geoData || [
     { region: "Sudeste", value: 0, invest: 0, conv: 0, cpa: 0 },
@@ -32,7 +43,7 @@ export default function RegionalMap({ geoData }) {
   };
 
   return (
-    <article className="glass-card map-card">
+    <article className={`glass-card map-card ${isUpdating ? "is-updating" : ""}`}>
       <div className="card-header">
         <div>
           <p className="eyebrow">Distribuição Demográfica</p>
