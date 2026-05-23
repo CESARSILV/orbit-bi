@@ -178,14 +178,22 @@ export default function Home() {
   };
 
   const handleClearData = async () => {
-    if (window.confirm("Tem certeza que deseja excluir todas as campanhas, histórico e facts? Esta ação é irreversível.")) {
+    if (window.confirm("Tem certeza que deseja excluir todas as campanhas, histórico e facts? Esta ação é irreversível e limpará 100% do cache local.")) {
+      // 1. Limpar explicitamente o localStorage e o cache do navegador
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("orbit_marketing_bi_db");
+        localStorage.clear(); // Limpeza total do armazenamento local
+      }
+      
+      // 2. Resetar todos os estados de métricas e tabelas fact do React
       setMarketingDb(INITIAL_DB);
-      saveDatabase(INITIAL_DB);
       setFiles([]);
       setBase64Files([]);
       setPendingUpload(null);
       setDuplicateFileInfo(null);
       setShowDeduplicationModal(false);
+      
+      // 3. Resetar todos os seletores e intervalos de datas
       setPlatform("todas");
       setPeriod("todos");
       setStartDate("");
@@ -197,9 +205,12 @@ export default function Home() {
       setNetwork("todas");
       setKeyword("todas");
       setSearchTerm("todos");
+      
+      // 4. Resetar chat e assistente de IA
       setMessages(INITIAL_MESSAGES);
       setChatPending(false);
       
+      // 5. Excluir dados remotos se o Supabase estiver conectado
       if (user && isSupabaseConfigured) {
         try {
           const { error: campaignsErr } = await supabase
@@ -215,14 +226,19 @@ export default function Home() {
           if (campaignsErr) throw campaignsErr;
           if (timelineErr) throw timelineErr;
           
-          triggerToast("Dados excluídos com sucesso do Supabase!");
+          triggerToast("Dados locais e Supabase limpos com sucesso!");
         } catch (err) {
           console.error("Error clearing Supabase database records:", err);
-          triggerToast("Erro ao excluir dados do banco. Verifique suas permissões.");
+          triggerToast("Limpo localmente. Erro ao sincronizar com Supabase.");
         }
       } else {
-        triggerToast("Modo de demonstração zerado com sucesso!");
+        triggerToast("Painel e cache limpos 100% com sucesso!");
       }
+
+      // 6. Forçar recarregamento da página para limpar cache em memória do React
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     }
   };
 
