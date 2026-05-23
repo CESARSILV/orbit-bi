@@ -244,6 +244,7 @@ export function detectDataset(platform, rowKeys) {
   const hasCliques = keys.some(k => k === "cliques" || k === "clicks");
   const hasCusto = keys.some(k => k === "custo" || k === "cost" || k === "spend" || k.includes("valor"));
   const hasImpressoes = keys.some(k => k === "impressões" || k === "impressions" || k === "impr.");
+  const hasCampaign = keys.some(k => k === "campanha" || k === "campaign" || k === "nome da campanha" || k === "campaign name");
 
   const hasDia = keys.some(k => k === "dia" || k === "day" || k === "dia da semana" || k === "day of week");
   const hasHora = keys.some(k => k === "hora" || k === "hour" || k === "hora de início" || k === "hour of day" || k === "hora de inicio");
@@ -255,6 +256,7 @@ export function detectDataset(platform, rowKeys) {
   const hasSearchTerm = keys.some(k => k === "pesquisa do google" || k === "search term" || k === "pesquisar" || k === "termo de pesquisa");
   const hasRede = keys.some(k => k === "rede" || k === "network" || k === "rede com parceiros de pesquisa");
 
+  if (hasCampaign && (hasCliques || hasCusto || hasImpressoes)) return "campaign_performance";
   if (hasDia && hasHora && hasCliques) return "weekday_hour_performance";
   if (hasDia && hasCliques) return "weekday_performance";
   if (hasHora && hasCliques) return "hourly_performance";
@@ -336,20 +338,17 @@ export function splitCsvLine(line, delimiter) {
 }
 
 export function parseCsv(text) {
-  const rawLines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+  const rawLines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter(line => line.trim().length > 0);
   if (rawLines.length < 2) return [];
 
   // Find the header line index
   let headerLineIndex = 0;
-  let maxCommasOrSemicolons = -1;
+  let bestScore = -1;
   let bestDelimiter = ",";
+  const delimiters = [",", ";", "\t"];
 
   for (let i = 0; i < Math.min(rawLines.length, 10); i++) {
     const line = rawLines[i];
-    const commas = (line.match(/,/g) || []).length;
-    const semicolons = (line.match(/;/g) || []).length;
-    const total = commas + semicolons;
-    
     const lowerLine = line.toLowerCase();
     const hasKeywords = 
       lowerLine.includes("campanha") || 
@@ -363,10 +362,17 @@ export function parseCsv(text) {
       lowerLine.includes("dia") ||
       lowerLine.includes("dispositivo");
 
-    if (total > maxCommasOrSemicolons || (hasKeywords && total > 0 && total >= maxCommasOrSemicolons - 2)) {
-      maxCommasOrSemicolons = total;
+    const delimiterScores = delimiters.map((delimiter) => {
+      const columns = splitCsvLine(line, delimiter);
+      const filledColumns = columns.filter((col) => col.trim()).length;
+      return { delimiter, columns: filledColumns, score: filledColumns + (hasKeywords ? 8 : 0) };
+    });
+    const bestForLine = delimiterScores.sort((a, b) => b.score - a.score)[0];
+
+    if (bestForLine.score > bestScore && bestForLine.columns > 1) {
+      bestScore = bestForLine.score;
       headerLineIndex = i;
-      bestDelimiter = semicolons > commas ? ";" : ",";
+      bestDelimiter = bestForLine.delimiter;
     }
   }
 
@@ -426,6 +432,12 @@ export async function parseExcelFile(file) {
 export function inferReferenceMonth(fileName, rows) {
   const name = fileName.toLowerCase();
   
+  const rangeRegex = /(\d{4})[\.\-_](\d{2})[\.\-_](\d{2})-(\d{4})[\.\-_](\d{2})[\.\-_](\d{2})/;
+  const rangeMatch = name.match(rangeRegex);
+  if (rangeMatch) {
+    return `${rangeMatch[4]}-${rangeMatch[5]}`;
+  }
+
   // Match YYYY-MM-DD or YYYY.MM.DD or YYYY_MM_DD or YYYY-MM
   const dateRegex = /(\d{4})[\.\-_](\d{2})([\.\-_](\d{2}))?/;
   const match = name.match(dateRegex);
@@ -503,8 +515,17 @@ export async function processUploadFile(file) {
   }
 
   const rowKeys = Object.keys(rows[0]);
+  const lowerFileName = fileName.toLowerCase();
   const platform = detectPlatform(fileName, rowKeys, rows);
-  const dataset_type = detectDataset(platform, rowKeys);
+  let dataset_type = detectDataset(platform, rowKeys);
+  if (lowerFileName.includes("campanha")) dataset_type = "campaign_performance";
+  if (lowerFileName.includes("dispositivo")) dataset_type = "device_performance";
+  if (lowerFileName.includes("palavras-chave") || lowerFileName.includes("palavra-chave")) dataset_type = "search_keywords";
+  if (lowerFileName.includes("pesquisa")) dataset_type = "search_terms";
+  if (lowerFileName.includes("rede")) dataset_type = "network_performance";
+  if (lowerFileName.includes("sexo") || lowerFileName.includes("idade") || lowerFileName.includes("demogr")) dataset_type = "demographics_gender_age";
+  if (lowerFileName.includes("dia_e_hora") || lowerFileName.includes("dia-hora")) dataset_type = "weekday_hour_performance";
+  if (lowerFileName.includes("série_temporal") || lowerFileName.includes("serie_temporal")) dataset_type = "daily_time_series";
   const reference_month = inferReferenceMonth(fileName, rows);
   const reference_label = `${MONTHS_PT[parseInt(reference_month.split("-")[1], 10) - 1]}/${reference_month.split("-")[0]}`;
 
@@ -525,9 +546,15 @@ export async function processUploadFile(file) {
       const dayName = getSemanticValue(row, "date");
       const searchName = getSemanticValue(row, "search_term");
       const keywordName = getSemanticValue(row, "keyword");
+      const hasAnyMetric =
+        parseFormattedFloat(getSemanticValue(row, "spend", 0)) > 0 ||
+        parseFormattedFloat(getSemanticValue(row, "clicks", 0)) > 0 ||
+        parseFormattedFloat(getSemanticValue(row, "impressions", 0)) > 0 ||
+        parseFormattedFloat(getSemanticValue(row, "conversions", 0)) > 0 ||
+        parseFormattedFloat(getSemanticValue(row, "revenue", 0)) > 0;
       
       const primaryKey = campName || deviceName || dayName || searchName || keywordName || "";
-      return primaryKey && !isTotalOrMetadata(primaryKey);
+      return (primaryKey || hasAnyMetric) && !isTotalOrMetadata(primaryKey || "linha com métrica");
     })
     .map((row, idx) => {
       // Map row keys to Universal Schema
