@@ -31,6 +31,13 @@ const MONTHS_PT = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ];
 
+const INITIAL_MESSAGES = [
+  {
+    type: "ai",
+    text: "Olá. Já analisei o painel atual e posso explicar ROAS, CPA, públicos vencedores, desperdício de verba e próximos passos.",
+  },
+];
+
 export default function Home() {
   // Authentication State
   const [user, setUser] = useState(null);
@@ -74,12 +81,7 @@ export default function Home() {
   const [showDeduplicationModal, setShowDeduplicationModal] = useState(false);
 
   // Chat State
-  const [messages, setMessages] = useState([
-    {
-      type: "ai",
-      text: "Olá. Já analisei o painel atual e posso explicar ROAS, CPA, públicos vencedores, desperdício de verba e próximos passos.",
-    },
-  ]);
+  const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [chatPending, setChatPending] = useState(false);
 
   // Trigger Toast Notification
@@ -180,6 +182,23 @@ export default function Home() {
       setMarketingDb(INITIAL_DB);
       saveDatabase(INITIAL_DB);
       setFiles([]);
+      setBase64Files([]);
+      setPendingUpload(null);
+      setDuplicateFileInfo(null);
+      setShowDeduplicationModal(false);
+      setPlatform("todas");
+      setPeriod("todos");
+      setStartDate("");
+      setEndDate("");
+      setCampaign("todas");
+      setDevice("todos");
+      setGender("todos");
+      setAge("todas");
+      setNetwork("todas");
+      setKeyword("todas");
+      setSearchTerm("todos");
+      setMessages(INITIAL_MESSAGES);
+      setChatPending(false);
       
       if (user && isSupabaseConfigured) {
         try {

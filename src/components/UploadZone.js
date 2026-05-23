@@ -25,12 +25,14 @@ export default function UploadZone({ files, onFilesSelected }) {
     setIsDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       onFilesSelected(e.dataTransfer.files);
+      e.dataTransfer.clearData();
     }
   };
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       onFilesSelected(e.target.files);
+      e.target.value = "";
     }
   };
 
