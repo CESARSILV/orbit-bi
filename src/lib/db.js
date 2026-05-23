@@ -43,6 +43,8 @@ const STORAGE_KEY = "orbit_marketing_bi_db";
 const DATASET_TABLE_MAP = {
   campaign_performance: "fact_campaigns",
   meta_campaign_performance: "fact_campaigns",
+  meta_adset_performance: "fact_campaigns",
+  meta_ad_performance: "fact_campaigns",
   device_performance: "fact_devices",
   hourly_performance: "fact_hourly",
   weekday_performance: "fact_weekday",

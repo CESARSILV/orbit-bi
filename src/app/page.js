@@ -101,15 +101,45 @@ export default function Home() {
   const [wizardResultCount, setWizardResultCount] = useState(0);
   const [wizardDatasetType, setWizardDatasetType] = useState("campaign_performance");
 
-  const WIZARD_STANDARD_FIELDS = [
-    { key: "campaign_name", label: "Nome da Campanha", required: true, description: "Coluna que identifica o nome de cada campanha." },
-    { key: "spend", label: "Investimento / Gasto", required: true, description: "Custo total acumulado da campanha." },
-    { key: "clicks", label: "Cliques Totais", required: false, description: "Total de cliques recebidos." },
-    { key: "impressions", label: "Impressões", required: true, description: "Total de visualizações dos anúncios." },
-    { key: "conversions", label: "Conversões / Leads", required: false, description: "Total de conversões, compras ou leads cadastrados." },
-    { key: "revenue", label: "Receita / Valor de Conversão", required: false, description: "Valor financeiro retornado pelas conversões." },
-    { key: "date", label: "Data / Dia de Referência", required: true, description: "Data de registro do desempenho (ex: YYYY-MM-DD)." }
-  ];
+  const getWizardFields = (platform) => {
+    const baseFields = [
+      { key: "campaign_name", label: "Nome da Campanha", required: true, description: "Coluna que identifica o nome de cada campanha." },
+      { key: "spend", label: "Investimento / Gasto", required: true, description: "Custo total acumulado da campanha." },
+      { key: "clicks", label: "Cliques Totais", required: false, description: "Total de cliques recebidos." },
+      { key: "impressions", label: "Impressões", required: true, description: "Total de visualizações dos anúncios." },
+      { key: "conversions", label: platform === "meta" ? "Resultados / Conversões" : "Conversões / Leads", required: false, description: "Total de conversões, compras ou leads cadastrados." },
+      { key: "revenue", label: "Receita / Valor de Conversão", required: false, description: "Valor financeiro retornado pelas conversões." },
+      { key: "date", label: "Data / Dia de Referência", required: true, description: "Data de registro do desempenho (ex: YYYY-MM-DD)." }
+    ];
+
+    if (platform === "google") {
+      return [
+        ...baseFields,
+        { key: "keyword", label: "Palavra-chave", required: false, description: "Termo de palavra-chave que acionou o anúncio (se houver)." },
+        { key: "search_term", label: "Termo de Pesquisa", required: false, description: "Consulta exata digitada pelo usuário (se houver)." },
+        { key: "device", label: "Dispositivo", required: false, description: "Computador, Celular, Tablet, etc. (se houver)." },
+        { key: "network", label: "Rede", required: false, description: "Rede de Pesquisa, Rede de Display, YouTube, etc. (se houver)." },
+        { key: "gender", label: "Sexo / Gênero", required: false, description: "Público masculino, feminino ou desconhecido (se houver)." },
+        { key: "age_range", label: "Faixa de Idade", required: false, description: "Intervalos de idade do público (se houver)." },
+        { key: "hour", label: "Hora do Dia", required: false, description: "Hora do registro do desempenho (se houver)." }
+      ];
+    } else if (platform === "meta") {
+      return [
+        ...baseFields,
+        { key: "reach", label: "Alcance", required: false, description: "Número de pessoas únicas que viram o anúncio (se houver)." },
+        { key: "frequency", label: "Frequência", required: false, description: "Número médio de vezes que cada pessoa viu o anúncio (se houver)." },
+        { key: "adset_name", label: "Nome do Conjunto de Anúncios (Ad Set)", required: false, description: "Identificação do grupo de anúncios (se houver)." },
+        { key: "ad_name", label: "Nome do Anúncio (Ad)", required: false, description: "Identificação do anúncio específico (se houver)." },
+        { key: "placement", label: "Posicionamento / Canal", required: false, description: "Feed, Stories, Reels, Audience Network, etc. (se houver)." },
+        { key: "device", label: "Dispositivo", required: false, description: "Computador, Celular, Tablet, etc. (se houver)." },
+        { key: "gender", label: "Sexo / Gênero", required: false, description: "Público masculino, feminino ou desconhecido (se houver)." },
+        { key: "age_range", label: "Faixa de Idade", required: false, description: "Intervalos de idade do público (se houver)." }
+      ];
+    }
+    return baseFields;
+  };
+
+  const WIZARD_STANDARD_FIELDS = getWizardFields(wizardPlatform);
 
   const [isIntelligenceUpdating, setIsIntelligenceUpdating] = useState(false);
   const processingFilesRef = useRef(new Set());
@@ -455,7 +485,6 @@ export default function Home() {
   // Dynamic Device Chart Data
   const getDeviceChartData = () => {
     const list = marketingDb.fact_devices.filter(d => {
-      if (d.platform !== "google") return false;
       if (!matchesCoreFilters(d)) return false;
       if (device !== "todos" && d.device !== device) return false;
       return true;
@@ -499,7 +528,6 @@ export default function Home() {
   // Dynamic Heatmap Chronological Data
   const getTimeHeatmapData = () => {
     const list = marketingDb.fact_weekday_hour.filter(t => {
-      if (t.platform !== "google") return false;
       if (!matchesCoreFilters(t)) return false;
       return true;
     });
@@ -547,7 +575,6 @@ export default function Home() {
   // Dynamic Demographics Regional Data
   const getRegionalMapData = () => {
     const list = marketingDb.fact_demographics.filter(d => {
-      if (d.platform !== "google") return false;
       if (!matchesCoreFilters(d)) return false;
       if (gender !== "todos" && d.gender !== gender) return false;
       if (age !== "todas" && d.age_range !== age) return false;
@@ -827,7 +854,7 @@ export default function Home() {
 
       // Step 4: AI suggests automatic column mapping based on SYNONYMS
       const initialMapping = {};
-      const fields = ["campaign_name", "spend", "clicks", "impressions", "conversions", "revenue", "date"];
+      const fields = getWizardFields(detectedPlatform).map(f => f.key);
       
       fields.forEach(field => {
         const synonyms = SYNONYMS[field] || [];
@@ -970,17 +997,46 @@ export default function Home() {
           const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
           const roas = spend > 0 ? revenue / spend : 0;
 
+          // Platform-specific extra segmentations
+          const deviceVal = wizardMapping.device ? (row[wizardMapping.device] || null) : null;
+          const genderVal = wizardMapping.gender ? (row[wizardMapping.gender] || null) : null;
+          const ageRangeVal = wizardMapping.age_range ? (row[wizardMapping.age_range] || null) : null;
+          const keywordVal = wizardMapping.keyword ? (row[wizardMapping.keyword] || null) : null;
+          const searchTermVal = wizardMapping.search_term ? (row[wizardMapping.search_term] || null) : null;
+          
+          let networkVal = null;
+          if (wizardPlatform === "google" && wizardMapping.network) {
+            networkVal = row[wizardMapping.network] || null;
+          } else if (wizardPlatform === "meta" && wizardMapping.placement) {
+            networkVal = row[wizardMapping.placement] || null;
+          }
+
+          const reachVal = wizardMapping.reach ? Math.round(parseFormattedFloat(row[wizardMapping.reach])) : impressions;
+          const freqVal = wizardMapping.frequency ? parseFormattedFloat(row[wizardMapping.frequency]) : 1.0;
+          const hourVal = wizardMapping.hour ? parseInt(row[wizardMapping.hour], 10) : null;
+
+          let finalCampaignName = campName;
+          if (wizardPlatform === "meta") {
+            const adsetName = wizardMapping.adset_name ? String(row[wizardMapping.adset_name] || "").trim() : "";
+            const adName = wizardMapping.ad_name ? String(row[wizardMapping.ad_name] || "").trim() : "";
+            if (adName) {
+              finalCampaignName = adName;
+            } else if (adsetName) {
+              finalCampaignName = adsetName;
+            }
+          }
+
           return {
             id: `wiz_${reference_month}_${wizardPlatform}_${idx}_${Date.now()}`,
             platform: wizardPlatform,
             dataset_type: wizardDatasetType,
-            campaign_name: sanitizeMojibake(campName) || "Campanha Importada",
-            device: null,
-            gender: null,
-            age_range: null,
-            keyword: null,
-            search_term: null,
-            network: null,
+            campaign_name: sanitizeMojibake(finalCampaignName) || "Campanha Importada",
+            device: sanitizeMojibake(deviceVal),
+            gender: sanitizeMojibake(genderVal),
+            age_range: sanitizeMojibake(ageRangeVal),
+            keyword: sanitizeMojibake(keywordVal),
+            search_term: sanitizeMojibake(searchTermVal),
+            network: sanitizeMojibake(networkVal),
             
             date: enrichedDate.date,
             day: enrichedDate.day,
@@ -992,15 +1048,15 @@ export default function Home() {
             year_month: enrichedDate.year_month,
             reference_month,
             reference_label,
-            hour: null,
+            hour: isNaN(hourVal) ? null : hourVal,
 
             spend,
             clicks,
             impressions,
             conversions,
             leads: conversions,
-            reach: impressions,
-            frequency: 1.0,
+            reach: reachVal,
+            frequency: freqVal,
             revenue,
 
             ctr,

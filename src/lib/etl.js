@@ -267,6 +267,22 @@ export function detectDataset(platform, rowKeys) {
   const keys = rowKeys.map(k => k.toLowerCase().trim());
 
   if (platform === "meta") {
+    const hasAd = keys.some(k => k.includes("anúncio") || k.includes("anuncio") || k.includes("ad name") || k.includes("ad_name") || k === "ad" || k === "ads");
+    const hasAdset = keys.some(k => k.includes("conjunto") || k.includes("adset") || k.includes("ad set") || k.includes("ad_set"));
+    const hasDispositivo = keys.some(k => k === "dispositivo" || k === "device" || k.includes("dispositivo de"));
+    const hasPlacement = keys.some(k => k === "posicionamento" || k === "placement" || k === "posicionamentos" || k.includes("posicionamento e") || k.includes("plataforma de posicionamento"));
+    const hasIdade = keys.some(k => k.includes("idade") || k.includes("age") || k.includes("faixa"));
+    const hasSexo = keys.some(k => k.includes("sexo") || k.includes("gender") || k.includes("gênero") || k.includes("genero"));
+    const hasData = keys.some(k => k === "data" || k === "date" || k.includes("início") || k.includes("inicio") || k.includes("dia") || k.includes("day"));
+
+    if (hasDispositivo) return "device_performance";
+    if (hasPlacement) return "network_performance";
+    if (hasSexo && hasIdade) return "demographics_gender_age";
+    if (hasIdade) return "demographics_age";
+    if (hasSexo) return "demographics_gender";
+    if (hasAd) return "meta_ad_performance";
+    if (hasAdset) return "meta_adset_performance";
+    if (hasData) return "daily_time_series";
     return "meta_campaign_performance";
   }
 
@@ -324,10 +340,13 @@ export const SYNONYMS = {
   age_range: ["faixa de idade", "age", "idade", "faixa etária", "faixa etaria", "age range", "age_range", "faixa_etaria", "grupo_idade"],
   keyword: ["palavra-chave", "keyword", "palavra-chave da rede de pesquisa", "palavras-chave", "palavra chave", "palavras chave", "keyword_name"],
   search_term: ["termo de pesquisa", "search term", "pesquisa do google", "pesquisar", "termo pesquisado", "termo", "search_term", "query", "pesquisa_usuario"],
-  network: ["rede", "network", "rede de publicidade", "rede com parceiros de pesquisa", "canal", "network_type"],
-  date: ["data", "date", "dia", "day", "início dos relatórios", "inicio dos relatorios", "reporting starts", "reporting start", "data_inicio", "start_date"],
+  network: ["rede", "network", "rede de publicidade", "rede com parceiros de pesquisa", "canal", "network_type", "posicionamento", "placement", "posicionamentos", "plataforma de posicionamento", "placement_platform", "posicionamento e dispositivo"],
+  date: ["data", "date", "dia", "day", "início dos relatórios", "inicio dos relatorios", "reporting starts", "reporting start", "data_inicio", "start_date", "dia da semana", "day of week"],
   hour: ["hora", "hour", "hora de início", "hour of day", "hora de inicio", "horário", "horario", "hora_dia"],
-  status: ["status", "estado", "situação", "delivery", "veiculação", "veiculacao", "status da campanha", "veiculação da campanha", "status_campanha"]
+  status: ["status", "estado", "situação", "delivery", "veiculação", "veiculacao", "status da campanha", "veiculação da campanha", "status_campanha"],
+  adset_name: ["nome do conjunto de anúncios", "nome do conjunto de anuncios", "conjunto de anúncios", "conjunto de anuncios", "ad set name", "adset name", "adset", "nome_do_conjunto", "conjunto", "ad set", "ad_set", "adset_name", "adset_id"],
+  ad_name: ["nome do anúncio", "nome do anuncio", "anúncio", "anuncio", "ad name", "ad", "nome_do_anuncio", "anuncio_nome", "ad_name", "ad_id", "anúncios"],
+  placement: ["posicionamento", "placement", "posicionamentos", "plataforma de posicionamento", "placement_platform", "canal", "posicionamento e dispositivo"]
 };
 
 export function getSemanticValue(row, targetField, defaultValue = undefined) {
