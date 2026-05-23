@@ -1939,36 +1939,37 @@ td {
 }
 
 .wizard-modal-box {
-  background: rgba(16, 20, 32, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(16, 20, 32, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   padding: 32px;
   width: 95%;
-  max-width: 850px;
-  max-height: 85vh;
+  max-width: 1200px;
+  max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.75);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
   animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .wizard-header {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding-bottom: 16px;
 }
 
 .wizard-header h2 {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   font-weight: 800;
   color: var(--text);
   margin: 0 0 6px 0;
+  letter-spacing: -0.5px;
 }
 
 .wizard-header p {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   margin: 0;
 }
 
@@ -1976,9 +1977,10 @@ td {
   display: flex;
   justify-content: space-between;
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
-  padding: 12px 20px;
+  padding: 14px 20px;
+  gap: 16px;
 }
 
 .wizard-step-indicator-item {
@@ -1987,6 +1989,7 @@ td {
   gap: 8px;
   font-size: 0.85rem;
   color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .wizard-step-indicator-item.active {
@@ -1999,41 +2002,51 @@ td {
 }
 
 .wizard-step-indicator-item .circle {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   border: 2px solid var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
+  line-height: 1;
 }
 
 .wizard-step-indicator-item.active .circle {
   border-color: var(--blue);
   background: rgba(10, 132, 255, 0.15);
+  color: var(--blue);
 }
 
 .wizard-step-indicator-item.done .circle {
   border-color: var(--green);
   background: rgba(48, 209, 88, 0.15);
+  color: var(--green);
 }
 
 .wizard-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: 1.3fr 0.7fr;
+  gap: 32px;
 }
 
-@media (max-width: 768px) {
+.wizard-grid > div {
+  min-width: 0; /* Prevents columns from expanding beyond their flex track */
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 992px) {
   .wizard-grid {
     grid-template-columns: 1fr;
+    gap: 24px;
   }
 }
 
 .wizard-section-title {
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: 1.1rem;
+  font-weight: 750;
   color: var(--text);
   margin: 0 0 12px 0;
   display: flex;
@@ -2042,53 +2055,67 @@ td {
 }
 
 .wizard-preview-table-container {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  overflow: auto;
-  max-height: 180px;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 280px; /* Give it more height */
+  width: 100%;
 }
 
 .wizard-preview-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  width: max-content !important;
+  min-width: 100% !important;
+  table-layout: auto !important;
+  border-collapse: collapse !important;
+}
+
+.wizard-preview-table th,
+.wizard-preview-table td {
+  width: auto !important;
+  min-width: 120px !important; /* Make sure columns have room */
+  padding: 10px 14px !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  font-size: 0.8rem !important;
 }
 
 .wizard-preview-table th {
-  background: rgba(255, 255, 255, 0.03);
-  padding: 8px 12px;
-  text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  color: var(--text);
-  font-weight: 600;
-  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--text) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
 }
 
 .wizard-preview-table td {
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-  white-space: nowrap;
+  color: var(--text-muted) !important;
 }
 
 .wizard-mapping-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-height: 320px;
+  gap: 14px;
+  max-height: 420px;
   overflow-y: auto;
-  padding-right: 6px;
+  padding-right: 8px;
 }
 
 .wizard-mapping-item {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
-  padding: 12px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.wizard-mapping-item:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .wizard-mapping-label-row {
@@ -2098,7 +2125,7 @@ td {
 }
 
 .wizard-mapping-field-name {
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: var(--text);
 }
@@ -2106,26 +2133,29 @@ td {
 .wizard-mapping-field-required {
   font-size: 0.7rem;
   color: #ff453a;
-  background: rgba(255, 69, 58, 0.1);
+  background: rgba(255, 69, 58, 0.12);
   padding: 2px 6px;
   border-radius: 4px;
+  font-weight: 600;
 }
 
 .wizard-mapping-desc {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   color: var(--text-muted);
+  line-height: 1.4;
 }
 
 .wizard-mapping-select {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
   color: var(--text);
-  font-size: 0.85rem;
-  padding: 8px;
+  font-size: 0.88rem;
+  padding: 10px;
   outline: none;
   cursor: pointer;
   width: 100%;
+  transition: border-color 0.2s ease;
 }
 
 .wizard-mapping-select:focus {
@@ -2133,8 +2163,8 @@ td {
 }
 
 .wizard-template-box {
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   padding: 16px;
   display: flex;
@@ -2146,20 +2176,21 @@ td {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   color: var(--text);
   cursor: pointer;
 }
 
 .wizard-text-input {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
   color: var(--text);
-  font-size: 0.85rem;
-  padding: 8px 12px;
+  font-size: 0.88rem;
+  padding: 10px 12px;
   width: 100%;
   outline: none;
+  transition: border-color 0.2s ease;
 }
 
 .wizard-text-input:focus {
@@ -2168,20 +2199,21 @@ td {
 
 .wizard-error-box {
   background: rgba(255, 69, 58, 0.08);
-  border: 1px solid rgba(255, 69, 58, 0.2);
+  border: 1px solid rgba(255, 69, 58, 0.25);
   border-radius: 8px;
   color: #ff453a;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   padding: 12px 16px;
+  font-weight: 500;
 }
 
 .wizard-footer-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 20px;
-  margin-top: 8px;
+  margin-top: 16px;
 }
 
 /* Loading / Progress Step Styles */
@@ -2252,4 +2284,5 @@ td {
   max-width: 480px;
   line-height: 1.5;
 }
+
 
