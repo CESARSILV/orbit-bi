@@ -5,6 +5,11 @@ import { useRef, useState } from "react";
 export default function UploadZone({ files, onFilesSelected }) {
   const fileInputRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const total = files.length;
+  const processando = files.filter((file) => file?.status === "processando").length;
+  const sucesso = files.filter((file) => file?.status === "sucesso").length;
+  const erros = files.filter((file) => file?.status === "erro").length;
+  const anexosIa = files.filter((file) => file?.message === "Anexo da IA").length;
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -61,20 +66,17 @@ export default function UploadZone({ files, onFilesSelected }) {
         {files.length === 0 ? (
           <span>Nenhum arquivo analisado ainda.</span>
         ) : (
-          files.map((file, index) => {
-            const isObj = typeof file === "object" && file !== null;
-            const name = isObj ? file.name : String(file);
-            const status = isObj ? file.status : "sucesso";
-            const message = isObj ? file.message : "Analisado";
-            const statusClass = `status-${status}`;
-            
-            return (
-              <div key={index} className={`file-item ${statusClass}`}>
-                <span style={{ wordBreak: "break-all" }}>{name}</span>
-                <span className="file-status-badge">{message}</span>
-              </div>
-            );
-          })
+          <div className="file-summary">
+            <span>
+              <strong>{total}</strong> arquivo{total === 1 ? "" : "s"} recebido{total === 1 ? "" : "s"}
+            </span>
+            <div className="file-summary-badges">
+              {processando > 0 && <span className="file-status-badge status-processando">{processando} processando</span>}
+              {sucesso > 0 && <span className="file-status-badge status-sucesso">{sucesso} sincronizado{sucesso === 1 ? "" : "s"}</span>}
+              {anexosIa > 0 && <span className="file-status-badge status-anexo">{anexosIa} anexo{anexosIa === 1 ? "" : "s"} IA</span>}
+              {erros > 0 && <span className="file-status-badge status-erro">{erros} erro{erros === 1 ? "" : "s"}</span>}
+            </div>
+          </div>
         )}
       </div>
     </article>

@@ -459,6 +459,24 @@ select {
   color: var(--soft);
 }
 
+.file-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--soft);
+}
+
+.file-summary-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .file-status-badge {
   font-size: 0.72rem;
   font-weight: 500;
@@ -467,17 +485,21 @@ select {
   white-space: nowrap;
 }
 
-.file-item.status-processando .file-status-badge {
+.file-item.status-processando .file-status-badge,
+.file-status-badge.status-processando {
   color: #ffd481;
   background: rgba(255, 212, 129, 0.1);
 }
 
-.file-item.status-sucesso .file-status-badge {
+.file-item.status-sucesso .file-status-badge,
+.file-status-badge.status-sucesso,
+.file-status-badge.status-anexo {
   color: var(--green);
   background: rgba(124, 247, 190, 0.1);
 }
 
-.file-item.status-erro .file-status-badge {
+.file-item.status-erro .file-status-badge,
+.file-status-badge.status-erro {
   color: #ff8b8b;
   background: rgba(255, 139, 139, 0.1);
 }
@@ -1830,6 +1852,5 @@ td {
   from { transform: scale(0.96); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
-
 
 
