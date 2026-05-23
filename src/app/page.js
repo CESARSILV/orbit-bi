@@ -104,7 +104,7 @@ export default function Home() {
   const WIZARD_STANDARD_FIELDS = [
     { key: "campaign_name", label: "Nome da Campanha", required: true, description: "Coluna que identifica o nome de cada campanha." },
     { key: "spend", label: "Investimento / Gasto", required: true, description: "Custo total acumulado da campanha." },
-    { key: "clicks", label: "Cliques", required: true, description: "Total de cliques recebidos." },
+    { key: "clicks", label: "Cliques Totais", required: false, description: "Total de cliques recebidos." },
     { key: "impressions", label: "Impressões", required: true, description: "Total de visualizações dos anúncios." },
     { key: "conversions", label: "Conversões / Leads", required: false, description: "Total de conversões, compras ou leads cadastrados." },
     { key: "revenue", label: "Receita / Valor de Conversão", required: false, description: "Valor financeiro retornado pelas conversões." },
@@ -883,7 +883,6 @@ export default function Home() {
     const missingFields = [];
     if (!wizardMapping.campaign_name) missingFields.push("Nome da Campanha");
     if (!wizardMapping.spend) missingFields.push("Investimento / Gasto");
-    if (!wizardMapping.clicks) missingFields.push("Cliques");
     if (!wizardMapping.impressions) missingFields.push("Impressões");
     if (!wizardMapping.date) missingFields.push("Data / Dia de Referência");
 
@@ -1265,7 +1264,7 @@ export default function Home() {
       ["CTR Geral", `=SEERRO(B9/B10;0)`, "=Cliques/Impressões", "Taxa média de cliques"],
       ["CPC Geral (R$)", `=SEERRO(B6/B9;0)`, "=Investimento/Cliques", "Custo médio por clique"],
       [],
-      ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Receita (R$)", "Cliques", "Impressões", "Conversões", "CTR", "CPC", "CPM", "CPL", "ROAS", "Status"],
+      ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Receita (R$)", "Cliques Totais", "Impressões", "Conversões", "CTR", "CPC", "CPM", "CPL", "ROAS", "Status"],
       ...listToExport.map((item, index) => {
         const rowNum = index + 15; // starts on row 15
         return [

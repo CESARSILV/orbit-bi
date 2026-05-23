@@ -311,7 +311,7 @@ export function detectDataset(platform, rowKeys) {
 export const SYNONYMS = {
   campaign_name: ["campanha", "campaign", "nome da campanha", "nome_da_campanha", "campanhas", "campaign name", "campaña", "nome", "name", "campaign name ", "campaign name", "campaign_name", "nome_campanha"],
   spend: ["investimento", "investimento (brl)", "custo", "spend", "cost", "valor usado", "quantia gasta", "valor usado (brl)", "valor gasto", "valor gasto (brl)", "amount spent", "amount spent (brl)", "imputação de custo", "gasto", "gastos", "valor_usado", "valor_gasto", "custo_total", "total cost"],
-  clicks: ["cliques", "clicks", "click", "cliques (todos)", "cliques (no link)", "link clicks", "cliques no link", "clique", "cliques_no_link", "clicks (all)"],
+  clicks: ["cliques", "clicks", "click", "cliques (todos)", "cliques (no link)", "link clicks", "cliques no link", "clique", "cliques_no_link", "clicks (all)", "cliques totais", "cliques_totais", "total clicks", "total_clicks"],
   impressions: ["impressões", "impressoes", "impressions", "impr.", "impr", "impressões (todos)", "visualizações", "views"],
   conversions: ["conversoes", "conversões", "conversions", "compras", "purchases", "resultados", "results", "leads", "compras no site", "website purchases", "purchase", "compras (pixel do facebook)", "compras no facebook", "leads (formulário)", "leads (formulario)", "cadastros", "conversões de compras", "leads_total", "conversões totais"],
   ctr: ["ctr", "ctr (todos)", "ctr (all)", "taxa de cliques", "click-through rate", "taxa de clique", "taxa_de_clique", "ctr_total"],
