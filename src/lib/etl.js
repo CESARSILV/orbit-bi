@@ -193,15 +193,16 @@ export function detectPlatform(fileName, rowKeys, rows = []) {
 
   const googleColumns = [
     "cpc méd.", "cpc med.", "impr.", "taxa de conv.", "custo / conv.",
-    "valor de conv. / custo", "all conv. value", "imputação de custo",
+    "valor de conv. / custo", "all conv. value", "imputação de custo", "imputacao de custo",
     "palavra-chave da rede de pesquisa", "tipo de corresp.", "pesquisa do google",
     "tipo de campanha", "status da campanha"
   ];
 
   const metaColumns = [
-    "veiculação", "configuração de atribuição", "alcance", "valor usado (brl)",
-    "valor usado", "resultados", "cliques (todos)", "ctr (todos)", "cpc (todos)",
-    "custo por resultado", "início dos relatórios", "encerramento dos relatórios"
+    "veiculação", "veiculacao", "configuração de atribuição", "configuracao de atribuicao",
+    "alcance", "valor usado (brl)", "valor usado", "resultados", "cliques (todos)",
+    "ctr (todos)", "cpc (todos)", "custo por resultado", "início dos relatórios",
+    "inicio dos relatorios", "encerramento dos relatórios", "encerramento dos relatorios"
   ];
 
   rowKeys.forEach(key => {
@@ -281,14 +282,14 @@ export function detectDataset(platform, rowKeys) {
 const SYNONYMS = {
   campaign_name: ["campanha", "campaign", "nome da campanha", "nome_da_campanha", "campanhas", "campaign name", "campaña", "nome", "name", "campaign name", "campaign name "],
   spend: ["investimento", "investimento (brl)", "custo", "spend", "cost", "valor usado", "quantia gasta", "valor usado (brl)", "valor gasto", "valor gasto (brl)", "amount spent", "amount spent (brl)", "imputação de custo"],
-  clicks: ["cliques", "clicks", "click"],
+  clicks: ["cliques", "clicks", "click", "cliques (todos)", "cliques (no link)"],
   impressions: ["impressões", "impressoes", "impressions", "impr."],
-  conversions: ["conversoes", "conversões", "conversions", "compras", "purchases", "resultados", "results", "leads", "compras no site", "website purchases", "purchase"],
+  conversions: ["conversoes", "conversões", "conversions", "compras", "purchases", "resultados", "results", "leads", "compras no site", "website purchases", "purchase", "compras (pixel do facebook)", "compras no facebook"],
   ctr: ["ctr", "ctr (todos)", "ctr (all)", "taxa de cliques", "click-through rate", "taxa de clique"],
   cpc: ["cpc", "cpc méd.", "cpc médio", "cpc (todos)", "cpc (all)", "cost per click"],
   reach: ["alcance", "reach"],
   frequency: ["frequência", "frequencia", "frequency", "freq"],
-  revenue: ["receita", "receita (brl)", "revenue", "valor de conversão", "valor de conversão de compras", "conversões (valor)", "valor das conversões", "valor total de conversões", "valor de compra", "valor de compras", "purchase value", "purchase conversion value", "website purchase conversion value", "valor de conversão de todas as conversões", "all conv. value"],
+  revenue: ["receita", "receita (brl)", "revenue", "valor de conversão", "valor de conversão de compras", "conversões (valor)", "valor das conversões", "valor total de conversões", "valor de compra", "valor de compras", "purchase value", "purchase conversion value", "website purchase conversion value", "valor de conversão de todas as conversões", "all conv. value", "valor de conversão de compras no site", "valor de conversão de compras no facebook", "valor de conversão de compras (brl)", "valor de conversão de compras no site (brl)", "compras no site (valor de conversão)", "compras (valor de conversão)"],
   device: ["dispositivo", "device", "equipamento"],
   gender: ["sexo", "gender", "gênero", "genero"],
   age_range: ["faixa de idade", "age", "idade", "faixa etária", "faixa etaria", "age range", "age_range"],
@@ -518,7 +519,9 @@ export async function processUploadFile(file) {
   const lowerFileName = fileName.toLowerCase();
   const platform = detectPlatform(fileName, rowKeys, rows);
   let dataset_type = detectDataset(platform, rowKeys);
-  if (lowerFileName.includes("campanha")) dataset_type = "campaign_performance";
+  if (lowerFileName.includes("campanha")) {
+    dataset_type = platform === "meta" ? "meta_campaign_performance" : "campaign_performance";
+  }
   if (lowerFileName.includes("dispositivo")) dataset_type = "device_performance";
   if (lowerFileName.includes("palavras-chave") || lowerFileName.includes("palavra-chave")) dataset_type = "search_keywords";
   if (lowerFileName.includes("pesquisa")) dataset_type = "search_terms";

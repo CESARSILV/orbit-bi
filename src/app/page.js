@@ -20,7 +20,7 @@ import SearchOperations from "@/components/SearchOperations";
 
 // Custom ETL & DB Ingestion Imports
 import { processUploadFile } from "@/lib/etl";
-import { getDatabase, saveDatabase, insertDataset, checkFileDuplicate, INITIAL_DB, createInitialDb } from "@/lib/db";
+import { getDatabase, saveDatabase, insertDataset, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary } from "@/lib/db";
 
 // Formatting helpers
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -125,7 +125,7 @@ export default function Home() {
             return {
               id: c.id,
               platform: c.tipo,
-              dataset_type: "meta_campaign_performance",
+              dataset_type: c.tipo === "google" ? "campaign_performance" : "meta_campaign_performance",
               campaign_name: c.nome,
               spend: Number(c.investimento),
               revenue: Number(c.receita),
@@ -143,8 +143,9 @@ export default function Home() {
 
           setMarketingDb(prev => {
             const next = { ...prev, fact_campaigns: mappedCampaigns };
-            const { consolidateSummary } = require("@/lib/db");
-            return consolidateSummary(next);
+            const updated = consolidateSummary(next);
+            saveDatabase(updated);
+            return updated;
           });
         }
       } catch (err) {
