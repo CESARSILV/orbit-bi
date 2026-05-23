@@ -308,7 +308,7 @@ export function detectDataset(platform, rowKeys) {
 // Semantic Synonyms Mapping
 // ----------------------------------------------------
 
-const SYNONYMS = {
+export const SYNONYMS = {
   campaign_name: ["campanha", "campaign", "nome da campanha", "nome_da_campanha", "campanhas", "campaign name", "campaña", "nome", "name", "campaign name ", "campaign name", "campaign_name", "nome_campanha"],
   spend: ["investimento", "investimento (brl)", "custo", "spend", "cost", "valor usado", "quantia gasta", "valor usado (brl)", "valor gasto", "valor gasto (brl)", "amount spent", "amount spent (brl)", "imputação de custo", "gasto", "gastos", "valor_usado", "valor_gasto", "custo_total", "total cost"],
   clicks: ["cliques", "clicks", "click", "cliques (todos)", "cliques (no link)", "link clicks", "cliques no link", "clique", "cliques_no_link", "clicks (all)"],

@@ -53,13 +53,13 @@ export default function UploadZone({ files, onFilesSelected }) {
           id="fileInput"
           type="file"
           multiple
-          accept=".csv,.xlsx,.xls,.pdf,image/*"
+          accept=".csv,.xlsx,.xls"
           aria-label="Selecionar arquivos para análise"
           onChange={handleFileChange}
         />
         <div className="upload-icon">+</div>
-        <h2>Enviar dados ou prints</h2>
-        <p>Arraste CSV, XLSX, XLS, PDFs, screenshots, fotos de dashboards ou exports de anúncios.</p>
+        <h2>Enviar relatórios (CSV/XLSX)</h2>
+        <p>Arraste arquivos de exportação do Google Ads ou Meta Ads (CSV, XLSX ou XLS).</p>
         <button className="ghost-btn" id="btnSelectFiles" type="button" onClick={triggerFileInput}>
           Selecionar arquivos
         </button>

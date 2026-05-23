@@ -19,7 +19,7 @@ import RegionalMap from "@/components/RegionalMap";
 import SearchOperations from "@/components/SearchOperations";
 
 // Custom ETL & DB Ingestion Imports
-import { processUploadFile } from "@/lib/etl";
+import { processUploadFile, parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticValue, parseDate, inferReferenceMonth, isTotalOrMetadata, applyTemporalIntelligence, parseFormattedFloat, sanitizeMojibake, SYNONYMS } from "@/lib/etl";
 import { getDatabase, saveDatabase, insertDataset, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary } from "@/lib/db";
 
 // Formatting helpers
@@ -83,6 +83,33 @@ export default function Home() {
   // Chat State
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [chatPending, setChatPending] = useState(false);
+
+  // Import Wizard State (Mandatory V1 Flow)
+  const [wizardStep, setWizardStep] = useState(null); // null, 'preview_mapping', 'processing', 'success', 'error'
+  const [wizardFile, setWizardFile] = useState(null);
+  const [wizardPlatform, setWizardPlatform] = useState("google");
+  const [wizardColumns, setWizardColumns] = useState([]);
+  const [wizardDateRange, setWizardDateRange] = useState({ start: "", end: "", label: "" });
+  const [wizardPreviewRows, setWizardPreviewRows] = useState([]);
+  const [wizardMapping, setWizardMapping] = useState({});
+  const [wizardSaveTemplate, setWizardSaveTemplate] = useState(false);
+  const [wizardTemplateName, setWizardTemplateName] = useState("");
+  const [wizardRawRows, setWizardRawRows] = useState([]);
+  const [wizardProgress, setWizardProgress] = useState(0);
+  const [wizardStatusText, setWizardStatusText] = useState("");
+  const [wizardErrorMsg, setWizardErrorMsg] = useState("");
+  const [wizardResultCount, setWizardResultCount] = useState(0);
+  const [wizardDatasetType, setWizardDatasetType] = useState("campaign_performance");
+
+  const WIZARD_STANDARD_FIELDS = [
+    { key: "campaign_name", label: "Nome da Campanha", required: true, description: "Coluna que identifica o nome de cada campanha." },
+    { key: "spend", label: "Investimento / Gasto", required: true, description: "Custo total acumulado da campanha." },
+    { key: "clicks", label: "Cliques", required: true, description: "Total de cliques recebidos." },
+    { key: "impressions", label: "Impressões", required: true, description: "Total de visualizações dos anúncios." },
+    { key: "conversions", label: "Conversões / Leads", required: false, description: "Total de conversões, compras ou leads cadastrados." },
+    { key: "revenue", label: "Receita / Valor de Conversão", required: false, description: "Valor financeiro retornado pelas conversões." },
+    { key: "date", label: "Data / Dia de Referência", required: true, description: "Data de registro do desempenho (ex: YYYY-MM-DD)." }
+  ];
 
   const [isIntelligenceUpdating, setIsIntelligenceUpdating] = useState(false);
   const processingFilesRef = useRef(new Set());
@@ -740,7 +767,318 @@ export default function Home() {
       reader.readAsDataURL(file);
     });
 
-  // Multiple Files selected (Processed inside a clean Promise-paused loop to avoid cascade setStates)
+  // ----------------------------------------------------
+  // PROFESSIONAL IMPORT WIZARD LOGIC (MANDATORY V1 FLOW)
+  // ----------------------------------------------------
+
+  const launchImportWizard = async (file) => {
+    try {
+      setFiles((prev) =>
+        prev.map((f) => (f.name === file.name ? { ...f, status: "processando", message: "Iniciando Wizard..." } : f))
+      );
+
+      let rawRows = [];
+      const fileName = file.name;
+
+      if (fileName.toLowerCase().endsWith(".csv")) {
+        const text = await file.text();
+        rawRows = parseCsv(text);
+      } else if (fileName.toLowerCase().endsWith(".xlsx") || fileName.toLowerCase().endsWith(".xls")) {
+        rawRows = await parseExcelFile(file);
+      } else {
+        throw new Error("Formato de arquivo não suportado. Envie CSV ou Excel.");
+      }
+
+      if (!rawRows || rawRows.length === 0) {
+        throw new Error("O arquivo está vazio ou não pôde ser lido.");
+      }
+
+      const headers = Object.keys(rawRows[0]);
+      
+      // Step 2: System detects: platform, available sheets, columns, date ranges
+      const detectedPlatform = detectPlatform(fileName, headers, rawRows);
+      const datasetType = detectDataset(detectedPlatform, headers);
+      
+      // Detect date ranges
+      let minDate = null;
+      let maxDate = null;
+      rawRows.forEach(row => {
+        const dateVal = getSemanticValue(row, "date");
+        if (dateVal) {
+          const parsed = parseDate(dateVal);
+          if (parsed && !isNaN(parsed.getTime())) {
+            if (!minDate || parsed < minDate) minDate = parsed;
+            if (!maxDate || parsed > maxDate) maxDate = parsed;
+          }
+        }
+      });
+
+      const formatDateStr = (d) => {
+        if (!d) return "";
+        return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+      };
+
+      const dateStr = minDate && maxDate 
+        ? `${formatDateStr(minDate)} a ${formatDateStr(maxDate)}`
+        : "Período não especificado nas linhas";
+
+      // Step 3: Displays spreadsheet preview (first 5 rows)
+      const previewRows = rawRows.slice(0, 5);
+
+      // Step 4: AI suggests automatic column mapping based on SYNONYMS
+      const initialMapping = {};
+      const fields = ["campaign_name", "spend", "clicks", "impressions", "conversions", "revenue", "date"];
+      
+      fields.forEach(field => {
+        const synonyms = SYNONYMS[field] || [];
+        let matchedHeader = "";
+        for (const syn of synonyms) {
+          const found = headers.find(h => h.toLowerCase().trim() === syn.toLowerCase().trim());
+          if (found) {
+            matchedHeader = found;
+            break;
+          }
+        }
+        if (!matchedHeader) {
+          const found = headers.find(h => h.toLowerCase().trim() === field.toLowerCase().trim());
+          if (found) matchedHeader = found;
+        }
+        initialMapping[field] = matchedHeader || "";
+      });
+
+      // Check if there is an existing import template matching the headers to prefill
+      const savedTemplates = JSON.parse(localStorage.getItem("orbit_import_templates") || "[]");
+      const matchedTemplate = savedTemplates.find(t => 
+        t.platform === detectedPlatform && 
+        Object.values(t.mapping).every(v => !v || headers.includes(v))
+      );
+      if (matchedTemplate) {
+        Object.assign(initialMapping, matchedTemplate.mapping);
+        triggerToast("Modelo de importação salvo carregado automaticamente!");
+      }
+
+      // Update wizard state
+      setWizardFile(file);
+      setWizardPlatform(detectedPlatform);
+      setWizardDatasetType(datasetType);
+      setWizardColumns(headers);
+      setWizardDateRange({ start: minDate ? minDate.toISOString().split("T")[0] : "", end: maxDate ? maxDate.toISOString().split("T")[0] : "", label: dateStr });
+      setWizardPreviewRows(previewRows);
+      setWizardMapping(initialMapping);
+      setWizardRawRows(rawRows);
+      setWizardSaveTemplate(false);
+      setWizardTemplateName(file.name.replace(/\.[^/.]+$/, "") + " Modelo");
+      setWizardStep("preview_mapping");
+      setWizardErrorMsg("");
+      
+    } catch (err) {
+      console.error(err);
+      updateFileStatus(file.name, "erro", err.message || "Erro ao ler arquivo");
+      triggerToast(`Falha ao abrir wizard: ${err.message}`);
+    }
+  };
+
+  const handleRunWizardIngestion = async () => {
+    // Validate required fields are mapped
+    const missingFields = [];
+    if (!wizardMapping.campaign_name) missingFields.push("Nome da Campanha");
+    if (!wizardMapping.spend) missingFields.push("Investimento / Gasto");
+    if (!wizardMapping.clicks) missingFields.push("Cliques");
+    if (!wizardMapping.impressions) missingFields.push("Impressões");
+    if (!wizardMapping.date) missingFields.push("Data / Dia de Referência");
+
+    if (missingFields.length > 0) {
+      setWizardErrorMsg(`Por favor, mapeie os campos obrigatórios: ${missingFields.join(", ")}`);
+      return;
+    }
+
+    setWizardStep("processing");
+    setWizardProgress(10);
+    setWizardStatusText("Iniciando processamento assíncrono...");
+
+    try {
+      // Step 7: System processes data asynchronously (Loading steps)
+      await new Promise(r => setTimeout(r, 650));
+      setWizardProgress(40);
+      setWizardStatusText("Validando linhas da planilha e tipos de dados...");
+      
+      // Step 6: System saves reusable import template
+      if (wizardSaveTemplate) {
+        const templates = JSON.parse(localStorage.getItem("orbit_import_templates") || "[]");
+        templates.push({
+          id: `template_${Date.now()}`,
+          name: wizardTemplateName || "Modelo Customizado",
+          platform: wizardPlatform,
+          mapping: wizardMapping,
+          created_at: new Date().toISOString()
+        });
+        localStorage.setItem("orbit_import_templates", JSON.stringify(templates));
+      }
+
+      await new Promise(r => setTimeout(r, 700));
+      setWizardProgress(75);
+      setWizardStatusText("Normalizando métricas financeiras (Universal Schema)...");
+
+      // Step 8: System normalizes metrics
+      const reference_month = inferReferenceMonth(wizardFile.name, wizardRawRows);
+      
+      const mIdx = parseInt(reference_month.split("-")[1], 10) - 1;
+      const reference_label = `${MONTHS_PT[mIdx] || "Maio"}/${reference_month.split("-")[0]}`;
+
+      // Simple string-based content hash for fingerprinting
+      const fileStringSample = JSON.stringify(wizardRawRows.slice(0, 50));
+      let file_hash = 0;
+      for (let i = 0; i < fileStringSample.length; i++) {
+        file_hash = (file_hash << 5) - file_hash + fileStringSample.charCodeAt(i);
+        file_hash |= 0;
+      }
+      const finalHash = Math.abs(file_hash).toString(16);
+
+      const metadata = {
+        platform: wizardPlatform,
+        dataset_type: wizardDatasetType,
+        reference_month,
+        reference_label,
+        raw_file_name: wizardFile.name,
+        file_hash: finalHash,
+        count: wizardRawRows.length
+      };
+
+      const normalizedRows = wizardRawRows
+        .filter(row => {
+          const campValue = row[wizardMapping.campaign_name];
+          if (!campValue) return false;
+          if (isTotalOrMetadata(campValue)) return false;
+          return true;
+        })
+        .map((row, idx) => {
+          const campName = String(row[wizardMapping.campaign_name] || "").trim();
+          const dateVal = row[wizardMapping.date];
+          const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`);
+
+          const spend = parseFormattedFloat(row[wizardMapping.spend]);
+          const clicks = Math.round(parseFormattedFloat(row[wizardMapping.clicks]));
+          const impressions = Math.round(parseFormattedFloat(row[wizardMapping.impressions]));
+          
+          const conversionsVal = wizardMapping.conversions ? row[wizardMapping.conversions] : 0;
+          const conversions = Math.round(parseFormattedFloat(conversionsVal));
+          
+          const revenueVal = wizardMapping.revenue ? row[wizardMapping.revenue] : 0;
+          const revenue = parseFormattedFloat(revenueVal);
+
+          const ctr = impressions > 0 ? clicks / impressions : 0;
+          const cpc = clicks > 0 ? spend / clicks : 0;
+          const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
+          const roas = spend > 0 ? revenue / spend : 0;
+
+          return {
+            id: `wiz_${reference_month}_${wizardPlatform}_${idx}_${Date.now()}`,
+            platform: wizardPlatform,
+            dataset_type: wizardDatasetType,
+            campaign_name: sanitizeMojibake(campName) || "Campanha Importada",
+            device: null,
+            gender: null,
+            age_range: null,
+            keyword: null,
+            search_term: null,
+            network: null,
+            
+            date: enrichedDate.date,
+            day: enrichedDate.day,
+            week: enrichedDate.week,
+            month: enrichedDate.month,
+            month_name: enrichedDate.month_name,
+            quarter: enrichedDate.quarter,
+            year: enrichedDate.year,
+            year_month: enrichedDate.year_month,
+            reference_month,
+            reference_label,
+            hour: null,
+
+            spend,
+            clicks,
+            impressions,
+            conversions,
+            leads: conversions,
+            reach: impressions,
+            frequency: 1.0,
+            revenue,
+
+            ctr,
+            cpc,
+            cpm,
+            cpl: conversions > 0 ? spend / conversions : 0,
+            cac: conversions > 0 ? spend / conversions : 0,
+            roas,
+            status: "Ativo",
+            raw_file_name: wizardFile.name,
+            file_hash: finalHash,
+            created_at: new Date().toISOString()
+          };
+        });
+
+      await new Promise(r => setTimeout(r, 600));
+      setWizardProgress(90);
+      setWizardStatusText("Verificando duplicados e gravando no banco...");
+
+      // Step 9: System inserts records into database
+      const dup = checkFileDuplicate(marketingDb, metadata);
+      if (dup) {
+        setWizardStep(null); // Temporarily hide to let modal resolve
+        updateFileStatus(wizardFile.name, "processando", "Resolvendo duplicados...");
+        
+        await new Promise((resolve) => {
+          setDuplicateFileInfo(dup);
+          setPendingUpload({
+            file: wizardFile,
+            metadata,
+            rows: normalizedRows,
+            resolvePromise: resolve
+          });
+          setShowDeduplicationModal(true);
+        }).then(async (action) => {
+          if (action === "ignore") {
+            setWizardStep(null);
+            updateFileStatus(wizardFile.name, "sucesso", "Cancelado pelo usuário");
+            return;
+          }
+          setWizardStep("processing");
+          setWizardProgress(95);
+          setWizardStatusText("Concluindo salvamento dos registros...");
+          const updatedDb = await insertDataset(marketingDb, metadata, normalizedRows, action);
+          setMarketingDb(updatedDb);
+
+          // Step 10 & 11: System recalculates KPIs & updates dashboard in realtime
+          setWizardProgress(100);
+          setWizardStatusText("Finalizado!");
+          setWizardResultCount(normalizedRows.length);
+          setWizardStep("success");
+          updateFileStatus(wizardFile.name, "sucesso", "Sincronizado");
+          triggerToast(`Wizard: ${normalizedRows.length} linhas processadas com sucesso!`);
+        });
+      } else {
+        const updatedDb = await insertDataset(marketingDb, metadata, normalizedRows, "replace");
+        setMarketingDb(updatedDb);
+
+        // Step 10 & 11: System recalculates KPIs & updates dashboard in realtime
+        setWizardProgress(100);
+        setWizardStatusText("Finalizado!");
+        setWizardResultCount(normalizedRows.length);
+        setWizardStep("success");
+        updateFileStatus(wizardFile.name, "sucesso", "Sincronizado");
+        triggerToast(`Wizard: ${normalizedRows.length} linhas processadas com sucesso!`);
+      }
+
+    } catch (err) {
+      console.error(err);
+      setWizardErrorMsg(err.message || "Erro no processamento dos dados.");
+      setWizardStep("error");
+      updateFileStatus(wizardFile.name, "erro", err.message || "Erro no processamento");
+    } finally {
+      processingFilesRef.current.delete(wizardFile.name);
+    }
+  };
+
   const handleFilesSelected = async (selectedFiles) => {
     const list = [...selectedFiles];
     if (!list.length) return;
@@ -763,7 +1101,7 @@ export default function Home() {
         size: file.size,
         type: file.type,
         status: "processando",
-        message: "Processando..."
+        message: "Lendo arquivo..."
       });
     }
 
@@ -771,201 +1109,17 @@ export default function Home() {
 
     setFiles((prev) => [...prev, ...newFilesState]);
     
-    // Read current database value fresh from local storage
-    let currentDb = getDatabase();
-
-    const structuredFiles = validFiles.filter(isStructuredDataFile);
-    const visualFiles = validFiles.filter(isAiAttachmentFile);
-
-    // 1. Process Structured Files (CSV / XLSX)
-    for (const file of structuredFiles) {
-      try {
-        const result = await processUploadFile(file);
-        
-        // Check duplicate against current db
-        const dup = checkFileDuplicate(currentDb, result.metadata);
-        if (dup) {
-          // Pause execution and wait for user's decision inside the deduplication modal
-          await new Promise((resolve) => {
-            setDuplicateFileInfo(dup);
-            setPendingUpload({
-              file,
-              metadata: result.metadata,
-              rows: result.rows,
-              resolvePromise: resolve
-            });
-            setShowDeduplicationModal(true);
-          }).then(async (action) => {
-            const updatedDb = await insertDataset(currentDb, result.metadata, result.rows, action);
-            currentDb = updatedDb;
-            setMarketingDb(updatedDb);
-          });
-        } else {
-          const updatedDb = await insertDataset(currentDb, result.metadata, result.rows, "replace");
-          currentDb = updatedDb;
-          setMarketingDb(updatedDb);
-          updateFileStatus(file.name, "sucesso", "Sincronizado");
-          triggerToast(`Arquivo "${file.name}" integrado com sucesso!`);
-        }
-      } catch (err) {
-        console.error(err);
-        updateFileStatus(file.name, "erro", err.message || "Erro de leitura");
-        triggerToast(`Falha no processamento: ${err.message}`);
-      } finally {
+    // Step 1: User uploads CSV or XLSX file
+    // Filter spreadsheet formats strictly for V1
+    const firstSpreadsheet = validFiles.find(isStructuredDataFile);
+    if (firstSpreadsheet) {
+      launchImportWizard(firstSpreadsheet);
+    } else {
+      validFiles.forEach(file => {
+        updateFileStatus(file.name, "erro", "Formato não suportado.");
         processingFilesRef.current.delete(file.name);
-      }
-    }
-
-    // 2. Process Visual Files (Images / PDFs) via OCR Multimodal API
-    if (visualFiles.length > 0) {
-      try {
-        visualFiles.forEach((file) => {
-          updateFileStatus(file.name, "processando", "Analisando com OCR...");
-        });
-
-        // Read all as base64
-        const readFilesPromises = visualFiles.map(async (file) => {
-          const base64 = await readAsDataUrl(file);
-          return {
-            name: file.name,
-            mimeType: file.type || "application/octet-stream",
-            base64
-          };
-        });
-        const base64Payloads = await Promise.all(readFilesPromises);
-
-        // Also add them to base64Files for the chat assistant context
-        setBase64Files((prev) => [...prev, ...base64Payloads]);
-
-        // Call the parse-file API with all visual files
-        const response = await fetch("/api/parse-file", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ files: base64Payloads })
-        });
-
-        const resData = await response.json();
-        if (!response.ok) {
-          throw new Error(resData.message || "Falha na análise visual de arquivos.");
-        }
-
-        const { data: result } = resData; // result contains { platform, dataset_type, reference_month, reference_label, rows }
-        
-        // Enrich rows with standard properties that the ETL system expects
-        const reference_month = result.reference_month;
-        const reference_label = result.reference_label;
-        const platform = result.platform;
-        const dataset_type = result.dataset_type;
-
-        // Create a fake file_hash for tracking
-        const fileStringSample = JSON.stringify(result.rows.slice(0, 50));
-        let file_hash = 0;
-        for (let i = 0; i < fileStringSample.length; i++) {
-          file_hash = (file_hash << 5) - file_hash + fileStringSample.charCodeAt(i);
-          file_hash |= 0;
-        }
-        const finalHash = Math.abs(file_hash).toString(16);
-
-        const metadata = {
-          platform,
-          dataset_type,
-          reference_month,
-          reference_label,
-          raw_file_name: visualFiles.map(f => f.name).join(", "),
-          file_hash: finalHash,
-          count: result.rows.length
-        };
-
-        const enrichedRows = result.rows.map((row, idx) => {
-          const spend = parseFloat(row.spend) || 0;
-          const clicks = parseInt(row.clicks) || 0;
-          const impressions = parseInt(row.impressions) || 0;
-          const conversions = parseInt(row.conversions) || 0;
-          const revenue = parseFloat(row.revenue) || 0;
-
-          const ctr = impressions > 0 ? clicks / impressions : 0;
-          const cpc = clicks > 0 ? spend / clicks : 0;
-          const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
-          const roas = spend > 0 ? revenue / spend : 0;
-
-          return {
-            id: `ocr_${reference_month}_${platform}_${idx}_${Date.now()}`,
-            platform,
-            dataset_type,
-            campaign_name: row.campaign_name || "Campanha OCR",
-            device: row.device || null,
-            gender: row.gender || null,
-            age_range: row.age_range || null,
-            keyword: row.keyword || null,
-            search_term: row.search_term || null,
-            network: row.network || null,
-            date: row.date || `${reference_month}-01`,
-            day: parseInt(row.date?.split("-")[2]) || 1,
-            week: 1,
-            month: parseInt(reference_month.split("-")[1]) || 5,
-            month_name: reference_label.split("/")[0],
-            quarter: `Q${Math.ceil((parseInt(reference_month.split("-")[1]) || 5) / 3)}`,
-            year: parseInt(reference_month.split("-")[0]) || 2026,
-            year_month: reference_month,
-            reference_month,
-            reference_label,
-            spend,
-            clicks,
-            impressions,
-            conversions,
-            leads: conversions,
-            reach: parseInt(row.reach) || impressions,
-            frequency: parseFloat(row.frequency) || 1.0,
-            revenue,
-            ctr,
-            cpc,
-            cpm,
-            roas,
-            status: row.status || "Ativo",
-            raw_file_name: metadata.raw_file_name,
-            file_hash: finalHash,
-            created_at: new Date().toISOString()
-          };
-        });
-
-        // Check duplicate
-        const dup = checkFileDuplicate(currentDb, metadata);
-        if (dup) {
-          await new Promise((resolve) => {
-            setDuplicateFileInfo(dup);
-            setPendingUpload({
-              file: { name: metadata.raw_file_name, originalNames: visualFiles.map(f => f.name) },
-              metadata,
-              rows: enrichedRows,
-              resolvePromise: resolve
-            });
-            setShowDeduplicationModal(true);
-          }).then(async (action) => {
-            const updatedDb = await insertDataset(currentDb, metadata, enrichedRows, action);
-            currentDb = updatedDb;
-            setMarketingDb(updatedDb);
-          });
-        } else {
-          const updatedDb = await insertDataset(currentDb, metadata, enrichedRows, "replace");
-          currentDb = updatedDb;
-          setMarketingDb(updatedDb);
-          visualFiles.forEach((file) => {
-            updateFileStatus(file.name, "sucesso", "Sincronizado");
-          });
-          triggerToast(`Arquivos integrados com sucesso via OCR de Marketing!`);
-        }
-
-      } catch (err) {
-        console.error(err);
-        visualFiles.forEach((file) => {
-          updateFileStatus(file.name, "erro", err.message || "Erro no OCR");
-        });
-        triggerToast(`Falha no processamento visual (OCR): ${err.message}`);
-      } finally {
-        visualFiles.forEach((file) => {
-          processingFilesRef.current.delete(file.name);
-        });
-      }
+      });
+      triggerToast("A versão V1 aceita apenas planilhas CSV, XLS ou XLSX.");
     }
   };
 
@@ -974,32 +1128,23 @@ export default function Home() {
     if (!pendingUpload) return;
     
     const { file, metadata, resolvePromise } = pendingUpload;
-    const fileNamesToUpdate = file.originalNames || [file.name];
     try {
-      fileNamesToUpdate.forEach((name) => {
-        updateFileStatus(name, "processando", `Processando (${action})...`);
-      });
+      updateFileStatus(file.name, "processando", `Processando (${action})...`);
       
       if (resolvePromise) {
         resolvePromise(action);
       }
       
       if (action === "ignore") {
-        fileNamesToUpdate.forEach((name) => {
-          updateFileStatus(name, "sucesso", "Ignorado pelo usuário");
-        });
+        updateFileStatus(file.name, "sucesso", "Ignorado pelo usuário");
         triggerToast(`Envio do arquivo "${file.name}" cancelado.`);
       } else {
-        fileNamesToUpdate.forEach((name) => {
-          updateFileStatus(name, "sucesso", "Sincronizado");
-        });
+        updateFileStatus(file.name, "sucesso", "Sincronizado");
         triggerToast(`Arquivo "${file.name}" integrado via ${action}!`);
       }
     } catch (err) {
       console.error(err);
-      fileNamesToUpdate.forEach((name) => {
-        updateFileStatus(name, "erro", "Erro ao resolver duplicado");
-      });
+      updateFileStatus(file.name, "erro", "Erro ao resolver duplicado");
     } finally {
       setPendingUpload(null);
       setDuplicateFileInfo(null);
@@ -1095,7 +1240,7 @@ export default function Home() {
     return new Blob([pdf], { type: "application/pdf" });
   };
 
-  // Consolidated CSV Export Logic
+  // Consolidated CSV/Excel Export Logic
   const handleExportSpreadsheet = () => {
     const listToExport = filteredSummary;
     if (listToExport.length === 0) {
@@ -1103,31 +1248,54 @@ export default function Home() {
       return;
     }
 
+    const totalRows = listToExport.length;
+    
+    // Build spreadsheet rows with formulas
     const rows = [
+      ["ORBIT BI - RELATÓRIO EXECUTIVO E BASE CONSOLIDADA DE MARKETING"],
+      ["Gerado em:", new Date().toLocaleString("pt-BR")],
+      [],
+      ["RESUMO DE KPIs (FÓRMULAS EXCEL)"],
+      ["KPI", "Valor", "Fórmula", "Descrição"],
+      ["Investimento Total (R$)", `=SOMA(E15:E${totalRows + 14})`, "=SOMA(E15:E...)", "Soma de todo investimento em mídia paga"],
+      ["Receita Total (R$)", `=SOMA(F15:F${totalRows + 14})`, "=SOMA(F15:F...)", "Soma da receita gerada no período"],
+      ["ROAS Geral", `=SEERRO(B7/B6;0)`, "=Receita/Investimento", "Retorno sobre investimento em anúncios"],
+      ["Cliques Totais", `=SOMA(G15:G${totalRows + 14})`, "=SOMA(G15:G...)", "Quantidade total de cliques recebidos"],
+      ["Impressões Totais", `=SOMA(H15:H${totalRows + 14})`, "=SOMA(H15:H...)", "Quantidade total de exibições do anúncio"],
+      ["CTR Geral", `=SEERRO(B9/B10;0)`, "=Cliques/Impressões", "Taxa média de cliques"],
+      ["CPC Geral (R$)", `=SEERRO(B6/B9;0)`, "=Investimento/Cliques", "Custo médio por clique"],
+      [],
       ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Receita (R$)", "Cliques", "Impressões", "Conversões", "CTR", "CPC", "CPM", "CPL", "ROAS", "Status"],
-      ...listToExport.map((item) => [
-        item.date,
-        item.reference_label,
-        item.platform === "google" ? "Google Ads" : "Meta Ads",
-        item.campaign_name,
-        item.spend,
-        item.revenue,
-        item.clicks,
-        item.impressions,
-        item.conversions,
-        `${(item.ctr * 100).toFixed(2)}%`,
-        item.cpc.toFixed(2),
-        item.cpm.toFixed(2),
-        item.cpl.toFixed(2),
-        item.roas.toFixed(2),
-        item.status
-      ])
+      ...listToExport.map((item, index) => {
+        const rowNum = index + 15; // starts on row 15
+        return [
+          item.date,
+          item.reference_label,
+          item.platform === "google" ? "Google Ads" : "Meta Ads",
+          item.campaign_name,
+          item.spend,
+          item.revenue,
+          item.clicks,
+          item.impressions,
+          item.conversions,
+          `=SEERRO(G${rowNum}/H${rowNum};0)`,
+          `=SEERRO(E${rowNum}/G${rowNum};0)`,
+          `=SEERRO((E${rowNum}/H${rowNum})*1000;0)`,
+          `=SEERRO(E${rowNum}/I${rowNum};0)`,
+          `=SEERRO(F${rowNum}/E${rowNum};0)`,
+          item.status
+        ];
+      })
     ];
 
-    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(";")).join("\n");
+    const csv = rows.map((row) => row.map((cell) => {
+      const valStr = String(cell ?? "");
+      return `"${valStr.replaceAll('"', '""')}"`;
+    }).join(";")).join("\n");
+
     const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
-    downloadBlob(blob, `orbit-bi-base-consolidada-${period}.csv`);
-    triggerToast("Exportação gerada com sucesso! Verifique a pasta Downloads.");
+    downloadBlob(blob, `orbit-bi-base-executiva-${period}.csv`);
+    triggerToast("Exportação com fórmulas Excel gerada com sucesso! Verifique a pasta Downloads.");
   };
 
   const handleGenerateReport = async () => {
@@ -1409,6 +1577,185 @@ export default function Home() {
                 Ignorar envio
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Wizard Modal (Mandatory V1 Flow) */}
+      {wizardStep && wizardFile && (
+        <div className="wizard-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="wizardTitle">
+          <div className="wizard-modal-box">
+            
+            {/* Wizard Header */}
+            <header className="wizard-header">
+              <h2 id="wizardTitle">🧙‍♂️ Assistente de Ingestão de Dados</h2>
+              <p>Arquivo: <strong>{wizardFile.name}</strong> (Plataforma: <strong>{wizardPlatform === "google" ? "Google Ads" : "Meta Ads"}</strong>)</p>
+            </header>
+
+            {/* Step Indicators */}
+            <div className="wizard-steps-indicator">
+              <div className={`wizard-step-indicator-item ${wizardStep === "preview_mapping" ? "active" : "done"}`}>
+                <span className="circle">1</span> Mapeamento & Preview
+              </div>
+              <div className={`wizard-step-indicator-item ${wizardStep === "processing" ? "active" : wizardStep === "success" ? "done" : ""}`}>
+                <span className="circle">2</span> Processamento Assíncrono
+              </div>
+              <div className={`wizard-step-indicator-item ${wizardStep === "success" ? "active done" : ""}`}>
+                <span className="circle">3</span> Conclusão Realtime
+              </div>
+            </div>
+
+            {/* Step Content: Preview & Mappings */}
+            {wizardStep === "preview_mapping" && (
+              <>
+                <div className="wizard-grid">
+                  
+                  {/* Left Column: Spreadsheet Preview */}
+                  <div>
+                    <h3 className="wizard-section-title">📊 Pré-visualização da Planilha</h3>
+                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "12px" }}>
+                      Linhas iniciais detectadas. Período: <strong>{wizardDateRange.label}</strong>
+                    </p>
+                    <div className="wizard-preview-table-container">
+                      <table className="wizard-preview-table">
+                        <thead>
+                          <tr>
+                            {wizardColumns.map((col) => (
+                              <th key={col}>{col}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {wizardPreviewRows.map((row, idx) => (
+                            <tr key={idx}>
+                              {wizardColumns.map((col) => (
+                                <td key={col}>{String(row[col] ?? "")}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="wizard-template-box" style={{ marginTop: "20px" }}>
+                      <h3 className="wizard-section-title" style={{ fontSize: "0.95rem" }}>💾 Modelo de Importação</h3>
+                      <label className="wizard-checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={wizardSaveTemplate}
+                          onChange={(e) => setWizardSaveTemplate(e.target.checked)}
+                        />
+                        Salvar este mapeamento como modelo reutilizável
+                      </label>
+                      {wizardSaveTemplate && (
+                        <input
+                          type="text"
+                          className="wizard-text-input"
+                          placeholder="Nome do Modelo (ex: Meta Ads Semanal)"
+                          value={wizardTemplateName}
+                          onChange={(e) => setWizardTemplateName(e.target.value)}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Column: Column Mapping */}
+                  <div>
+                    <h3 className="wizard-section-title">🔗 Mapeamento Semântico de Colunas</h3>
+                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "12px" }}>
+                      Conecte as colunas da sua planilha às métricas universais da plataforma.
+                    </p>
+                    
+                    <div className="wizard-mapping-list">
+                      {WIZARD_STANDARD_FIELDS.map((field) => {
+                        const isMapped = !!wizardMapping[field.key];
+                        return (
+                          <div key={field.key} className="wizard-mapping-item" style={{ borderLeft: isMapped ? "3px solid var(--blue)" : "3px solid #ff453a" }}>
+                            <div className="wizard-mapping-label-row">
+                              <span className="wizard-mapping-field-name">
+                                {field.label} {field.required && <span className="wizard-mapping-field-required">Obrigatório</span>}
+                              </span>
+                            </div>
+                            <span className="wizard-mapping-desc">{field.description}</span>
+                            <select
+                              className="wizard-mapping-select"
+                              value={wizardMapping[field.key] || ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setWizardMapping((prev) => ({ ...prev, [field.key]: val }));
+                              }}
+                            >
+                              <option value="">-- Selecionar Coluna --</option>
+                              {wizardColumns.map((col) => (
+                                <option key={col} value={col}>
+                                  {col}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </div>
+
+                {wizardErrorMsg && <div className="wizard-error-box">{wizardErrorMsg}</div>}
+
+                {/* Footer Actions */}
+                <footer className="wizard-footer-actions">
+                  <button
+                    className="ghost-btn"
+                    onClick={() => {
+                      updateFileStatus(wizardFile.name, "erro", "Ingestão cancelada");
+                      processingFilesRef.current.delete(wizardFile.name);
+                      setWizardStep(null);
+                    }}
+                  >
+                    Cancelar Importação
+                  </button>
+                  <button className="primary-btn" onClick={handleRunWizardIngestion}>
+                    Confirmar Mapeamento & Ingerir dados
+                  </button>
+                </footer>
+              </>
+            )}
+
+            {/* Step Content: Async Processing */}
+            {wizardStep === "processing" && (
+              <div className="wizard-processing-container">
+                <div className="wizard-progress-bar-bg">
+                  <div className="wizard-progress-bar-fill" style={{ width: `${wizardProgress}%` }} />
+                </div>
+                <h3 className="wizard-processing-text">{wizardProgress}% - Ingerindo Relatório</h3>
+                <p className="wizard-processing-status">Status: <strong>{wizardStatusText}</strong></p>
+              </div>
+            )}
+
+            {/* Step Content: Success */}
+            {wizardStep === "success" && (
+              <div className="wizard-success-container">
+                <div className="wizard-success-icon">✓</div>
+                <h3 className="wizard-success-title">Ingestão Concluída com Sucesso!</h3>
+                <p className="wizard-success-desc">
+                  O arquivo de marketing <strong>{wizardFile.name}</strong> foi lido, normalizado e integrado com sucesso. 
+                  Inserimos <strong>{wizardResultCount}</strong> registros de campanhas na base de dados consolidada. 
+                  Os gráficos e o painel já foram atualizados.
+                </p>
+                <footer className="wizard-footer-actions" style={{ width: "100%", justifyContent: "center", border: "none", paddingTop: "8px" }}>
+                  <button
+                    className="primary-btn"
+                    onClick={() => {
+                      setWizardStep(null);
+                      setWizardFile(null);
+                    }}
+                  >
+                    Visualizar no Dashboard Realtime
+                  </button>
+                </footer>
+              </div>
+            )}
+
           </div>
         </div>
       )}

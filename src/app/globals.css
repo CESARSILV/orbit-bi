@@ -1919,3 +1919,337 @@ td {
   opacity: 0.55;
   transform: scale(0.995);
 }
+
+/* ====================================================
+   IMPORT WIZARD STYLES (PT-BR)
+   ==================================================== */
+.wizard-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(5, 7, 13, 0.88);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.wizard-modal-box {
+  background: rgba(16, 20, 32, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 32px;
+  width: 95%;
+  max-width: 850px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wizard-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 16px;
+}
+
+.wizard-header h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 6px 0;
+}
+
+.wizard-header p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.wizard-steps-indicator {
+  display: flex;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 12px 20px;
+}
+
+.wizard-step-indicator-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.wizard-step-indicator-item.active {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.wizard-step-indicator-item.done {
+  color: var(--green);
+}
+
+.wizard-step-indicator-item .circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+}
+
+.wizard-step-indicator-item.active .circle {
+  border-color: var(--blue);
+  background: rgba(10, 132, 255, 0.15);
+}
+
+.wizard-step-indicator-item.done .circle {
+  border-color: var(--green);
+  background: rgba(48, 209, 88, 0.15);
+}
+
+.wizard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .wizard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wizard-section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wizard-preview-table-container {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 180px;
+}
+
+.wizard-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.wizard-preview-table th {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wizard-preview-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+}
+
+.wizard-mapping-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.wizard-mapping-item {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wizard-mapping-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wizard-mapping-field-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.wizard-mapping-field-required {
+  font-size: 0.7rem;
+  color: #ff453a;
+  background: rgba(255, 69, 58, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.wizard-mapping-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.wizard-mapping-select {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.85rem;
+  padding: 8px;
+  outline: none;
+  cursor: pointer;
+  width: 100%;
+}
+
+.wizard-mapping-select:focus {
+  border-color: var(--blue);
+}
+
+.wizard-template-box {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wizard-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.wizard-text-input {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  width: 100%;
+  outline: none;
+}
+
+.wizard-text-input:focus {
+  border-color: var(--blue);
+}
+
+.wizard-error-box {
+  background: rgba(255, 69, 58, 0.08);
+  border: 1px solid rgba(255, 69, 58, 0.2);
+  border-radius: 8px;
+  color: #ff453a;
+  font-size: 0.85rem;
+  padding: 12px 16px;
+}
+
+.wizard-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 20px;
+  margin-top: 8px;
+}
+
+/* Loading / Progress Step Styles */
+.wizard-processing-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 24px;
+  text-align: center;
+}
+
+.wizard-progress-bar-bg {
+  width: 100%;
+  max-width: 450px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.wizard-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue), #5e5ce6);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.wizard-processing-text {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.wizard-processing-status {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Success / Error Steps Styles */
+.wizard-success-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 16px;
+  text-align: center;
+}
+
+.wizard-success-icon {
+  font-size: 3.5rem;
+  color: var(--green);
+  margin-bottom: 8px;
+  animation: pulseGreen 2s infinite;
+}
+
+.wizard-success-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.wizard-success-desc {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  max-width: 480px;
+  line-height: 1.5;
+}
+

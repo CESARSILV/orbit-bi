@@ -4,187 +4,448 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# CRITICAL DATA INGESTION INSTRUCTIONS
+# AI MARKETING BI PLATFORM — MASTER SYSTEM PROMPT (PRODUCTION READY)
 
-The platform MUST fully support real-world exports from:
-- Google Ads
-- Meta Ads (Facebook Ads)
-- Google Analytics
-- CSV
-- XLSX
-- PDF reports
-- screenshots
-- multiple screenshots
+IMPORTANT:
+THE ENTIRE PLATFORM MUST ALWAYS BE IN BRAZILIAN PORTUGUESE (PT-BR), regardless of the language used in prompts, uploads, internal logic or AI processing.
 
-The system MUST NOT only upload files.
+ALL UI ELEMENTS MUST BE IN PT-BR:
+- buttons
+- dashboards
+- charts
+- reports
+- AI chat
+- notifications
+- tooltips
+- labels
+- KPIs
+- filters
+- tables
+- exports
+- settings
 
-It MUST:
-- READ the file contents
-- EXTRACT all tabular data
-- IDENTIFY columns automatically
-- NORMALIZE metrics
-- CREATE structured database records
-- MERGE multiple uploads intelligently
-- HANDLE different export formats automatically
-- DETECT duplicated periods and campaigns
-- UNDERSTAND portuguese and english column names
-- CREATE relationships between campaigns, adsets and ads
+The platform must feel like a premium next-generation SaaS product.
 
-## GOOGLE ADS FILE SUPPORT
+====================================================
+PRIMARY OBJECTIVE
+====================================================
 
-The system MUST correctly parse exports from Google Ads including:
-- Campaign
-- Ad Group
-- Search Terms
-- Keywords
-- Devices
-- Geographic
-- Audience
-- Asset Groups
-- Performance Max
-- Video campaigns
+Create an advanced AI-powered Business Intelligence SaaS platform focused on:
 
-The parser must identify:
-- Cost
-- CPC
-- CPM
-- CTR
-- Clicks
-- Impressions
-- Conversions
-- Conversion Value
-- ROAS
-- CPA
-- Revenue
-- Search Impression Share
-- Quality Score
+- Google Ads analytics
+- Meta Ads analytics
+- executive dashboards
+- marketing intelligence
+- paid media reporting
+- strategic insights
+- realtime KPI visualization
 
-The parser MUST work even if:
-- columns are renamed
-- columns are in PT-BR
-- columns are in English
-- exports contain empty rows
-- exports contain merged cells
-- exports contain notes
+The platform must help users:
+- analyze marketing performance
+- compare periods
+- identify trends
+- detect bottlenecks
+- generate executive reports
+- make strategic decisions
+- present monthly results in meetings
 
-## META ADS FILE SUPPORT
+The AI must behave like:
+- senior media buyer
+- growth strategist
+- marketing analyst
+- BI consultant
+- executive assistant
 
-The system MUST correctly parse Meta Ads exports including:
-- Campaigns
-- Ad Sets
-- Ads
-- Creatives
-- Audiences
-- Placements
-- Demographics
+====================================================
+CRITICAL IMPLEMENTATION RULE
+====================================================
 
-The parser must identify:
-- Spend
-- Reach
-- Impressions
-- Frequency
-- CPM
-- CPC
-- CTR
-- Link Clicks
-- Landing Page Views
-- Leads
-- Purchases
-- Cost per Result
-- ROAS
-- Revenue
+DO NOT create a fake dashboard UI without real data processing.
 
-The parser MUST work even with:
-- custom Meta exports
-- PT-BR exports
-- English exports
-- inconsistent formatting
+The platform MUST implement a REAL structured data ingestion system.
+
+The application MUST prioritize:
+1. stable imports
+2. reliable database structure
+3. metric normalization
+4. KPI calculation
+5. dashboard rendering
+
+ONLY AFTER that:
+- animations
+- AI insights
+- advanced visual effects
+
+====================================================
+V1 IMPORT SYSTEM (MANDATORY)
+====================================================
+
+VERSION 1 MUST SUPPORT ONLY:
+
+- CSV imports
+- XLSX imports
+
+DO NOT IMPLEMENT OCR OR SCREENSHOT ANALYSIS IN V1.
+
+DO NOT implement autonomous screenshot interpretation yet.
+
+The first version must focus on reliable structured data imports.
+
+====================================================
+SUPPORTED SOURCES
+====================================================
+
+The platform must support imports from:
+
+GOOGLE ADS:
+- campaign reports
+- ad group reports
+- keyword reports
+- search term reports
+- device reports
+- audience reports
+
+META ADS:
+- campaign exports
+- ad set exports
+- ad exports
+- audience exports
+- placement exports
+
+====================================================
+MANDATORY IMPORT FLOW
+====================================================
+
+Create a PROFESSIONAL IMPORT WIZARD.
+
+The import flow MUST work exactly like this:
+
+STEP 1:
+User uploads CSV or XLSX file
+
+STEP 2:
+System detects:
+- platform
+- available sheets
+- columns
+- date ranges
+
+STEP 3:
+System displays spreadsheet preview
+
+STEP 4:
+AI suggests automatic column mapping
+
+STEP 5:
+User confirms or edits mappings
+
+STEP 6:
+System saves reusable import template
+
+STEP 7:
+System processes data asynchronously
+
+STEP 8:
+System normalizes metrics
+
+STEP 9:
+System inserts records into database
+
+STEP 10:
+System recalculates KPIs
+
+STEP 11:
+Dashboards update in realtime
+
+====================================================
+MANDATORY COLUMN NORMALIZATION
+====================================================
+
+The system MUST normalize all metrics into standardized fields.
+
+Examples:
+
+"Valor usado"
+"Cost"
+"Amount Spent"
+"Gasto"
+
+ALL become:
+SPEND
+
+Examples:
+
+"Clique no link"
+"Link Clicks"
+"Cliques"
+
+ALL become:
+CLICKS
+
+====================================================
+STANDARDIZED METRIC ENGINE
+====================================================
+
+Create a unified metric schema with:
+
+SPEND
+CLICKS
+IMPRESSIONS
+CTR
+CPC
+CPM
+CPA
+CPL
+ROAS
+REVENUE
+PURCHASES
+LEADS
+CONVERSIONS
+FREQUENCY
+REACH
+
+The system MUST create one unified structure independent of source platform.
+
+====================================================
+DATABASE ARCHITECTURE
+====================================================
+
+Create normalized relational database tables:
+
+platforms
+accounts
+campaigns
+adsets
+ads
+daily_metrics
+imports
+import_templates
+users
+
+====================================================
+PROCESSING ENGINE
+====================================================
+
+File processing MUST be asynchronous.
+
+After upload:
+- queue processing
+- parse spreadsheet
+- validate rows
+- normalize metrics
+- detect duplicates
+- save records
+- calculate KPIs
+- refresh dashboards
+
+====================================================
+ERROR HANDLING
+====================================================
+
+The platform MUST gracefully handle:
+
+- empty rows
+- broken spreadsheets
 - duplicated columns
+- missing metrics
+- invalid dates
+- merged spreadsheet cells
+- inconsistent formatting
 
-## OCR + SCREENSHOT INTELLIGENCE
+The UI must clearly show:
+- import errors
+- warnings
+- missing mappings
+- duplicate detections
+- processing progress
 
-The system MUST use multimodal OCR AI to analyze screenshots.
+====================================================
+AI ANALYTICS CHAT
+====================================================
 
-The AI MUST:
-- detect tables
-- detect metrics
-- identify charts
-- merge multiple screenshots
-- reconstruct dashboards
-- understand partial screenshots
-- identify duplicated information
-- organize data chronologically
+Create a native AI assistant integrated into the dashboard.
 
-If multiple screenshots belong to the same dashboard:
-- merge all information automatically
-- avoid duplicate records
-- reconstruct the complete dataset
+The AI assistant must:
+- answer questions about metrics
+- explain performance changes
+- compare periods
+- summarize campaigns
+- generate insights
+- suggest optimizations
+- identify waste
+- recommend scaling opportunities
 
-## MANDATORY FILE PROCESSING PIPELINE
+Examples:
+- “Qual campanha teve melhor ROAS?”
+- “Por que o CPA aumentou?”
+- “Compare os últimos 3 meses.”
+- “Onde estamos perdendo verba?”
+- “Qual campanha escalar?”
 
-The ingestion pipeline MUST follow this order:
-1. Upload detection
-2. File type detection
-3. OCR / Spreadsheet parsing
-4. Data extraction
-5. Column normalization
-6. Metric normalization
-7. Campaign matching
-8. Date matching
-9. Duplicate cleaning
-10. Database insertion
-11. KPI recalculation
-12. Dashboard realtime update
+The AI MUST use real imported data.
 
-## REQUIRED TECHNICAL IMPLEMENTATION
+====================================================
+REPORT GENERATION
+====================================================
 
-Use robust parsing libraries and services:
+Create premium executive reports in:
 
-### FRONTEND:
+- PDF
+- Excel
+
+====================================================
+PDF REPORTS
+====================================================
+
+PDF reports must include:
+- premium design
+- executive summary
+- KPI overview
+- trend analysis
+- charts
+- comparisons
+- strategic insights
+- AI-generated conclusions
+
+The visual style should resemble:
+- McKinsey
+- Apple
+- Stripe
+- Linear
+
+====================================================
+EXCEL EXPORTS
+====================================================
+
+Excel exports MUST:
+- contain formulas
+- remain editable
+- auto recalculate metrics
+- contain professional formatting
+- include filters
+- include KPI summaries
+
+====================================================
+EXECUTIVE DASHBOARD
+====================================================
+
+Create realtime dashboards with:
+
+- KPI cards
+- trend charts
+- comparison charts
+- timeline graphs
+- campaign tables
+- top performers
+- worst performers
+- platform comparison
+
+====================================================
+VISUAL STYLE
+====================================================
+
+The visual design must be:
+- premium
+- elegant
+- futuristic
+- minimalist
+- ultra smooth
+
+References:
+- Apple
+- Linear
+- Stripe
+- Notion
+- Framer
+- Arc Browser
+- Raycast
+
+====================================================
+UI/UX REQUIREMENTS
+====================================================
+
+Use:
+- smooth transitions
+- realtime animations
+- glassmorphism
+- elegant typography
+- modern spacing
+- premium dark mode
+- fluid hover effects
+- motion design
+- GPU accelerated animations
+
+Dashboards must feel alive and responsive.
+
+====================================================
+RECOMMENDED STACK
+====================================================
+
+FRONTEND:
+- React
+- Next.js
+- Tailwind
+- Framer Motion
+- TanStack Table
+- Recharts or ECharts
+
+FILE IMPORT:
 - react-dropzone
 - papaparse
 - sheetjs/xlsx
 
-### BACKEND:
-- Python pandas
+BACKEND:
+- Node.js
+- Python microservices
+- pandas
 - openpyxl
-- tabula-py
-- camelot
-- OCR pipeline
 
-### OCR:
-- GPT-4o vision
-- Tesseract
-- multimodal extraction
+DATABASE:
+- PostgreSQL
+- Supabase
 
-### DATABASE:
-- normalized relational schema
-- campaign table
-- adset table
-- ads table
-- metrics table
-- daily performance table
+AI:
+- OpenAI API
 
-# VERY IMPORTANT
+====================================================
+PERFORMANCE REQUIREMENTS
+====================================================
 
-The platform MUST NOT behave like a simple file uploader.
-It MUST behave like:
-- an intelligent BI ingestion engine
-- a multimodal marketing analytics processor
-- an autonomous data structuring system
+The application must:
+- load fast
+- process imports efficiently
+- support large spreadsheets
+- update dashboards in realtime
+- avoid UI freezes
+- use caching
+- use lazy loading
 
-The AI must fully understand marketing exports automatically without requiring manual mapping.
+====================================================
+IMPORTANT FINAL RULES
+====================================================
 
-## FLEXIBLE COLUMN MAPPING
+DO NOT create fake analytics.
 
-The system MUST use semantic column matching instead of fixed column names.
+DO NOT generate static dashboards with mock data.
 
-Example:
-- "Valor usado"
-- "Amount Spent"
-- "Cost"
-- "Gasto"
+The system MUST:
+- process REAL imported files
+- normalize REAL metrics
+- calculate REAL KPIs
+- generate REAL reports
 
-All represent: SPEND
+The platform must behave like:
+- Triple Whale
+- Supermetrics
+- Looker Studio AI
+- Northbeam
 
-The AI must normalize all equivalent metrics automatically.
+Focus on:
+1. stable ingestion
+2. reliable processing
+3. normalized metrics
+4. accurate dashboards
+5. executive reporting
+6. AI-powered insights
+
+Only after the import pipeline is stable should advanced AI OCR and screenshot analysis be implemented.
