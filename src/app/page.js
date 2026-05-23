@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import AuroraBackground from "@/components/AuroraBackground";
 import Sidebar from "@/components/Sidebar";
@@ -85,6 +85,7 @@ export default function Home() {
   const [chatPending, setChatPending] = useState(false);
 
   const [isIntelligenceUpdating, setIsIntelligenceUpdating] = useState(false);
+  const processingFilesRef = useRef(new Set());
 
   useEffect(() => {
     const timerStart = setTimeout(() => setIsIntelligenceUpdating(true), 0);
@@ -746,10 +747,14 @@ export default function Home() {
     const validFiles = [];
 
     for (const file of list) {
+      if (processingFilesRef.current.has(file.name)) {
+        continue;
+      }
       if (file.size > 8 * 1024 * 1024) {
         triggerToast(`O arquivo "${file.name}" excede o limite de 8MB.`);
         continue;
       }
+      processingFilesRef.current.add(file.name);
       validFiles.push(file);
       newFilesState.push({
         name: file.name,
@@ -815,6 +820,8 @@ export default function Home() {
         console.error(err);
         updateFileStatus(file.name, "erro", err.message || "Erro de leitura");
         triggerToast(`Falha no processamento: ${err.message}`);
+      } finally {
+        processingFilesRef.current.delete(file.name);
       }
     }
   };

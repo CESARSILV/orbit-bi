@@ -90,12 +90,9 @@ export function saveDatabase(db) {
 // ----------------------------------------------------
 
 export function checkFileDuplicate(db, fileMeta) {
-  // Checks duplicate based on platform, dataset_type, reference_month, raw_file_name, file_hash
+  // Checks duplicate based on raw_file_name or file_hash
   return db.uploaded_files.find(
-    f => f.file_hash === fileMeta.file_hash ||
-         (f.platform === fileMeta.platform &&
-          f.dataset_type === fileMeta.dataset_type &&
-          f.reference_month === fileMeta.reference_month)
+    f => f.file_hash === fileMeta.file_hash || f.raw_file_name === fileMeta.raw_file_name
   );
 }
 
@@ -130,21 +127,21 @@ export async function insertDataset(db, fileMeta, rows, action = "replace") {
 
   // 1. Handle actions for existing data
   if (action === "replace") {
-    // Delete existing records matching this platform, dataset type and month from the target table
+    // Delete existing records matching this raw_file_name from the target table
     newDb[targetTable] = newDb[targetTable].filter(
-      r => !(r.platform === platform && r.dataset_type === dataset_type && r.reference_month === reference_month)
+      r => r.raw_file_name !== fileMeta.raw_file_name
     );
     
-    // If saving campaigns, delete campaigns
+    // If saving campaigns, delete campaigns with the same raw_file_name
     if (targetTable === "fact_campaigns") {
       newDb.fact_campaigns = newDb.fact_campaigns.filter(
-        r => !(r.platform === platform && r.reference_month === reference_month)
+        r => r.raw_file_name !== fileMeta.raw_file_name
       );
     }
 
     // Remove file from file logs
     newDb.uploaded_files = newDb.uploaded_files.filter(
-      f => !(f.platform === platform && f.dataset_type === dataset_type && f.reference_month === reference_month)
+      f => f.raw_file_name !== fileMeta.raw_file_name
     );
 
   } else if (action === "ignore") {
