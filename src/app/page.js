@@ -326,8 +326,9 @@ export default function Home() {
     const grouped = {};
     list.forEach(c => {
       const name = c.campaign_name;
-      if (!grouped[name]) {
-        grouped[name] = {
+      const key = `${c.platform}_${name}`;
+      if (!grouped[key]) {
+        grouped[key] = {
           nome: name,
           plataforma: c.platform === "google" ? "Google Ads" : "Meta Ads",
           tipo: c.platform,
@@ -339,7 +340,7 @@ export default function Home() {
           status: c.status || "Ativa"
         };
       }
-      const g = grouped[name];
+      const g = grouped[key];
       g.investimento += c.spend || 0;
       g.receita += c.revenue || 0;
       g.conversoes += c.conversions || 0;

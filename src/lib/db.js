@@ -204,8 +204,25 @@ export function consolidateSummary(db) {
   // Group by campaign name, date, platform
   const groups = {};
 
+  // Track which campaign + month + platform has daily time series data
+  const hasDailyData = new Set();
+  if (db.fact_time_series && db.fact_time_series.length > 0) {
+    db.fact_time_series.forEach(r => {
+      if (r.platform && r.reference_month && r.campaign_name) {
+        hasDailyData.add(`${r.platform}_${r.reference_month}_${r.campaign_name}`);
+      }
+    });
+  }
+
   // Gather campaign level items (from fact_campaigns and fact_time_series)
-  const addRowToGroups = (r) => {
+  const addRowToGroups = (r, isCampaignTable = false) => {
+    // Prevent double counting: if we are processing campaign table, but we already have daily breakdown for this platform/month/campaign, ignore it.
+    if (isCampaignTable && r.platform && r.reference_month && r.campaign_name) {
+      if (hasDailyData.has(`${r.platform}_${r.reference_month}_${r.campaign_name}`)) {
+        return;
+      }
+    }
+
     const key = `${r.platform}_${r.reference_month}_${r.campaign_name}_${r.date || r.reference_month}`;
     if (!groups[key]) {
       groups[key] = {
@@ -242,14 +259,14 @@ export function consolidateSummary(db) {
     g.revenue += r.revenue || 0;
   };
 
-  // If we have fact_campaigns
+  // If we have fact_campaigns (pass isCampaignTable = true)
   if (db.fact_campaigns && db.fact_campaigns.length > 0) {
-    db.fact_campaigns.forEach(addRowToGroups);
+    db.fact_campaigns.forEach(r => addRowToGroups(r, true));
   }
 
   // If we have fact_time_series (adds daily granularity)
   if (db.fact_time_series && db.fact_time_series.length > 0) {
-    db.fact_time_series.forEach(addRowToGroups);
+    db.fact_time_series.forEach(r => addRowToGroups(r, false));
   }
 
   // Recalculate ratios and build final summary rows
