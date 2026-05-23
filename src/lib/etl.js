@@ -279,23 +279,23 @@ export function detectDataset(platform, rowKeys) {
 // ----------------------------------------------------
 
 const SYNONYMS = {
-  campaign_name: ["campanha", "campaign", "nome da campanha", "nome_da_campanha", "campanhas", "campaign name", "campaña", "nome", "name"],
-  spend: ["investimento", "investimento (brl)", "custo", "spend", "cost", "valor usado", "quantia gasta", "valor usado (brl)", "valor gasto", "valor gasto (brl)", "imputação de custo"],
+  campaign_name: ["campanha", "campaign", "nome da campanha", "nome_da_campanha", "campanhas", "campaign name", "campaña", "nome", "name", "campaign name", "campaign name "],
+  spend: ["investimento", "investimento (brl)", "custo", "spend", "cost", "valor usado", "quantia gasta", "valor usado (brl)", "valor gasto", "valor gasto (brl)", "amount spent", "amount spent (brl)", "imputação de custo"],
   clicks: ["cliques", "clicks", "click"],
   impressions: ["impressões", "impressoes", "impressions", "impr."],
-  conversions: ["conversoes", "conversões", "conversions", "compras", "purchases", "resultados", "results", "leads"],
+  conversions: ["conversoes", "conversões", "conversions", "compras", "purchases", "resultados", "results", "leads", "compras no site", "website purchases", "purchase"],
   ctr: ["ctr", "ctr (todos)", "ctr (all)", "taxa de cliques", "click-through rate", "taxa de clique"],
   cpc: ["cpc", "cpc méd.", "cpc médio", "cpc (todos)", "cpc (all)", "cost per click"],
   reach: ["alcance", "reach"],
   frequency: ["frequência", "frequencia", "frequency", "freq"],
-  revenue: ["receita", "receita (brl)", "revenue", "valor de conversão", "valor de conversão de compras", "conversões (valor)", "valor das conversões", "valor total de conversões", "purchase value", "purchase conversion value", "valor de conversão de todas as conversões", "all conv. value"],
+  revenue: ["receita", "receita (brl)", "revenue", "valor de conversão", "valor de conversão de compras", "conversões (valor)", "valor das conversões", "valor total de conversões", "valor de compra", "valor de compras", "purchase value", "purchase conversion value", "website purchase conversion value", "valor de conversão de todas as conversões", "all conv. value"],
   device: ["dispositivo", "device", "equipamento"],
   gender: ["sexo", "gender", "gênero", "genero"],
   age_range: ["faixa de idade", "age", "idade", "faixa etária", "faixa etaria", "age range", "age_range"],
   keyword: ["palavra-chave", "keyword", "palavra-chave da rede de pesquisa", "palavras-chave", "palavra chave"],
   search_term: ["termo de pesquisa", "search term", "pesquisa do google", "pesquisar", "termo pesquisado", "termo", "search_term"],
   network: ["rede", "network", "rede de publicidade", "rede com parceiros de pesquisa", "canal"],
-  date: ["data", "date", "dia", "day"],
+  date: ["data", "date", "dia", "day", "início dos relatórios", "inicio dos relatorios", "reporting starts", "reporting start"],
   hour: ["hora", "hour", "hora de início", "hour of day", "hora de inicio", "horário", "horario"],
   status: ["status", "estado", "situação", "delivery", "veiculação", "veiculacao"]
 };

@@ -48,6 +48,8 @@ export default function Home() {
   // Advanced Global Filtering State
   const [platform, setPlatform] = useState("todas");
   const [period, setPeriod] = useState("todos"); // reference_month or "todos"
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [campaign, setCampaign] = useState("todas");
   const [device, setDevice] = useState("todos");
   const [gender, setGender] = useState("todos");
@@ -253,14 +255,25 @@ export default function Home() {
 
   const uniqueValues = getUniqueFilterValues();
 
+  const isInsideSelectedDateRange = (row) => {
+    const rowDate = row.date || (row.reference_month ? `${row.reference_month}-01` : "");
+    if (!rowDate) return true;
+    if (startDate && rowDate < startDate) return false;
+    if (endDate && rowDate > endDate) return false;
+    return true;
+  };
+
+  const matchesCoreFilters = (row) => {
+    if (platform !== "todas" && row.platform !== platform) return false;
+    if (period !== "todos" && row.reference_month !== period) return false;
+    if (!isInsideSelectedDateRange(row)) return false;
+    if (campaign !== "todas" && row.campaign_name !== campaign) return false;
+    return true;
+  };
+
   // Filter main campaign list for standard display table
   const getCampaignGroupedList = () => {
-    const list = marketingDb.fact_marketing_summary.filter(s => {
-      if (platform !== "todas" && s.platform !== platform) return false;
-      if (period !== "todos" && s.reference_month !== period) return false;
-      if (campaign !== "todas" && s.campaign_name !== campaign) return false;
-      return true;
-    });
+    const list = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
 
     const grouped = {};
     list.forEach(c => {
@@ -312,12 +325,7 @@ export default function Home() {
 
   // Calculate Consolidated KPIs from filtered summary
   const getCalculatedTotals = () => {
-    const list = marketingDb.fact_marketing_summary.filter(s => {
-      if (platform !== "todas" && s.platform !== platform) return false;
-      if (period !== "todos" && s.reference_month !== period) return false;
-      if (campaign !== "todas" && s.campaign_name !== campaign) return false;
-      return true;
-    });
+    const list = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
 
     if (list.length === 0) {
       return {
@@ -371,9 +379,7 @@ export default function Home() {
   // Dynamic Device Chart Data
   const getDeviceChartData = () => {
     const list = marketingDb.fact_devices.filter(d => {
-      if (platform !== "todas" && d.platform !== platform) return false;
-      if (period !== "todos" && d.reference_month !== period) return false;
-      if (campaign !== "todas" && d.campaign_name !== campaign) return false;
+      if (!matchesCoreFilters(d)) return false;
       if (device !== "todos" && d.device !== device) return false;
       return true;
     });
@@ -416,9 +422,7 @@ export default function Home() {
   // Dynamic Heatmap Chronological Data
   const getTimeHeatmapData = () => {
     const list = marketingDb.fact_weekday_hour.filter(t => {
-      if (platform !== "todas" && t.platform !== platform) return false;
-      if (period !== "todos" && t.reference_month !== period) return false;
-      if (campaign !== "todas" && t.campaign_name !== campaign) return false;
+      if (!matchesCoreFilters(t)) return false;
       return true;
     });
 
@@ -465,9 +469,7 @@ export default function Home() {
   // Dynamic Demographics Regional Data
   const getRegionalMapData = () => {
     const list = marketingDb.fact_demographics.filter(d => {
-      if (platform !== "todas" && d.platform !== platform) return false;
-      if (period !== "todos" && d.reference_month !== period) return false;
-      if (campaign !== "todas" && d.campaign_name !== campaign) return false;
+      if (!matchesCoreFilters(d)) return false;
       if (gender !== "todos" && d.gender !== gender) return false;
       if (age !== "todas" && d.age_range !== age) return false;
       return true;
@@ -528,7 +530,7 @@ export default function Home() {
   // Dynamic Time Series / LineChart
   const getTimelineChartData = () => {
     const months = {};
-    marketingDb.fact_marketing_summary.forEach(s => {
+    marketingDb.fact_marketing_summary.filter(matchesCoreFilters).forEach(s => {
       const mLabel = s.reference_label;
       if (!months[mLabel]) {
         months[mLabel] = {
@@ -570,9 +572,7 @@ export default function Home() {
   // Search keyword data filtered
   const getKeywordsDataFiltered = () => {
     return marketingDb.fact_keywords.filter(k => {
-      if (platform !== "todas" && k.platform !== platform) return false;
-      if (period !== "todos" && k.reference_month !== period) return false;
-      if (campaign !== "todas" && k.campaign_name !== campaign) return false;
+      if (!matchesCoreFilters(k)) return false;
       if (keyword !== "todas" && k.keyword !== keyword) return false;
       return true;
     });
@@ -581,9 +581,7 @@ export default function Home() {
   // Search term data filtered
   const getSearchTermsDataFiltered = () => {
     return marketingDb.fact_search_terms.filter(s => {
-      if (platform !== "todas" && s.platform !== platform) return false;
-      if (period !== "todos" && s.reference_month !== period) return false;
-      if (campaign !== "todas" && s.campaign_name !== campaign) return false;
+      if (!matchesCoreFilters(s)) return false;
       if (searchTerm !== "todos" && s.search_term !== searchTerm) return false;
       return true;
     });
@@ -610,7 +608,9 @@ export default function Home() {
       }
     }
 
-    const selectLabel = period === "todos" ? "histórico completo" : `mês de ${uniqueValues.months.find(m => m.value === period)?.label || period}`;
+    const selectLabel = startDate || endDate
+      ? `período de ${startDate || "início"} até ${endDate || "hoje"}`
+      : period === "todos" ? "histórico completo" : `mês de ${uniqueValues.months.find(m => m.value === period)?.label || period}`;
 
     let text = `Para o ${selectLabel}, o investimento consolidado em mídia paga foi de ${formattedInvest}, resultando em ${formattedConv} conversões com um ROAS médio de ${formattedRoas}. `;
     
@@ -657,12 +657,7 @@ export default function Home() {
   };
 
   const insights = getDynamicInsights();
-  const filteredSummary = marketingDb.fact_marketing_summary.filter(s => {
-    if (platform !== "todas" && s.platform !== platform) return false;
-    if (period !== "todos" && s.reference_month !== period) return false;
-    if (campaign !== "todas" && s.campaign_name !== campaign) return false;
-    return true;
-  });
+  const filteredSummary = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
 
   // ----------------------------------------------------
   // Event Handlers & ETL Upload Orchestrator
@@ -1070,7 +1065,25 @@ export default function Home() {
             platform={platform}
             onPlatformChange={setPlatform}
             period={period}
-            onPeriodChange={setPeriod}
+            onPeriodChange={(value) => {
+              setPeriod(value);
+              if (value !== "todos") {
+                setStartDate(`${value}-01`);
+                const [year, month] = value.split("-").map(Number);
+                const lastDay = new Date(year, month, 0).getDate();
+                setEndDate(`${value}-${String(lastDay).padStart(2, "0")}`);
+              }
+            }}
+            startDate={startDate}
+            onStartDateChange={(value) => {
+              setStartDate(value);
+              setPeriod("todos");
+            }}
+            endDate={endDate}
+            onEndDateChange={(value) => {
+              setEndDate(value);
+              setPeriod("todos");
+            }}
             campaign={campaign}
             onCampaignChange={setCampaign}
             device={device}

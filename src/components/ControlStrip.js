@@ -5,6 +5,10 @@ export default function ControlStrip({
   onPlatformChange,
   period,
   onPeriodChange,
+  startDate,
+  onStartDateChange,
+  endDate,
+  onEndDateChange,
   campaign,
   onCampaignChange,
   device,
@@ -48,9 +52,28 @@ export default function ControlStrip({
           </select>
         </label>
 
-        {/* Reference Month / Period */}
         <label className="filter-item">
-          Mês de Referência
+          Data inicial
+          <input
+            id="startDateFilter"
+            type="date"
+            value={startDate}
+            onChange={(e) => onStartDateChange(e.target.value)}
+          />
+        </label>
+
+        <label className="filter-item">
+          Data final
+          <input
+            id="endDateFilter"
+            type="date"
+            value={endDate}
+            onChange={(e) => onEndDateChange(e.target.value)}
+          />
+        </label>
+
+        <label className="filter-item">
+          Mês rápido
           <select
             id="periodFilter"
             value={period}
