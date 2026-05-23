@@ -261,6 +261,16 @@ export function consolidateSummary(db) {
     g.revenue += r.revenue || 0;
   };
 
+  // Track which campaign + month + platform has campaign data
+  const hasCampaignData = new Set();
+  if (db.fact_campaigns && db.fact_campaigns.length > 0) {
+    db.fact_campaigns.forEach(r => {
+      if (r.platform && r.reference_month && r.campaign_name) {
+        hasCampaignData.add(`${r.platform}_${r.reference_month}_${r.campaign_name}`);
+      }
+    });
+  }
+
   // If we have fact_campaigns (pass isCampaignTable = true)
   if (db.fact_campaigns && db.fact_campaigns.length > 0) {
     db.fact_campaigns.forEach(r => addRowToGroups(r, true));
@@ -269,6 +279,32 @@ export function consolidateSummary(db) {
   // If we have fact_time_series (adds daily granularity)
   if (db.fact_time_series && db.fact_time_series.length > 0) {
     db.fact_time_series.forEach(r => addRowToGroups(r, false));
+  }
+
+  // Helper to add segment rows if no campaign/daily data exists for that campaign+month+platform
+  const addSegmentRowToGroups = (r) => {
+    if (r.platform && r.reference_month && r.campaign_name) {
+      const matchKey = `${r.platform}_${r.reference_month}_${r.campaign_name}`;
+      if (hasDailyData.has(matchKey) || hasCampaignData.has(matchKey)) {
+        return; // Avoid double counting
+      }
+    }
+    addRowToGroups(r, false);
+  };
+
+  // If we have fact_devices
+  if (db.fact_devices && db.fact_devices.length > 0) {
+    db.fact_devices.forEach(addSegmentRowToGroups);
+  }
+
+  // If we have fact_networks
+  if (db.fact_networks && db.fact_networks.length > 0) {
+    db.fact_networks.forEach(addSegmentRowToGroups);
+  }
+
+  // If we have fact_demographics
+  if (db.fact_demographics && db.fact_demographics.length > 0) {
+    db.fact_demographics.forEach(addSegmentRowToGroups);
   }
 
   // Recalculate ratios and build final summary rows

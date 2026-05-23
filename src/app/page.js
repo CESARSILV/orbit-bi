@@ -103,13 +103,15 @@ export default function Home() {
 
   const getWizardFields = (platform) => {
     const baseFields = [
-      { key: "campaign_name", label: "Nome da Campanha", required: true, description: "Coluna que identifica o nome de cada campanha." },
+      { key: "campaign_name", label: "Nome da Campanha", required: false, description: "Coluna que identifica o nome de cada campanha." },
       { key: "spend", label: "Investimento / Gasto", required: true, description: "Custo total acumulado da campanha." },
       { key: "clicks", label: "Cliques Totais", required: false, description: "Total de cliques recebidos." },
-      { key: "impressions", label: "Impressões", required: true, description: "Total de visualizações dos anúncios." },
+      { key: "impressions", label: "Impressões", required: false, description: "Total de visualizações dos anúncios." },
       { key: "conversions", label: platform === "meta" ? "Resultados / Conversões" : "Conversões / Leads", required: false, description: "Total de conversões, compras ou leads cadastrados." },
       { key: "revenue", label: "Receita / Valor de Conversão", required: false, description: "Valor financeiro retornado pelas conversões." },
-      { key: "date", label: "Data / Dia de Referência", required: true, description: "Data de registro do desempenho (ex: YYYY-MM-DD)." }
+      { key: "date", label: "Data / Dia de Referência", required: false, description: "Data de registro do desempenho (ex: YYYY-MM-DD)." },
+      { key: "cpc", label: "CPC Médio", required: false, description: "Custo por clique médio (se houver)." },
+      { key: "ctr", label: "CTR Geral", required: false, description: "Taxa de cliques (se houver)." }
     ];
 
     if (platform === "google") {
@@ -908,10 +910,7 @@ export default function Home() {
   const handleRunWizardIngestion = async () => {
     // Validate required fields are mapped
     const missingFields = [];
-    if (!wizardMapping.campaign_name) missingFields.push("Nome da Campanha");
     if (!wizardMapping.spend) missingFields.push("Investimento / Gasto");
-    if (!wizardMapping.impressions) missingFields.push("Impressões");
-    if (!wizardMapping.date) missingFields.push("Data / Dia de Referência");
 
     if (missingFields.length > 0) {
       setWizardErrorMsg(`Por favor, mapeie os campos obrigatórios: ${missingFields.join(", ")}`);
@@ -983,8 +982,25 @@ export default function Home() {
           const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`);
 
           const spend = parseFormattedFloat(row[wizardMapping.spend]);
-          const clicks = Math.round(parseFormattedFloat(row[wizardMapping.clicks]));
-          const impressions = Math.round(parseFormattedFloat(row[wizardMapping.impressions]));
+          
+          let clicks = 0;
+          if (wizardMapping.clicks) {
+            clicks = Math.round(parseFormattedFloat(row[wizardMapping.clicks]));
+          } else if (wizardMapping.cpc) {
+            const mappedCpc = parseFormattedFloat(row[wizardMapping.cpc]);
+            clicks = mappedCpc > 0 ? Math.round(spend / mappedCpc) : 0;
+          }
+
+          let impressions = 0;
+          if (wizardMapping.impressions) {
+            impressions = Math.round(parseFormattedFloat(row[wizardMapping.impressions]));
+          } else if (wizardMapping.ctr) {
+            const mappedCtr = parseFormattedFloat(row[wizardMapping.ctr]);
+            const ctrValue = mappedCtr > 1 ? mappedCtr / 100 : mappedCtr;
+            impressions = ctrValue > 0 ? Math.round(clicks / ctrValue) : (clicks > 0 ? clicks : 0);
+          } else {
+            impressions = clicks > 0 ? clicks : 0;
+          }
           
           const conversionsVal = wizardMapping.conversions ? row[wizardMapping.conversions] : 0;
           const conversions = Math.round(parseFormattedFloat(conversionsVal));
@@ -1024,6 +1040,9 @@ export default function Home() {
             } else if (adsetName) {
               finalCampaignName = adsetName;
             }
+          }
+          if (!finalCampaignName) {
+            finalCampaignName = wizardFile.name.replace(/\.[^/.]+$/, "") || "Geral";
           }
 
           return {
