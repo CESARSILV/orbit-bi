@@ -1242,33 +1242,11 @@ export default function Home() {
             finalCampaignName = wizardFile.name.replace(/\.[^/.]+$/, "") || "Geral";
           }
 
-          // M-05 FIX: leads soma TODAS as fontes de lead na linha
-          // Fonte 1: coluna mapeada no wizard (ex: "Leads na Meta")
-          // Fonte 2: busca secundária via SYNONYMS para encontrar colunas adicionais
-          //          como "Leads no site" que não foram mapeadas explicitamente
+          // M-05 FIX: leads usa apenas a coluna mapeada no wizard
+          // O Meta Ads exporta "Leads" (total) que já inclui Leads na Meta + Leads no site
+          // A detecção secundária anterior somava as sub-colunas novamente → dupla contagem
           const leadsRawStr = wizardMapping.leads ? row[wizardMapping.leads] : undefined;
-          const leadsPrimary = leadsRawStr !== undefined ? Math.round(parseFormattedFloat(leadsRawStr)) : 0;
-
-          // Busca coluna secundária de leads (ex: se mapeamos "Leads na Meta",
-          // tenta encontrar "Leads no site" como coluna adicional no mesmo row)
-          let leadsSecondary = 0;
-          if (wizardMapping.leads) {
-            // Procura por colunas de leads que não foram a coluna mapeada
-            const leadsKeys = ["Leads no site", "leads no site", "Leads na Meta", "leads na Meta",
-                               "Leads (site)", "Leads (Meta)"];
-            for (const lk of leadsKeys) {
-              if (lk === wizardMapping.leads) continue; // já contado
-              // Normaliza para comparar
-              const normLk = lk.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-              const foundKey = Object.keys(row).find(k =>
-                k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() === normLk
-              );
-              if (foundKey && row[foundKey] !== undefined && row[foundKey] !== "") {
-                leadsSecondary += Math.round(parseFormattedFloat(row[foundKey]));
-              }
-            }
-          }
-          const leads = leadsPrimary + leadsSecondary;
+          const leads = leadsRawStr !== undefined ? Math.round(parseFormattedFloat(leadsRawStr)) : 0;
 
           // Capture report end date for BOTH Meta Ads and Google Ads aggregate reports.
           // Meta Ads: 'Encerramento dos relatórios' / Google Ads: 'Término', 'Data de término'

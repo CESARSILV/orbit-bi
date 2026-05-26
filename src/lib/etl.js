@@ -460,16 +460,17 @@ export const SYNONYMS = {
     "Conversions", "conversions", "Total conversions", "total conversions", "All conversions", "all conversions"
   ],
   leads: [
-    // Meta Ads colunas personalizadas — nomes EXATOS que aparecem no CSV exportado
+    // PRIORIDADE 1: coluna total "Leads" do Meta Ads — já inclui Leads na Meta + Leads no site
+    // Deve ser mapeada primeiro para evitar dupla contagem com as sub-colunas
+    "Leads", "leads",
+    // PRIORIDADE 2: sub-colunas específicas (usadas quando não há coluna total)
     "Leads na Meta", "leads na Meta", "leads na meta",           // formulários nativos do Meta
     "Leads no site", "leads no site",                            // leads via pixel no site
     "Leads (Meta)", "leads (Meta)", "leads (meta)",
     "Leads (site)", "leads (site)",
     // Meta Ads resultados de formulário
     "Resultado de preenchimento de formulários", "resultado de preenchimento de formulários",
-    "Resultado de preenchimento de formularios", "resultado de preenchimento de formularios",
     "Leads de formulário instantâneo", "leads de formulário instantâneo",
-    "Leads de formulario instantaneo", "leads de formulario instantaneo",
     "Envios de formulário de lead", "envios de formulário de lead",
     "Preenchimento de formulário", "preenchimento de formulário",
     "Formulário de lead", "formulário de lead",
@@ -478,7 +479,7 @@ export const SYNONYMS = {
     "Cadastros de lead", "cadastros de lead",
     "Leads instantâneos", "leads instantâneos",
     // Generic
-    "Leads", "leads", "Lead", "lead",
+    "Lead", "lead",
     "Leads totais", "leads totais", "Leads gerados", "leads gerados",
     "Leads_total", "leads_total", "Cadastros", "cadastros",
     "Contatos", "contatos", "Formulários preenchidos", "formulários preenchidos",
