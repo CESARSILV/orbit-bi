@@ -71,6 +71,40 @@ export function getDatabase() {
     
     // Ensure all tables exist in the parsed object
     const db = { ...createInitialDb(), ...parsed };
+
+    // AUTO-DEDUPLICATION: remove duplicate rows from fact_campaigns on every load.
+    // A duplicate is defined as having the same platform + reference_month + campaign_name + date.
+    // This self-heals databases corrupted by multiple imports of the same file.
+    if (db.fact_campaigns && db.fact_campaigns.length > 0) {
+      const seen = new Set();
+      const before = db.fact_campaigns.length;
+      db.fact_campaigns = db.fact_campaigns.filter(r => {
+        // Key must be specific enough to identify a unique campaign period row
+        const key = [
+          r.platform || "",
+          r.reference_month || "",
+          r.campaign_name || "",
+          r.date || r.reference_month || "",
+          r.device || "",
+          r.keyword || "",
+          r.search_term || "",
+          r.gender || "",
+          r.age_range || ""
+        ].join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      const after = db.fact_campaigns.length;
+      if (before !== after) {
+        console.warn(`[DB] Auto-dedup: removidos ${before - after} registros duplicados de fact_campaigns (${before} → ${after}).`);
+        // Rebuild summary and persist the cleaned database
+        const cleaned = consolidateSummary(db);
+        saveDatabase(cleaned);
+        return cleaned;
+      }
+    }
+
     return db;
   } catch (err) {
     console.error("Failed to load local database, resetting:", err);
