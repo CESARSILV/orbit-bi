@@ -269,10 +269,13 @@ export default function Home() {
   };
 
   const handleClearData = async () => {
-    // Executa limpeza real sem window.confirm (bloqueado em Safari/mobile)
-    // 1. Remover chaves do localStorage
+    // NUCLEAR CLEAR: limpa TODO o localStorage (não só chaves específicas)
+    // Garante que nenhum dado residual permaneça
     if (typeof window !== "undefined") {
-      ["orbit_marketing_bi_db", "orbit_import_templates"].forEach(key => localStorage.removeItem(key));
+      console.log("[CLEAR] Iniciando limpeza nuclear do localStorage...");
+      console.log("[CLEAR] Chaves antes:", Object.keys(localStorage));
+      localStorage.clear(); // remove TODAS as chaves, não apenas as específicas
+      console.log("[CLEAR] Chaves após clear:", Object.keys(localStorage));
     }
     
     // 2. Resetar todos os estados de métricas e tabelas fact do React
@@ -326,10 +329,11 @@ export default function Home() {
       triggerToast("Painel e cache limpos 100% com sucesso!");
     }
 
-    // 6. Forçar recarregamento da página para limpar cache em memória do React
+    // 6. Forçar recarregamento HARD da página (sem cache) para limpar memória React
     setTimeout(() => {
-      window.location.reload();
-    }, 500);
+      // Usa href redirect para garantir reload limpo sem Service Worker cache
+      window.location.href = window.location.origin + window.location.pathname;
+    }, 800);
   };
 
   const handleAuthSuccess = (authenticatedUser) => {
