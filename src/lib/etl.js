@@ -460,9 +460,21 @@ export const SYNONYMS = {
     "Conversions", "conversions", "Total conversions", "total conversions", "All conversions", "all conversions"
   ],
   leads: [
-    // Meta Ads exact
+    // Meta Ads com segmentação por Mês — nomes exatos da coluna de formulário
+    "Resultado de preenchimento de formulários", "resultado de preenchimento de formulários",
+    "Resultado de preenchimento de formularios", "resultado de preenchimento de formularios",
+    "Leads de formulário instantâneo", "leads de formulário instantâneo",
+    "Leads de formulario instantaneo", "leads de formulario instantaneo",
+    "Envios de formulário de lead", "envios de formulário de lead",
+    "Envios de formulario de lead", "envios de formulario de lead",
+    "Preenchimento de formulário", "preenchimento de formulário",
+    "Preenchimento de formulario", "preenchimento de formulario",
+    "Formulário de lead", "formulário de lead",
+    "Formulario de lead", "formulario de lead",
+    // Meta Ads outros formatos
     "Leads (formulário)", "leads (formulário)", "Leads (formulario)", "leads (formulario)",
     "Cadastros de lead", "cadastros de lead",
+    "Leads instantâneos", "leads instantâneos",
     // Generic
     "Leads", "leads", "Lead", "lead",
     "Leads totais", "leads totais", "Leads gerados", "leads gerados",
