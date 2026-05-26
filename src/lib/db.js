@@ -72,14 +72,36 @@ export function getDatabase() {
     // Ensure all tables exist in the parsed object
     const db = { ...createInitialDb(), ...parsed };
 
-    // AUTO-DEDUPLICATION: remove duplicate rows from fact_campaigns on every load.
-    // A duplicate is defined as having the same platform + reference_month + campaign_name + date.
-    // This self-heals databases corrupted by multiple imports of the same file.
+    // ----------------------------------------------------------------
+    // AUTO-DEDUPLICATION & AUTO-CLEAN — roda em cada carregamento.
+    // Corrige duplicatas causadas por múltiplas importações do mesmo arquivo.
+    // ----------------------------------------------------------------
+
+    // Função auxiliar: normaliza a data para o mês de referência
+    // "2025-10-01" → "2025-10" (remove o dia, mantém só ano-mês)
+    // Isso evita falsos positivos de chave única quando o CSV usa datas completas
+    // mas importações diferentes geram formatos levemente distintos.
+    const normalizeToMonth = (date, refMonth) => {
+      if (!date) return refMonth || "";
+      const d = String(date).trim();
+      if (/^\d{4}-\d{2}$/.test(d)) return d; // já é YYYY-MM
+      if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 7); // YYYY-MM-DD → YYYY-MM
+      return refMonth || d;
+    };
+
+    const isDashOnly = (name) => !name || /^[-–—\s]+$/.test(String(name).trim());
+
+    let needsSave = false;
+
     if (db.fact_campaigns && db.fact_campaigns.length > 0) {
-      const seen = new Set();
       const before = db.fact_campaigns.length;
+
+      // PASSO 1: Remove linhas de total com campaign_name = "--" ou similar
+      db.fact_campaigns = db.fact_campaigns.filter(r => !isDashOnly(r.campaign_name));
+
+      // PASSO 2: Dedup estrita (chave exata com date e segmentos)
+      const seenStrict = new Set();
       db.fact_campaigns = db.fact_campaigns.filter(r => {
-        // Key must be specific enough to identify a unique campaign period row
         const key = [
           r.platform || "",
           r.reference_month || "",
@@ -91,18 +113,56 @@ export function getDatabase() {
           r.gender || "",
           r.age_range || ""
         ].join("|");
+        if (seenStrict.has(key)) return false;
+        seenStrict.add(key);
+        return true;
+      });
+
+      // PASSO 3: Dedup flexível — mesma campanha+plataforma+MÊS independente do dia exato.
+      // Captura casos onde importação A usou date="2025-10-01" e importação B usou date="2025-10".
+      // Aplica SOMENTE a linhas sem segmentação (device, keyword, etc. todos vazios).
+      const seenLoose = new Set();
+      db.fact_campaigns = db.fact_campaigns.filter(r => {
+        const isSegmented = r.device || r.keyword || r.search_term || r.gender || r.age_range || r.hour;
+        if (isSegmented) return true; // segmentadas: não aplica dedup flexível
+        const looseKey = [
+          r.platform || "",
+          normalizeToMonth(r.date, r.reference_month),
+          r.campaign_name || ""
+        ].join("|");
+        if (seenLoose.has(looseKey)) return false;
+        seenLoose.add(looseKey);
+        return true;
+      });
+
+      const after = db.fact_campaigns.length;
+      if (before !== after) {
+        console.warn(`[DB] AUTO-CLEAN fact_campaigns: ${before} → ${after} registros (removidos ${before - after}).`);
+        needsSave = true;
+      }
+    }
+
+    // Limpa duplicatas de fact_time_series
+    if (db.fact_time_series && db.fact_time_series.length > 0) {
+      const before = db.fact_time_series.length;
+      const seen = new Set();
+      db.fact_time_series = db.fact_time_series.filter(r => {
+        const key = `${r.platform}|${r.date || r.reference_month}|${r.campaign_name || ""}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       });
-      const after = db.fact_campaigns.length;
+      const after = db.fact_time_series.length;
       if (before !== after) {
-        console.warn(`[DB] Auto-dedup: removidos ${before - after} registros duplicados de fact_campaigns (${before} → ${after}).`);
-        // Rebuild summary and persist the cleaned database
-        const cleaned = consolidateSummary(db);
-        saveDatabase(cleaned);
-        return cleaned;
+        console.warn(`[DB] AUTO-CLEAN fact_time_series: ${before} → ${after} registros.`);
+        needsSave = true;
       }
+    }
+
+    if (needsSave) {
+      const cleaned = consolidateSummary(db);
+      saveDatabase(cleaned);
+      return cleaned;
     }
 
     return db;
