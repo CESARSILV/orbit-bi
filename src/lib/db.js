@@ -99,7 +99,8 @@ export function getDatabase() {
       // PASSO 1: Remove linhas de total com campaign_name = "--" ou similar
       db.fact_campaigns = db.fact_campaigns.filter(r => !isDashOnly(r.campaign_name));
 
-      // PASSO 2: Dedup estrita (chave exata com date e segmentos)
+      // PASSO 2: Dedup estrita — chave exata (platform + reference_month + campaign + date + segmentos)
+      // Remove duplicatas pixel-perfect (mesmos valores, mesma data, mesmo tudo).
       const seenStrict = new Set();
       db.fact_campaigns = db.fact_campaigns.filter(r => {
         const key = [
@@ -118,22 +119,40 @@ export function getDatabase() {
         return true;
       });
 
-      // PASSO 3: Dedup flexível — mesma campanha+plataforma+MÊS independente do dia exato.
-      // Captura casos onde importação A usou date="2025-10-01" e importação B usou date="2025-10".
-      // Aplica SOMENTE a linhas sem segmentação (device, keyword, etc. todos vazios).
-      const seenLoose = new Set();
-      db.fact_campaigns = db.fact_campaigns.filter(r => {
+      // PASSO 3: Dedup inteligente de double-import para relatórios mensais agregados.
+      //
+      // Problema: Google Ads exporta 1 linha por mês por campanha. Se o usuário
+      // importou 2 vezes, as duas linhas podem ter datas levemente diferentes
+      // (ex: "2025-10-01" vs "2025-10") → escapam do PASSO 2.
+      //
+      // Solução: Para linhas SEM segmentação, agrupa por (platform + mês + campanha).
+      // Se o grupo tem EXATAMENTE 2 linhas E o spend das duas é idêntico (±R$0.01),
+      // é assinatura de double-import → remove a segunda.
+      //
+      // ⚠️ NÃO aplica se o grupo tem 3+ linhas: isso indica dados diários legítimos
+      // (Meta Ads com 30 linhas/mês por campanha). Nesses casos, não tocamos nada.
+      const monthGroups = {};
+      db.fact_campaigns.forEach((r, idx) => {
         const isSegmented = r.device || r.keyword || r.search_term || r.gender || r.age_range || r.hour;
-        if (isSegmented) return true; // segmentadas: não aplica dedup flexível
-        const looseKey = [
-          r.platform || "",
-          normalizeToMonth(r.date, r.reference_month),
-          r.campaign_name || ""
-        ].join("|");
-        if (seenLoose.has(looseKey)) return false;
-        seenLoose.add(looseKey);
-        return true;
+        if (isSegmented) return; // segmentadas: não participam do grupo
+        const key = `${r.platform || ""}|${normalizeToMonth(r.date, r.reference_month)}|${r.campaign_name || ""}`;
+        if (!monthGroups[key]) monthGroups[key] = [];
+        monthGroups[key].push({ idx, spend: r.spend || 0 });
       });
+
+      const idxToRemove = new Set();
+      Object.values(monthGroups).forEach(group => {
+        if (group.length !== 2) return; // só trata pares — 3+ linhas = dados diários, não toca
+        const [a, b] = group;
+        if (Math.abs(a.spend - b.spend) < 0.02) { // spend idêntico (tolerância R$0.02)
+          idxToRemove.add(b.idx); // remove a segunda entrada (mantém a primeira)
+          console.warn(`[DB] Dedup double-import: par idêntico removido (spend=${a.spend})`);
+        }
+      });
+
+      if (idxToRemove.size > 0) {
+        db.fact_campaigns = db.fact_campaigns.filter((_, idx) => !idxToRemove.has(idx));
+      }
 
       const after = db.fact_campaigns.length;
       if (before !== after) {
