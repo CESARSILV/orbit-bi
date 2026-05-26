@@ -2050,8 +2050,6 @@ export default function Home() {
 
           <section className="segmentation-grid">
             <DeviceChart deviceData={deviceData} />
-            <TimeHeatmap timeData={timeData} />
-            <RegionalMap geoData={geoData} />
           </section>
 
           <section className="analytics-grid operations-grid">
