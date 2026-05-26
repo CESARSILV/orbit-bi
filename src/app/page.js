@@ -1125,18 +1125,43 @@ export default function Home() {
       };
 
       // C-02 FIX: Filter rows correctly even when campaign_name is not mapped
-      // If campaign_name is not mapped, don't filter by it — just require spend > 0
+      // CRITICAL: Meta Ads exports include a "total" row with empty campaign name
+      // and spend = sum of all campaigns for the full period — must be excluded.
       const normalizedRows = wizardRawRows
         .filter(row => {
-          // Check if the row is a metadata/total row
+          // 1. Filter named total/metadata rows (e.g. "Total", "Resumo")
           if (wizardMapping.campaign_name) {
             const campValue = row[wizardMapping.campaign_name];
-            // Only filter by campaign name if it's mapped AND has a value
-            if (campValue !== undefined && campValue !== null && campValue !== "" && isTotalOrMetadata(String(campValue))) {
+            // FIXED: also exclude rows where campaign name is empty/blank
+            // (Meta Ads summary rows have empty campaign name but real spend)
+            if (campValue === undefined || campValue === null || String(campValue).trim() === "") {
+              return false; // empty campaign = total/summary row, skip it
+            }
+            if (isTotalOrMetadata(String(campValue))) {
               return false;
             }
           }
-          // Always require some spend > 0 to be a valid data row
+
+          // 2. Detect aggregate rows: span > 60 days means multi-month summary
+          // Meta Ads: "Início dos relatórios" vs "Encerramento dos relatórios"
+          const startKey = Object.keys(row).find(k => {
+            const kl = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            return kl.includes("inicio dos relatorios") || kl.includes("inicio") && kl.includes("relatorio");
+          });
+          const endKey = Object.keys(row).find(k => {
+            const kl = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            return kl.includes("encerramento dos relatorios") || kl.includes("encerramento");
+          });
+          if (startKey && endKey && row[startKey] && row[endKey]) {
+            const startD = new Date(row[startKey]);
+            const endD = new Date(row[endKey]);
+            if (!isNaN(startD) && !isNaN(endD)) {
+              const diffDays = (endD - startD) / (1000 * 60 * 60 * 24);
+              if (diffDays > 60) return false; // multi-month aggregate row — skip
+            }
+          }
+
+          // 3. Always require spend > 0 to be a valid data row
           const spend = parseFormattedFloat(row[wizardMapping.spend]);
           return spend > 0;
         })
