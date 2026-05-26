@@ -480,8 +480,9 @@ export default function Home() {
 
     const investimento = list.reduce((sum, item) => sum + (item.spend || 0), 0);
     const receita = list.reduce((sum, item) => sum + (item.revenue || 0), 0);
-    const conversoes = list.reduce((sum, item) => sum + (item.conversions || 0), 0);
+    // Conversões totais = Resultados Meta (conversions) + Leads Formulário (leads)
     const leads = list.reduce((sum, item) => sum + (item.leads || 0), 0);
+    const conversoes = list.reduce((sum, item) => sum + (item.conversions || 0), 0) + leads;
     const cliques = list.reduce((sum, item) => sum + (item.clicks || 0), 0);
     const impressoes = list.reduce((sum, item) => sum + (item.impressions || 0), 0);
     const reach = list.reduce((sum, item) => sum + (item.reach || 0), 0);
@@ -531,8 +532,9 @@ export default function Home() {
 
     const investimento = list.reduce((sum, item) => sum + (item.spend || 0), 0);
     const receita = list.reduce((sum, item) => sum + (item.revenue || 0), 0);
-    const conversoes = list.reduce((sum, item) => sum + (item.conversions || 0), 0);
+    // Conversões totais = Resultados Meta (conversions) + Leads Formulário (leads)
     const leads = list.reduce((sum, item) => sum + (item.leads || 0), 0);
+    const conversoes = list.reduce((sum, item) => sum + (item.conversions || 0), 0) + leads;
     const cliques = list.reduce((sum, item) => sum + (item.clicks || 0), 0);
     const impressoes = list.reduce((sum, item) => sum + (item.impressions || 0), 0);
     const reach = list.reduce((sum, item) => sum + (item.reach || 0), 0);
