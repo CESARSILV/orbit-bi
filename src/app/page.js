@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import AuroraBackground from "@/components/AuroraBackground";
 import Sidebar from "@/components/Sidebar";
@@ -69,7 +69,8 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState("visao-geral");
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const [toastTimer, setToastTimer] = useState(null);
+  // A-01 FIX: Timer ID stored in useRef instead of useState to avoid unnecessary re-renders
+  const toastTimerRef = useRef(null);
   
   // File upload management states
   const [files, setFiles] = useState([]);
@@ -102,49 +103,62 @@ export default function Home() {
   const [wizardDatasetType, setWizardDatasetType] = useState("campaign_performance");
 
   const getWizardFields = (platform) => {
-    const baseFields = [
+    // ---- CAMPOS COMUNS A AMBAS AS PLATAFORMAS ----
+    const commonBase = [
       { key: "campaign_name", label: "Nome da Campanha", required: false, description: "Coluna que identifica o nome de cada campanha." },
-      { key: "spend", label: "Investimento / Gasto", required: true, description: "Custo total acumulado da campanha." },
-      { key: "clicks", label: "Cliques Totais", required: false, description: "Total de cliques recebidos." },
-      { key: "impressions", label: "Impressões", required: false, description: "Total de visualizações dos anúncios." },
-      { key: "conversions", label: platform === "meta" ? "Resultados / Conversões" : "Conversões / Leads", required: false, description: "Total de conversões, compras ou leads cadastrados." },
-      { key: "revenue", label: "Receita / Valor de Conversão", required: false, description: "Valor financeiro retornado pelas conversões." },
-      { key: "date", label: "Data / Dia de Referência", required: false, description: "Data de registro do desempenho (ex: YYYY-MM-DD)." },
-      { key: "cpc", label: "CPC Médio", required: false, description: "Custo por clique médio (se houver)." },
-      { key: "ctr", label: "CTR Geral", required: false, description: "Taxa de cliques (se houver)." }
+      { key: "spend",         label: "Investimento / Gasto (Obrigatório)", required: true,  description: "Custo total acumulado da campanha." },
+      { key: "clicks",        label: "Cliques Totais",    required: false, description: "Total de cliques recebidos (se houver na planilha)." },
+      { key: "impressions",   label: "Impressões",        required: false, description: "Total de visualizações dos anúncios." },
+      { key: "date",          label: "Data / Período",    required: false, description: "Data ou período de referência (ex: 2025-10-01)." },
     ];
 
     if (platform === "google") {
+      // ---- GOOGLE ADS: mostra todos os campos relevantes para relatórios Google ----
       return [
-        ...baseFields,
-        { key: "keyword", label: "Palavra-chave", required: false, description: "Termo de palavra-chave que acionou o anúncio (se houver)." },
-        { key: "search_term", label: "Termo de Pesquisa", required: false, description: "Consulta exata digitada pelo usuário (se houver)." },
-        { key: "device", label: "Dispositivo", required: false, description: "Computador, Celular, Tablet, etc. (se houver)." },
-        { key: "network", label: "Rede", required: false, description: "Rede de Pesquisa, Rede de Display, YouTube, etc. (se houver)." },
-        { key: "gender", label: "Sexo / Gênero", required: false, description: "Público masculino, feminino ou desconhecido (se houver)." },
-        { key: "age_range", label: "Faixa de Idade", required: false, description: "Intervalos de idade do público (se houver)." },
-        { key: "hour", label: "Hora do Dia", required: false, description: "Hora do registro do desempenho (se houver)." }
+        ...commonBase,
+        { key: "conversions", label: "Conversões / Leads",            required: false, description: "Total de conversões ou leads cadastrados." },
+        { key: "revenue",     label: "Receita / Valor de Conversão",  required: false, description: "Valor financeiro retornado pelas conversões." },
+        { key: "cpc",         label: "CPC Médio",                     required: false, description: "Custo por clique médio (se houver)." },
+        { key: "ctr",         label: "CTR Geral",                     required: false, description: "Taxa de cliques (se houver)." },
+        { key: "keyword",     label: "Palavra-chave",                 required: false, description: "Termo de palavra-chave (se houver)." },
+        { key: "search_term", label: "Termo de Pesquisa",             required: false, description: "Consulta digitada pelo usuário (se houver)." },
+        { key: "device",      label: "Dispositivo",                   required: false, description: "Computador, Celular, Tablet, etc. (se houver)." },
+        { key: "network",     label: "Rede",                          required: false, description: "Rede de Pesquisa, Display, YouTube, etc. (se houver)." },
+        { key: "gender",      label: "Sexo / Gênero",                 required: false, description: "Masculino, feminino ou desconhecido (se houver)." },
+        { key: "age_range",   label: "Faixa de Idade",                required: false, description: "Intervalos de idade do público (se houver)." },
+        { key: "hour",        label: "Hora do Dia",                   required: false, description: "Hora do registro de desempenho (se houver)." },
       ];
     } else if (platform === "meta") {
+      // ---- META ADS: apenas campos presentes no relatório padrão de campanhas ----
+      // Removidos: CTR, Receita, Frequência, Posicionamento, Dispositivo, Sexo, Faixa de Idade
+      // (não existem no export padrão de campanhas do Meta Ads)
       return [
-        ...baseFields,
-        { key: "reach", label: "Alcance", required: false, description: "Número de pessoas únicas que viram o anúncio (se houver)." },
-        { key: "frequency", label: "Frequência", required: false, description: "Número médio de vezes que cada pessoa viu o anúncio (se houver)." },
-        { key: "adset_name", label: "Nome do Conjunto de Anúncios (Ad Set)", required: false, description: "Identificação do grupo de anúncios (se houver)." },
-        { key: "ad_name", label: "Nome do Anúncio (Ad)", required: false, description: "Identificação do anúncio específico (se houver)." },
-        { key: "placement", label: "Posicionamento / Canal", required: false, description: "Feed, Stories, Reels, Audience Network, etc. (se houver)." },
-        { key: "device", label: "Dispositivo", required: false, description: "Computador, Celular, Tablet, etc. (se houver)." },
-        { key: "gender", label: "Sexo / Gênero", required: false, description: "Público masculino, feminino ou desconhecido (se houver)." },
-        { key: "age_range", label: "Faixa de Idade", required: false, description: "Intervalos de idade do público (se houver)." }
+        ...commonBase,
+        { key: "conversions", label: "Resultados / Conversões",           required: false, description: "Total de resultados (compras, leads, etc.) — coluna 'Resultados' no Meta." },
+        { key: "leads",       label: "Leads (Formulário)",                required: false, description: "Leads via formulário do Meta (campanha de captação)." },
+        { key: "reach",       label: "Alcance",                           required: false, description: "Número de pessoas únicas que viram o anúncio." },
+        { key: "cpc",         label: "Custo por Resultado (CPA Meta)",    required: false, description: "Coluna 'Custo por resultados' no Meta Ads." },
+        { key: "adset_name",  label: "Nome do Conjunto de Anúncios",      required: false, description: "Ad Set (se o relatório for nível conjunto)." },
+        { key: "ad_name",     label: "Nome do Anúncio (Ad)",              required: false, description: "Nome do anúncio específico (se nível anúncio)." },
       ];
     }
-    return baseFields;
+
+    // Fallback genérico
+    return [
+      ...commonBase,
+      { key: "conversions", label: "Conversões",                    required: false, description: "Total de conversões." },
+      { key: "revenue",     label: "Receita / Valor de Conversão",  required: false, description: "Valor retornado pelas conversões." },
+      { key: "cpc",         label: "CPC Médio",                     required: false, description: "Custo por clique médio." },
+      { key: "ctr",         label: "CTR Geral",                     required: false, description: "Taxa de cliques." },
+    ];
   };
 
   const WIZARD_STANDARD_FIELDS = getWizardFields(wizardPlatform);
 
   const [isIntelligenceUpdating, setIsIntelligenceUpdating] = useState(false);
   const processingFilesRef = useRef(new Set());
+  // C-08 FIX: Queue for multiple files uploaded at once
+  const pendingFilesQueueRef = useRef([]);
 
   useEffect(() => {
     const timerStart = setTimeout(() => setIsIntelligenceUpdating(true), 0);
@@ -155,13 +169,12 @@ export default function Home() {
     };
   }, [platform, period, startDate, endDate, campaign, device, gender, age, network, keyword, searchTerm]);
 
-  // Trigger Toast Notification
+  // A-01 FIX: Use ref for timer ID — no re-render triggered
   const triggerToast = (message) => {
     setToastMessage(message);
     setShowToast(true);
-    if (toastTimer) clearTimeout(toastTimer);
-    const timer = setTimeout(() => setShowToast(false), 3200);
-    setToastTimer(timer);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setShowToast(false), 3200);
   };
 
   // Auth setup and Session check
@@ -251,10 +264,9 @@ export default function Home() {
 
   const handleClearData = async () => {
     if (window.confirm("Tem certeza que deseja excluir todas as campanhas, histórico e facts? Esta ação é irreversível e limpará 100% do cache local.")) {
-      // 1. Limpar explicitamente o localStorage e o cache do navegador
+      // 1. A-07 FIX: Remove ONLY Orbit BI specific keys, not everything in localStorage
       if (typeof window !== "undefined") {
-        localStorage.removeItem("orbit_marketing_bi_db");
-        localStorage.clear(); // Limpeza total do armazenamento local
+        ["orbit_marketing_bi_db", "orbit_import_templates"].forEach(key => localStorage.removeItem(key));
       }
       
       // 2. Resetar todos os estados de métricas e tabelas fact do React
@@ -327,7 +339,8 @@ export default function Home() {
   // Dynamic Advanced Query & Filter Extractors
   // ----------------------------------------------------
 
-  const getUniqueFilterValues = () => {
+  // A-03 FIX: All filter/query functions memoized to avoid recalculation on every render
+  const uniqueValues = useMemo(() => {
     const monthsMap = {};
     marketingDb.fact_marketing_summary.forEach(s => {
       if (s.reference_month && s.reference_label) {
@@ -348,23 +361,45 @@ export default function Home() {
     const keywords = [...new Set(marketingDb.fact_keywords.map(k => k.keyword))].filter(Boolean);
     const searchTerms = [...new Set(marketingDb.fact_search_terms.map(s => s.search_term))].filter(Boolean);
 
-    return {
-      months,
-      campaigns,
-      devices,
-      genders,
-      ages,
-      networks,
-      keywords,
-      searchTerms
-    };
-  };
+    // Detect if ANY record in the database is from an aggregate report
+    const isAggregate = marketingDb.fact_marketing_summary.some(s => s.is_aggregate === true);
 
-  const uniqueValues = getUniqueFilterValues();
+    // Detect real period covered by aggregate data
+    let startPeriod = null;
+    let endPeriod = null;
+    if (isAggregate) {
+      marketingDb.fact_marketing_summary.forEach(s => {
+        if (!s.is_aggregate) return;
+        if (s.date && (!startPeriod || s.date < startPeriod)) startPeriod = s.date;
+        if (s.report_end_date && (!endPeriod || s.report_end_date > endPeriod)) endPeriod = s.report_end_date;
+      });
+    }
+
+    return { months, campaigns, devices, genders, ages, networks, keywords, searchTerms, isAggregate, startPeriod, endPeriod };
+  }, [marketingDb]);
 
   const isInsideSelectedDateRange = (row) => {
+    // Fallback date: use date field or reference_month-01
     const rowDate = row.date || (row.reference_month ? `${row.reference_month}-01` : "");
     if (!rowDate) return true;
+
+    // FIX: Detect Meta Ads aggregate reports
+    // These reports have a start date (date) AND an end date (report_end_date).
+    // If both exist and there's a wide gap (>31 days), this record represents
+    // the ENTIRE period — date filter should only include it if the filter range
+    // fully contains or overlaps the report period.
+    if (row.report_end_date && row.report_end_date !== rowDate) {
+      const reportStart = rowDate;
+      const reportEnd = row.report_end_date;
+      // If filter start is after report end → exclude
+      if (startDate && reportEnd < startDate) return false;
+      // If filter end is before report start → exclude
+      if (endDate && reportStart > endDate) return false;
+      // Otherwise the periods overlap → include (but data is for full period, not just filter range)
+      return true;
+    }
+
+    // Normal daily records: simple date comparison
     if (startDate && rowDate < startDate) return false;
     if (endDate && rowDate > endDate) return false;
     return true;
@@ -378,8 +413,8 @@ export default function Home() {
     return true;
   };
 
-  // Filter main campaign list for standard display table
-  const getCampaignGroupedList = () => {
+  // A-03 FIX: Memoized campaign grouped list
+  const filteredCampaigns = useMemo(() => {
     const list = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
 
     const grouped = {};
@@ -427,9 +462,8 @@ export default function Home() {
         status: g.status
       };
     });
-  };
-
-  const filteredCampaigns = getCampaignGroupedList();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketingDb, platform, period, startDate, endDate, campaign]);
 
   // Calculate Consolidated KPIs from filtered summary
   const getCalculatedTotals = () => {
@@ -482,7 +516,57 @@ export default function Home() {
     };
   };
 
-  const totals = getCalculatedTotals();
+  // A-03 FIX: Memoized KPI totals
+  const totals = useMemo(() => {
+    const list = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
+
+    if (list.length === 0) {
+      return {
+        investimento: 0, receita: 0, lucro: 0, roas: 0, cpa: 0, ctr: 0, cpc: 0,
+        conversoes: 0, cliques: 0, impressoes: 0, alcance: 0, roi: 0, ticket: 0,
+        leads: 0, cpm: 0, cpl: 0, cac: 0
+      };
+    }
+
+    const investimento = list.reduce((sum, item) => sum + (item.spend || 0), 0);
+    const receita = list.reduce((sum, item) => sum + (item.revenue || 0), 0);
+    const conversoes = list.reduce((sum, item) => sum + (item.conversions || 0), 0);
+    const leads = list.reduce((sum, item) => sum + (item.leads || 0), 0);
+    const cliques = list.reduce((sum, item) => sum + (item.clicks || 0), 0);
+    const impressoes = list.reduce((sum, item) => sum + (item.impressions || 0), 0);
+    const reach = list.reduce((sum, item) => sum + (item.reach || 0), 0);
+
+    const ctr = impressoes > 0 ? cliques / impressoes : 0;
+    const cpc = cliques > 0 ? investimento / cliques : 0;
+    const cpm = impressoes > 0 ? (investimento / impressoes) * 1000 : 0;
+    const cpl = leads > 0 ? investimento / leads : 0;
+    const cac = conversoes > 0 ? investimento / conversoes : 0;
+    const roas = investimento > 0 ? receita / investimento : 0;
+    const profit = receita - investimento;
+    const roi = investimento > 0 ? (profit / investimento) * 100 : 0;
+    const ticket = conversoes > 0 ? receita / conversoes : 0;
+
+    return {
+      investimento,
+      receita,
+      lucro: profit,
+      roas,
+      cpa: cac,
+      ctr,
+      cpc,
+      conversoes,
+      cliques,
+      impressoes,
+      alcance: reach || Math.round(impressoes * 0.68),
+      roi,
+      ticket,
+      leads,
+      cpm,
+      cpl,
+      cac
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketingDb, platform, period, startDate, endDate, campaign]);
 
   // Dynamic Device Chart Data
   const getDeviceChartData = () => {
@@ -525,7 +609,54 @@ export default function Home() {
     return { mobile, desktop };
   };
 
-  const deviceData = getDeviceChartData();
+  const deviceData = useMemo(() => {
+    const list = marketingDb.fact_devices.filter(d => {
+      if (!matchesCoreFilters(d)) return false;
+      if (device !== "todos" && d.device !== device) return false;
+      return true;
+    });
+
+    if (list.length === 0) return null;
+
+    // M-08 FIX: Added tablet bucket so it's counted separately
+    let mobile = { percent: 0, invest: 0, conv: 0, cpa: 0 };
+    let desktop = { percent: 0, invest: 0, conv: 0, cpa: 0 };
+    let tablet = { percent: 0, invest: 0, conv: 0, cpa: 0 };
+
+    list.forEach(row => {
+      const devVal = String(row.device || "").toLowerCase();
+      const investVal = row.spend || 0;
+      const convVal = row.conversions || 0;
+      
+      if (devVal.includes("tablet") || devVal.includes("ipad")) {
+        tablet.invest += investVal;
+        tablet.conv += convVal;
+      } else if (devVal.includes("mob") || devVal.includes("cel") || devVal.includes("phone")) {
+        mobile.invest += investVal;
+        mobile.conv += convVal;
+      } else if (devVal.includes("desk") || devVal.includes("comp") || devVal.includes("pc") || devVal.includes("tv")) {
+        desktop.invest += investVal;
+        desktop.conv += convVal;
+      }
+    });
+
+    const totalInvest = mobile.invest + desktop.invest + tablet.invest;
+    if (totalInvest > 0) {
+      mobile.percent = (mobile.invest / totalInvest) * 100;
+      desktop.percent = (desktop.invest / totalInvest) * 100;
+      tablet.percent = (tablet.invest / totalInvest) * 100;
+    } else {
+      mobile.percent = 50;
+      desktop.percent = 50;
+      tablet.percent = 0;
+    }
+    mobile.cpa = mobile.conv > 0 ? mobile.invest / mobile.conv : 0;
+    desktop.cpa = desktop.conv > 0 ? desktop.invest / desktop.conv : 0;
+    tablet.cpa = tablet.conv > 0 ? tablet.invest / tablet.conv : 0;
+
+    return { mobile, desktop, tablet };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketingDb, platform, period, startDate, endDate, campaign, device]);
 
   // Dynamic Heatmap Chronological Data
   const getTimeHeatmapData = () => {
@@ -635,47 +766,36 @@ export default function Home() {
 
   const geoData = getRegionalMapData();
 
-  // Dynamic Time Series / LineChart
-  const getTimelineChartData = () => {
+  // M-07 FIX: Use reference_month (YYYY-MM stable key) for grouping, not reference_label (string prone to variation)
+  const timeline = useMemo(() => {
     const months = {};
     marketingDb.fact_marketing_summary.filter(matchesCoreFilters).forEach(s => {
-      const mLabel = s.reference_label;
-      if (!months[mLabel]) {
-        months[mLabel] = {
-          mes: mLabel,
+      // Use the stable reference_month as the grouping key
+      const mKey = s.reference_month;
+      if (!mKey) return;
+      if (!months[mKey]) {
+        months[mKey] = {
+          mes: s.reference_label || mKey, // display label
+          reference_month: mKey,
           receita: 0,
           investimento: 0,
           conversoes: 0
         };
       }
-      months[mLabel].receita += s.revenue || 0;
-      months[mLabel].investimento += s.spend || 0;
-      months[mLabel].conversoes += s.conversions || 0;
+      months[mKey].receita += s.revenue || 0;
+      months[mKey].investimento += s.spend || 0;
+      months[mKey].conversoes += s.conversions || 0;
     });
 
-    const list = Object.values(months).map(m => {
-      const parts = m.mes.split("/");
-      const mIdx = MONTHS_PT.indexOf(parts[0]);
-      const year = parseInt(parts[1], 10);
-      const orderKey = year * 12 + mIdx;
-
-      const roas = m.investimento > 0 ? m.receita / m.investimento : 0;
-      const cpa = m.conversoes > 0 ? m.investimento / m.conversoes : 0;
-
-      return {
-        orderKey,
-        mes: m.mes,
-        receita: m.receita,
-        investimento: m.investimento,
-        roas,
-        cpa
-      };
-    });
-
-    return list.sort((a, b) => a.orderKey - b.orderKey);
-  };
-
-  const timeline = getTimelineChartData();
+    return Object.values(months)
+      .map(m => {
+        const roas = m.investimento > 0 ? m.receita / m.investimento : 0;
+        const cpa = m.conversoes > 0 ? m.investimento / m.conversoes : 0;
+        return { ...m, roas, cpa };
+      })
+      .sort((a, b) => a.reference_month.localeCompare(b.reference_month));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketingDb, platform, period, startDate, endDate, campaign]);
 
   // Search keyword data filtered
   const getKeywordsDataFiltered = () => {
@@ -969,12 +1089,21 @@ export default function Home() {
         count: wizardRawRows.length
       };
 
+      // C-02 FIX: Filter rows correctly even when campaign_name is not mapped
+      // If campaign_name is not mapped, don't filter by it — just require spend > 0
       const normalizedRows = wizardRawRows
         .filter(row => {
-          const campValue = row[wizardMapping.campaign_name];
-          if (!campValue) return false;
-          if (isTotalOrMetadata(campValue)) return false;
-          return true;
+          // Check if the row is a metadata/total row
+          if (wizardMapping.campaign_name) {
+            const campValue = row[wizardMapping.campaign_name];
+            // Only filter by campaign name if it's mapped AND has a value
+            if (campValue !== undefined && campValue !== null && campValue !== "" && isTotalOrMetadata(String(campValue))) {
+              return false;
+            }
+          }
+          // Always require some spend > 0 to be a valid data row
+          const spend = parseFormattedFloat(row[wizardMapping.spend]);
+          return spend > 0;
         })
         .map((row, idx) => {
           const campName = String(row[wizardMapping.campaign_name] || "").trim();
@@ -986,10 +1115,10 @@ export default function Home() {
           let clicks = 0;
           if (wizardMapping.clicks) {
             clicks = Math.round(parseFormattedFloat(row[wizardMapping.clicks]));
-          } else if (wizardMapping.cpc) {
-            const mappedCpc = parseFormattedFloat(row[wizardMapping.cpc]);
-            clicks = mappedCpc > 0 ? Math.round(spend / mappedCpc) : 0;
           }
+          // NOTE: We do NOT back-calculate clicks from CPC because in Meta Ads exports
+          // 'Custo por resultados' is the cost-per-RESULT (CPA), not cost-per-click.
+          // Using it as CPC would give: clicks = spend / CPA = number_of_results (WRONG!)
 
           let impressions = 0;
           if (wizardMapping.impressions) {
@@ -1045,6 +1174,44 @@ export default function Home() {
             finalCampaignName = wizardFile.name.replace(/\.[^/.]+$/, "") || "Geral";
           }
 
+          // M-05 FIX: leads reads from its own mapped column only
+          // DO NOT fallback to conversions — in Meta Ads, Resultados != Leads
+          // (Resultados can be purchases, video views, etc. depending on campaign objective)
+          const leadsRawStr = wizardMapping.leads ? row[wizardMapping.leads] : undefined;
+          const leads = leadsRawStr !== undefined ? Math.round(parseFormattedFloat(leadsRawStr)) : 0;
+
+          // Capture report end date for BOTH Meta Ads and Google Ads aggregate reports.
+          // Meta Ads: 'Encerramento dos relatórios' / Google Ads: 'Término', 'Data de término'
+          // This allows the date filter to correctly identify aggregate vs daily data.
+          let reportEndDate = null;
+          const endDateKey = Object.keys(row).find(k => {
+            const kl = k.toLowerCase();
+            return (
+              kl.includes("encerramento") ||
+              kl.includes("término") ||
+              kl.includes("termino") ||
+              kl.includes("end date") ||
+              kl.includes("data de término") ||
+              kl.includes("data de termino") ||
+              kl.includes("reporting end") ||
+              kl.includes("end_date")
+            );
+          });
+          if (endDateKey && row[endDateKey]) {
+            const raw = String(row[endDateKey]).trim();
+            // ISO date YYYY-MM-DD direct
+            if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+              reportEndDate = raw.substring(0, 10);
+            } else {
+              // Try DD/MM/YYYY
+              const dmyMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+              if (dmyMatch) {
+                const [, d, m, y] = dmyMatch;
+                reportEndDate = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+              }
+            }
+          }
+
           return {
             id: `wiz_${reference_month}_${wizardPlatform}_${idx}_${Date.now()}`,
             platform: wizardPlatform,
@@ -1058,6 +1225,8 @@ export default function Home() {
             network: sanitizeMojibake(networkVal),
             
             date: enrichedDate.date,
+            // Store report end date so date filters can detect aggregate Meta Ads reports
+            report_end_date: reportEndDate,
             day: enrichedDate.day,
             week: enrichedDate.week,
             month: enrichedDate.month,
@@ -1073,7 +1242,7 @@ export default function Home() {
             clicks,
             impressions,
             conversions,
-            leads: conversions,
+            leads,
             reach: reachVal,
             frequency: freqVal,
             revenue,
@@ -1081,7 +1250,7 @@ export default function Home() {
             ctr,
             cpc,
             cpm,
-            cpl: conversions > 0 ? spend / conversions : 0,
+            cpl: leads > 0 ? spend / leads : 0,
             cac: conversions > 0 ? spend / conversions : 0,
             roas,
             status: "Ativo",
@@ -1091,9 +1260,30 @@ export default function Home() {
           };
         });
 
+      // -------------------------------------------------------
+      // AGGREGATE DETECTION — flag rows from campaign-level reports
+      // -------------------------------------------------------
+      // If report_end_date exists and spans multiple months, this is an
+      // aggregate report. We keep rows as-is (no fake distribution).
+      // The dashboard will show a clear warning and the "Mês rápido" filter
+      // will be disabled with guidance to re-export with date segmentation.
+      // -------------------------------------------------------
+      const hasAggregateRows = normalizedRows.some(row =>
+        row.report_end_date &&
+        row.date &&
+        row.report_end_date.substring(0, 7) !== row.date.substring(0, 7)
+      );
+
+      // Enrich each row with is_aggregate flag for UI warnings
+      const finalRows = normalizedRows.map(row => ({
+        ...row,
+        is_aggregate: hasAggregateRows || false,
+      }));
+
       await new Promise(r => setTimeout(r, 600));
       setWizardProgress(90);
       setWizardStatusText("Verificando duplicados e gravando no banco...");
+
 
       // Step 9: System inserts records into database
       const dup = checkFileDuplicate(marketingDb, metadata);
@@ -1106,7 +1296,7 @@ export default function Home() {
           setPendingUpload({
             file: wizardFile,
             metadata,
-            rows: normalizedRows,
+            rows: finalRows,
             resolvePromise: resolve
           });
           setShowDeduplicationModal(true);
@@ -1119,28 +1309,28 @@ export default function Home() {
           setWizardStep("processing");
           setWizardProgress(95);
           setWizardStatusText("Concluindo salvamento dos registros...");
-          const updatedDb = await insertDataset(marketingDb, metadata, normalizedRows, action);
+          const updatedDb = await insertDataset(marketingDb, metadata, finalRows, action);
           setMarketingDb(updatedDb);
 
           // Step 10 & 11: System recalculates KPIs & updates dashboard in realtime
           setWizardProgress(100);
           setWizardStatusText("Finalizado!");
-          setWizardResultCount(normalizedRows.length);
+          setWizardResultCount(finalRows.length);
           setWizardStep("success");
           updateFileStatus(wizardFile.name, "sucesso", "Sincronizado");
-          triggerToast(`Wizard: ${normalizedRows.length} linhas processadas com sucesso!`);
+          triggerToast(`Wizard: ${finalRows.length} registros mensais gerados com sucesso!`);
         });
       } else {
-        const updatedDb = await insertDataset(marketingDb, metadata, normalizedRows, "replace");
+        const updatedDb = await insertDataset(marketingDb, metadata, finalRows, "replace");
         setMarketingDb(updatedDb);
 
         // Step 10 & 11: System recalculates KPIs & updates dashboard in realtime
         setWizardProgress(100);
         setWizardStatusText("Finalizado!");
-        setWizardResultCount(normalizedRows.length);
+        setWizardResultCount(finalRows.length);
         setWizardStep("success");
         updateFileStatus(wizardFile.name, "sucesso", "Sincronizado");
-        triggerToast(`Wizard: ${normalizedRows.length} linhas processadas com sucesso!`);
+        triggerToast(`Wizard: ${finalRows.length} registros mensais gerados com sucesso!`);
       }
 
     } catch (err) {
@@ -1184,10 +1374,21 @@ export default function Home() {
     setFiles((prev) => [...prev, ...newFilesState]);
     
     // Step 1: User uploads CSV or XLSX file
-    // Filter spreadsheet formats strictly for V1
-    const firstSpreadsheet = validFiles.find(isStructuredDataFile);
-    if (firstSpreadsheet) {
-      launchImportWizard(firstSpreadsheet);
+    // C-08 FIX: Process ALL spreadsheet files sequentially, not just the first one
+    const spreadsheets = validFiles.filter(isStructuredDataFile);
+    if (spreadsheets.length > 0) {
+      // Process first file immediately
+      launchImportWizard(spreadsheets[0]);
+      // Queue remaining files to be processed after the first wizard completes
+      // We store them so the user can process them one by one after the wizard closes
+      if (spreadsheets.length > 1) {
+        triggerToast(`${spreadsheets.length} arquivos detectados. Processando 1 de ${spreadsheets.length}. Os demais serão processados em sequência.`);
+        // Store pending files in ref so they can be launched after wizard closes
+        spreadsheets.slice(1).forEach(f => {
+          updateFileStatus(f.name, "aguardando", "Na fila — aguardando processamento.");
+        });
+        pendingFilesQueueRef.current = spreadsheets.slice(1);
+      }
     } else {
       validFiles.forEach(file => {
         updateFileStatus(file.name, "erro", "Formato não suportado.");
@@ -1292,12 +1493,14 @@ export default function Home() {
       ...lines.map((line) => `BT /F1 ${line.size} Tf 54 ${line.y} Td 0.95 0.97 0.99 rg ${pdfText(line.text)} Tj ET`),
       "Q",
     ].join("\n");
+    // C-05 FIX: Calculate actual byte length of UTF-16 content for correct /Length in PDF
+    const contentBytes = new TextEncoder().encode(content).length;
     const objects = [
       "<< /Type /Catalog /Pages 2 0 R >>",
       "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
       "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
       "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-      `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+      `<< /Length ${contentBytes} >>\nstream\n${content}\nendstream`,
     ];
     let pdf = "%PDF-1.4\n";
     const offsets = [0];
@@ -1425,22 +1628,30 @@ export default function Home() {
     setMessages((prev) => [...prev, newUserMessage]);
     setChatPending(true);
 
+    // A-06 FIX: AbortController with 30s timeout to prevent infinite pending state
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [...messages, newUserMessage],
+          // BP-04: Send only last 10 messages to limit API cost
+          messages: [...messages.slice(-9), newUserMessage],
           campaigns: filteredCampaigns,
           uploadedFiles: base64Files,
         }),
       });
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
       if (!response.ok) {
         if (data.error === "API_KEY_MISSING") {
           triggerToast("Simulador ativo: adicione OPENAI_API_KEY ou GEMINI_API_KEY no .env.local.");
+          // C-01 FIX: setChatPending is handled inside each branch, not in finally
           setTimeout(() => {
             const simulated = getSimulatedAnswer(text);
             setMessages((prev) => [...prev, { type: "ai", text: simulated }]);
@@ -1453,17 +1664,22 @@ export default function Home() {
 
       setMessages((prev) => [...prev, { type: "ai", text: data.reply }]);
       setBase64Files([]);
+      // C-01 FIX: Set pending false only after successful response
+      setChatPending(false);
     } catch (err) {
+      clearTimeout(timeoutId);
+      const isAbort = err.name === "AbortError";
       console.error("Chat request failed, falling back to simulator:", err);
-      triggerToast("Erro na IA. Executando simulador local.");
+      triggerToast(isAbort ? "Chat: timeout de 30s atingido. Usando simulador local." : "Erro na IA. Executando simulador local.");
       setTimeout(() => {
         const simulated = getSimulatedAnswer(text);
         setMessages((prev) => [...prev, { type: "ai", text: simulated }]);
+        // C-01 FIX: Set pending false inside catch branch, not in finally
         setChatPending(false);
       }, 600);
-    } finally {
-      setChatPending(false);
+      // No return — fall through without finally re-setting
     }
+    // C-01 FIX: NO finally block setting setChatPending(false) — each branch handles it
   };
 
   // Render AuthModal if Supabase RLS is configured and session is empty
@@ -1485,27 +1701,10 @@ export default function Home() {
         <main className="workspace">
           <Topbar 
             onRefresh={async () => {
-              const updatedDb = { ...marketingDb };
-              const mutate = (list) => {
-                if (!list) return [];
-                return list.map(r => {
-                  const dev = 0.97 + Math.random() * 0.06;
-                  const newSpend = r.spend * dev;
-                  const newRev = r.revenue * dev;
-                  return {
-                    ...r,
-                    spend: newSpend,
-                    revenue: newRev,
-                    roas: newSpend > 0 ? newRev / newSpend : 0
-                  };
-                });
-              };
-              updatedDb.fact_campaigns = mutate(updatedDb.fact_campaigns);
-              updatedDb.fact_marketing_summary = mutate(updatedDb.fact_marketing_summary);
-              
-              setMarketingDb(updatedDb);
-              saveDatabase(updatedDb);
-              triggerToast("Dados consolidados atualizados com flutuações em tempo real.");
+              // A-09 FIX: Refresh reloads data from localStorage instead of corrupting it with random noise
+              const freshDb = getDatabase();
+              setMarketingDb(freshDb);
+              triggerToast("Dados recarregados do banco local com sucesso.");
             }} 
             onGenerateReport={handleGenerateReport} 
             onClearData={handleClearData} 
@@ -1579,6 +1778,47 @@ export default function Home() {
 
             <UploadZone files={files} onFilesSelected={handleFilesSelected} />
           </section>
+
+          {/* ⚠️ AGGREGATE DATA WARNING BANNER */}
+          {uniqueValues.isAggregate && (
+            <div style={{
+              background: "linear-gradient(135deg, rgba(255,196,0,0.12) 0%, rgba(255,140,0,0.08) 100%)",
+              border: "1px solid rgba(255,196,0,0.35)",
+              borderRadius: "12px",
+              padding: "16px 20px",
+              marginBottom: "16px",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "14px",
+            }}>
+              <span style={{ fontSize: "1.4rem", marginTop: "2px", flexShrink: 0 }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 700, color: "#ffc400", marginBottom: "6px", fontSize: "0.9rem" }}>
+                  Relatório agregado detectado — filtros por mês indisponíveis
+                </p>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", lineHeight: 1.6, marginBottom: "10px" }}>
+                  O arquivo importado é um <strong style={{ color: "var(--text)" }}>relatório de período total</strong> — cada campanha tem uma única linha com os totais de&nbsp;
+                  <strong style={{ color: "#ffc400" }}>
+                    {uniqueValues.startPeriod
+                      ? new Date(uniqueValues.startPeriod + "T12:00:00").toLocaleDateString("pt-BR", { month: "short", year: "numeric" })
+                      : "início"} até {uniqueValues.endPeriod
+                      ? new Date(uniqueValues.endPeriod + "T12:00:00").toLocaleDateString("pt-BR", { month: "short", year: "numeric" })
+                      : "fim"}
+                  </strong>.
+                  Não há dados reais separados por mês neste arquivo.
+                </p>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", lineHeight: 1.6, fontWeight: 600 }}>
+                  ✅ Para consultar mês a mês com dados reais:
+                </p>
+                <ol style={{ color: "var(--text-muted)", fontSize: "0.78rem", lineHeight: 1.8, paddingLeft: "20px", margin: "4px 0 0" }}>
+                  <li>Acesse o <strong style={{ color: "var(--text)" }}>Gerenciador de Anúncios do Meta</strong></li>
+                  <li>Clique em <strong style={{ color: "var(--text)" }}>Relatórios</strong> → <strong style={{ color: "var(--text)" }}>Exportar tabela como CSV</strong></li>
+                  <li>Em <strong style={{ color: "var(--text)" }}>Detalhamento</strong>, selecione <strong style={{ color: "#7cf7be" }}>"Tempo → Mês"</strong> ou <strong style={{ color: "#7cf7be" }}>"Tempo → Dia"</strong></li>
+                  <li>Exporte e importe aqui — cada linha terá o mês real com seus dados</li>
+                </ol>
+              </div>
+            </div>
+          )}
 
           <KpiGrid totals={totals} />
 
@@ -1668,8 +1908,12 @@ export default function Home() {
 
             {/* Step Indicators */}
             <div className="wizard-steps-indicator">
-              <div className={`wizard-step-indicator-item ${wizardStep === "preview_mapping" ? "active" : "done"}`}>
-                <span className="circle">1</span> Mapeamento & Preview
+              {/* C-07 FIX: Indicator correctly shows error state — not "done" — when wizard failed */}
+              <div className={`wizard-step-indicator-item ${
+                wizardStep === "preview_mapping" ? "active" :
+                wizardStep === "error" ? "error" : "done"
+              }`}>
+                <span className="circle">1</span> Mapeamento &amp; Preview
               </div>
               <div className={`wizard-step-indicator-item ${wizardStep === "processing" ? "active" : wizardStep === "success" ? "done" : ""}`}>
                 <span className="circle">2</span> Processamento Assíncrono
@@ -1744,7 +1988,13 @@ export default function Home() {
                       {WIZARD_STANDARD_FIELDS.map((field) => {
                         const isMapped = !!wizardMapping[field.key];
                         return (
-                          <div key={field.key} className="wizard-mapping-item" style={{ borderLeft: isMapped ? "3px solid var(--blue)" : "3px solid #ff453a" }}>
+                          <div key={field.key} className="wizard-mapping-item" style={{
+                            borderLeft: isMapped
+                              ? "3px solid var(--blue)"
+                              : field.required
+                                ? "3px solid #ff453a"   // Obrigatório + não mapeado → vermelho
+                                : "3px solid var(--border, #333)" // Opcional + não mapeado → cinza neutro
+                          }}>
                             <div className="wizard-mapping-label-row">
                               <span className="wizard-mapping-field-name">
                                 {field.label} {field.required && <span className="wizard-mapping-field-required">Obrigatório</span>}

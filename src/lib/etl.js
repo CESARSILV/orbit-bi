@@ -3,28 +3,53 @@ import readXlsxFile from "read-excel-file/browser";
 export function sanitizeMojibake(str) {
   if (str === undefined || str === null) return str;
   let s = String(str);
-  
+
+  // Primary byte-pair mojibake replacements (UTF-8 decoded as Latin-1)
   s = s
-    .replaceAll("Ão", "ão")
+    .replaceAll("\u00C3\u00A9", "\u00E9") // Ã© → é
+    .replaceAll("\u00C3\u00A3", "\u00E3") // Ã£ → ã
+    .replaceAll("\u00C3\u00A7", "\u00E7") // Ã§ → ç
+    .replaceAll("\u00C3\u00B3", "\u00F3") // Ã³ → ó
+    .replaceAll("\u00C3\u00B5", "\u00F5") // Ãµ → õ
+    .replaceAll("\u00C3\u00BA", "\u00FA") // Ãº → ú
+    .replaceAll("\u00C3\u00AA", "\u00EA") // Ãª → ê
+    .replaceAll("\u00C3\u00A1", "\u00E1") // Ã¡ → á
+    .replaceAll("\u00C3\u00A2", "\u00E2") // Ã¢ → â
+    // FIX: previously missing characters
+    .replaceAll("\u00C3\u00AD", "\u00ED") // Ã­ → í  (crucial for 'Início')
+    .replaceAll("\u00C3\u00A0", "\u00E0") // Ã  → à  (with non-breaking space)
+    .replaceAll("\u00C3\u00B4", "\u00F4") // Ã´ → ô
+    .replaceAll("\u00C3\u00B6", "\u00F6") // Ã¶ → ö
+    .replaceAll("\u00C3\u00BC", "\u00FC") // Ã¼ → ü
+    // Uppercase accented characters
+    .replaceAll("\u00C3\u0089", "\u00C9") // Ã‰ → É
+    .replaceAll("\u00C3\u0081", "\u00C1") // Ã\u0081 → Á
+    .replaceAll("\u00C3\u008D", "\u00CD") // Ã\u008D → Í
+    .replaceAll("\u00C3\u0093", "\u00D3") // Ã\u0093 → Ó
+    .replaceAll("\u00C3\u009A", "\u00DA") // Ã\u009A → Ú
+    .replaceAll("\u00C3\u0083", "\u00C3") // Ã\u0083 → Ã
+    .replaceAll("\u00C3\u0087", "\u00C7") // Ã\u0087 → Ç
+    // Legacy string-based replacements (fallback for some exports)
+    .replaceAll("\u00C3o", "\u00E3o") // Ão → ão (some Windows-1252 exports)
+    .replaceAll("Ã©", "é")
     .replaceAll("Ã£", "ã")
     .replaceAll("Ãº", "ú")
     .replaceAll("Ã§", "ç")
     .replaceAll("Ã³", "ó")
     .replaceAll("Ãµ", "õ")
-    .replaceAll("Ã©", "é")
     .replaceAll("Ãª", "ê")
     .replaceAll("Ã¡", "á")
     .replaceAll("Ã¢", "â");
 
   s = s
-    .replace(/inÃc/gi, "iníc")
-    .replace(/inãc/gi, "iníc")
-    .replace(/mÃdi/gi, "mídi")
-    .replace(/mãdi/gi, "mídi")
-    .replace(/perÃod/gi, "períod")
-    .replace(/perãod/gi, "períod")
-    .replace(/tÃtul/gi, "títul")
-    .replace(/tãtul/gi, "títul");
+    .replace(/in\u00C3c/gi, "in\u00EDc") // inÃc → iníc
+    .replace(/in\u00E3c/gi, "in\u00EDc") // inãc → iníc (post-mojibake)
+    .replace(/m\u00C3di/gi, "m\u00EDdi") // mÃdi → mídi
+    .replace(/m\u00E3di/gi, "m\u00EDdi") // mãdi → mídi
+    .replace(/per\u00C3od/gi, "per\u00EDod") // perÃod → períod
+    .replace(/per\u00E3od/gi, "per\u00EDod") // perãod → períod
+    .replace(/t\u00C3tul/gi, "t\u00EDtul") // tÃtul → títul
+    .replace(/t\u00E3tul/gi, "t\u00EDtul"); // tãtul → títul
 
   return s;
 }
@@ -95,30 +120,41 @@ export function parseDate(val) {
   if (!val) return null;
   if (val instanceof Date) return val;
 
-  const str = String(val).toLowerCase().trim();
+  const str = String(val).trim();
   if (str === "" || str === "-") return null;
 
-  // Try parsing ISO date
+  // FIX: Handle ISO YYYY-MM-DD as LOCAL date to avoid UTC timezone offset (e.g. 2025-10-01 UTC = 2025-09-30 in UTC-3)
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    return new Date(parseInt(isoMatch[1], 10), parseInt(isoMatch[2], 10) - 1, parseInt(isoMatch[3], 10));
+  }
+
+  // FIX: Handle YYYY-MM (monthly segmentation export — e.g. Meta Ads "Detalhamento por Mês")
+  // Value is like "2025-10" — treat as first day of that month
+  const isoMonthMatch = str.match(/^(\d{4})-(\d{2})$/);
+  if (isoMonthMatch) {
+    return new Date(parseInt(isoMonthMatch[1], 10), parseInt(isoMonthMatch[2], 10) - 1, 1);
+  }
+
+  const strLower = str.toLowerCase();
+
+  // Try parsing ISO date with time component (keep UTC behavior for full timestamps)
   let d = new Date(val);
-  if (!isNaN(d.getTime())) {
+  if (!isNaN(d.getTime()) && str.includes("T")) {
     return d;
   }
 
-  // Handle qua., 1 de abr. de 2026
-  // Handle 1 de abr. de 2026
-  // Handle 01/04/2026
-  // Handle 01-04-2026
-  const cleanStr = str.replace(/[.,]/g, "").replace(/\s+/g, " ");
+  // Handle 'qua., 1 de abr. de 2026' / '1 de abr. de 2026'
+  const cleanStr = strLower.replace(/[.,]/g, "").replace(/\s+/g, " ");
   
   // Check for day/month/year patterns
   if (cleanStr.includes(" de ")) {
-    const parts = cleanStr.split(" de "); // [ "1", "abr", "2026" ] or [ "qua 1", "abr", "2026" ]
+    const parts = cleanStr.split(" de ");
     if (parts.length >= 3) {
       let dayPart = parts[0].trim();
       const monthPart = parts[1].trim();
       const yearPart = parts[2].trim();
 
-      // Extract day number (e.g. from "qua 1")
       const dayMatch = dayPart.match(/\d+/);
       const day = dayMatch ? parseInt(dayMatch[0], 10) : 1;
       const month = MONTH_MAP_PT[monthPart] !== undefined ? MONTH_MAP_PT[monthPart] : 0;
@@ -128,7 +164,7 @@ export function parseDate(val) {
     }
   }
 
-  // Check 01/04/2026 or 01-04-2026
+  // Check DD/MM/YYYY or MM/DD/YYYY — use cleanStr which is already lowercased
   const slashParts = cleanStr.split(/[\/\-]/);
   if (slashParts.length === 3) {
     const p0 = parseInt(slashParts[0], 10);
@@ -136,11 +172,31 @@ export function parseDate(val) {
     const p2 = parseInt(slashParts[2], 10);
 
     if (p2 > 999) {
-      // DD/MM/YYYY or MM/DD/YYYY. We assume DD/MM/YYYY for standard Brazilian reports
-      const day = p0;
-      const month = p1 - 1; // 0-indexed
-      const year = p2;
-      return new Date(year, month, day);
+      // M-03 FIX: Smart detection of BR (DD/MM/YYYY) vs US (MM/DD/YYYY)
+      // If p1 > 12, it cannot be a month → must be DD/MM/YYYY
+      // If p0 > 12, it cannot be a day → must be MM/DD/YYYY (US format)
+      // Default: assume DD/MM/YYYY for Brazilian exports
+      if (p0 > 12) {
+        // Must be MM/DD/YYYY (US format — p0 is month > 12 is invalid, so p0 is the month)
+        // Actually p0 > 12 means p0 is NOT a valid month → it is a day in DD/MM/YYYY
+        // Correction: if p1 > 12, p1 cannot be month → p1 is day → MM/DD/YYYY
+        const month = p0 - 1;
+        const day = p1;
+        const year = p2;
+        return new Date(year, month, day);
+      } else if (p1 > 12) {
+        // p1 > 12 means p1 is a day → format is MM/DD/YYYY (US)
+        const month = p0 - 1;
+        const day = p1;
+        const year = p2;
+        return new Date(year, month, day);
+      } else {
+        // Ambiguous — default to Brazilian DD/MM/YYYY
+        const day = p0;
+        const month = p1 - 1;
+        const year = p2;
+        return new Date(year, month, day);
+      }
     } else if (p0 > 999) {
       // YYYY/MM/DD
       const year = p0;
@@ -325,28 +381,227 @@ export function detectDataset(platform, rowKeys) {
 // ----------------------------------------------------
 
 export const SYNONYMS = {
-  campaign_name: ["campanha", "campaign", "nome da campanha", "nome_da_campanha", "campanhas", "campaign name", "campaña", "nome", "name", "campaign name ", "campaign name", "campaign_name", "nome_campanha"],
-  spend: ["investimento", "investimento (brl)", "custo", "spend", "cost", "valor usado", "quantia gasta", "valor usado (brl)", "valor gasto", "valor gasto (brl)", "amount spent", "amount spent (brl)", "imputação de custo", "gasto", "gastos", "valor_usado", "valor_gasto", "custo_total", "total cost"],
-  clicks: ["cliques", "clicks", "click", "cliques (todos)", "cliques (no link)", "link clicks", "cliques no link", "clique", "cliques_no_link", "clicks (all)", "cliques totais", "cliques_totais", "total clicks", "total_clicks"],
-  impressions: ["impressões", "impressoes", "impressions", "impr.", "impr", "impressões (todos)", "visualizações", "views"],
-  conversions: ["conversoes", "conversões", "conversions", "compras", "purchases", "resultados", "results", "leads", "compras no site", "website purchases", "purchase", "compras (pixel do facebook)", "compras no facebook", "leads (formulário)", "leads (formulario)", "cadastros", "conversões de compras", "leads_total", "conversões totais"],
-  ctr: ["ctr", "ctr (todos)", "ctr (all)", "taxa de cliques", "click-through rate", "taxa de clique", "taxa_de_clique", "ctr_total"],
-  cpc: ["cpc", "cpc méd.", "cpc médio", "cpc (todos)", "cpc (all)", "cost per click", "cpc_medio", "cpc_med"],
-  reach: ["alcance", "reach", "pessoas alcançadas", "alcance total"],
-  frequency: ["frequência", "frequencia", "frequency", "freq", "frequência média"],
-  revenue: ["receita", "receita (brl)", "revenue", "valor de conversão", "valor de conversão de compras", "conversões (valor)", "valor das conversões", "valor total de conversões", "valor de compra", "valor de compras", "purchase value", "purchase conversion value", "website purchase conversion value", "valor de conversão de todas as conversões", "all conv. value", "valor de conversão de compras no site", "valor de conversão de compras no facebook", "valor de conversão de compras (brl)", "valor de conversão de compras no site (brl)", "compras no site (valor de conversão)", "compras (valor de conversão)", "conversion value", "conversion_value", "valor_conversao", "receita_total", "total revenue"],
-  device: ["dispositivo", "device", "equipamento", "tipo de dispositivo", "device category"],
-  gender: ["sexo", "gender", "gênero", "genero", "gêneros"],
-  age_range: ["faixa de idade", "age", "idade", "faixa etária", "faixa etaria", "age range", "age_range", "faixa_etaria", "grupo_idade"],
-  keyword: ["palavra-chave", "keyword", "palavra-chave da rede de pesquisa", "palavras-chave", "palavra chave", "palavras chave", "keyword_name"],
-  search_term: ["termo de pesquisa", "search term", "pesquisa do google", "pesquisar", "termo pesquisado", "termo", "search_term", "query", "pesquisa_usuario"],
-  network: ["rede", "network", "rede de publicidade", "rede com parceiros de pesquisa", "canal", "network_type", "posicionamento", "placement", "posicionamentos", "plataforma de posicionamento", "placement_platform", "posicionamento e dispositivo"],
-  date: ["data", "date", "dia", "day", "início dos relatórios", "inicio dos relatorios", "reporting starts", "reporting start", "data_inicio", "start_date", "dia da semana", "day of week"],
-  hour: ["hora", "hour", "hora de início", "hour of day", "hora de inicio", "horário", "horario", "hora_dia"],
-  status: ["status", "estado", "situação", "delivery", "veiculação", "veiculacao", "status da campanha", "veiculação da campanha", "status_campanha"],
-  adset_name: ["nome do conjunto de anúncios", "nome do conjunto de anuncios", "conjunto de anúncios", "conjunto de anuncios", "ad set name", "adset name", "adset", "nome_do_conjunto", "conjunto", "ad set", "ad_set", "adset_name", "adset_id"],
-  ad_name: ["nome do anúncio", "nome do anuncio", "anúncio", "anuncio", "ad name", "ad", "nome_do_anuncio", "anuncio_nome", "ad_name", "ad_id", "anúncios"],
-  placement: ["posicionamento", "placement", "posicionamentos", "plataforma de posicionamento", "placement_platform", "canal", "posicionamento e dispositivo"]
+  // ---- CORE METRICS ----
+  campaign_name: [
+    // Meta Ads
+    "Nome da campanha", "nome da campanha", "nome_da_campanha", "campanhas",
+    // Google Ads
+    "Campaign", "campaign", "Campaign name", "campaign name",
+    // Generic
+    "Campanha", "campanha", "nome", "name", "campaign_name", "nome_campanha"
+  ],
+  spend: [
+    // Meta Ads exact column names
+    "Valor usado (BRL)", "valor usado (brl)", "Valor usado", "valor usado",
+    "Valor gasto (BRL)", "valor gasto (brl)", "Valor gasto", "valor gasto",
+    // Google Ads exact column names
+    "Custo", "custo", "Imputação de custo", "imputação de custo", "imputacao de custo",
+    // English / Generic
+    "Cost", "cost", "Spend", "spend", "Amount spent", "amount spent",
+    "Amount Spent (BRL)", "amount spent (brl)",
+    // Other
+    "Investimento", "investimento", "Investimento (BRL)", "investimento (brl)",
+    "Gasto", "gasto", "gastos", "custo_total", "total cost", "valor_usado", "valor_gasto"
+  ],
+  clicks: [
+    // Meta Ads exact
+    "Cliques (todos)", "cliques (todos)", "Cliques no link", "cliques no link",
+    "Cliques", "cliques", "Clique", "clique",
+    // Google Ads exact
+    "Cliques", "cliques",
+    // English
+    "Clicks", "clicks", "Link Clicks", "link clicks", "Clicks (all)", "clicks (all)",
+    // Other
+    "Cliques Totais", "cliques totais", "cliques_no_link", "cliques_totais", "total clicks", "total_clicks"
+  ],
+  impressions: [
+    // Meta Ads exact
+    "Impressões", "impressões", "Impressões (todos)", "impressões (todos)",
+    // Generic
+    "Impressoes", "impressoes", "Impr.", "impr.", "impr",
+    // English
+    "Impressions", "impressions", "Views", "views", "Visualizações", "visualizações"
+  ],
+  conversions: [
+    // Meta Ads exact — 'Resultados' é o campo principal de conversões no Meta
+    "Resultados", "resultados", "Results", "results",
+    // Compras / e-commerce
+    "Compras", "compras", "Purchases", "purchases", "Purchase", "purchase",
+    "Compras no site", "compras no site", "Website purchases", "website purchases",
+    "Compras (pixel do Facebook)", "compras (pixel do facebook)",
+    "Compras no Facebook", "compras no facebook",
+    "Conversões de compras", "conversões de compras",
+    // Google Ads
+    "Conversões", "conversões", "Conversoes", "conversoes",
+    "Conversões totais", "conversões totais", "Todas as conversões", "todas as conversões",
+    // English
+    "Conversions", "conversions", "Total conversions", "total conversions", "All conversions", "all conversions"
+  ],
+  leads: [
+    // Meta Ads exact
+    "Leads (formulário)", "leads (formulário)", "Leads (formulario)", "leads (formulario)",
+    "Cadastros de lead", "cadastros de lead",
+    // Generic
+    "Leads", "leads", "Lead", "lead",
+    "Leads totais", "leads totais", "Leads gerados", "leads gerados",
+    "Leads_total", "leads_total", "Cadastros", "cadastros",
+    "Contatos", "contatos", "Formulários preenchidos", "formulários preenchidos",
+    "Form leads", "form leads", "Lead gen", "lead gen", "Lead form", "lead form",
+    "Captações", "captações"
+  ],
+  revenue: [
+    // Meta Ads exact
+    "Valor de conversão de compras", "valor de conversão de compras",
+    "Valor de conversão de compras (BRL)", "valor de conversão de compras (brl)",
+    "Compras no site (valor de conversão)", "compras no site (valor de conversão)",
+    "Compras (valor de conversão)", "compras (valor de conversão)",
+    "Valor de conversão de compras no site", "valor de conversão de compras no site",
+    "Valor de conversão de compras no Facebook", "valor de conversão de compras no facebook",
+    // Google Ads exact
+    "Valor de conv. / custo", "valor de conv. / custo",
+    "All conv. value", "all conv. value",
+    "Valor das conversões", "valor das conversões",
+    "Valor total de conversões", "valor total de conversões",
+    "Valor de conversão de todas as conversões", "valor de conversão de todas as conversões",
+    // Generic
+    "Receita", "receita", "Receita (BRL)", "receita (brl)",
+    "Revenue", "revenue", "Conversion value", "conversion value",
+    "Purchase value", "purchase value", "Purchase conversion value", "purchase conversion value",
+    "Website purchase conversion value", "website purchase conversion value",
+    "Valor de compra", "valor de compra", "Valor de compras", "valor de compras",
+    "Conversões (valor)", "conversões (valor)", "valor_conversao", "receita_total", "total revenue"
+  ],
+  ctr: [
+    // Meta Ads exact
+    "CTR (todos)", "ctr (todos)", "CTR (all)", "ctr (all)",
+    "CTR (link)", "ctr (link)",
+    // Generic
+    "CTR", "ctr", "Taxa de cliques", "taxa de cliques",
+    "Click-through rate", "click-through rate", "Taxa de clique", "taxa de clique",
+    "taxa_de_clique", "ctr_total"
+  ],
+  cpc: [
+    // Meta Ads exact — 'Custo por resultados' = CPA do Meta (custo por resultado obtido)
+    "CPC (todos)", "cpc (todos)", "CPC (all)", "cpc (all)",
+    "Custo por resultados", "custo por resultados",
+    "Custo por resultado", "custo por resultado",
+    // Google Ads exact
+    "CPC méd.", "cpc méd.", "CPC médio", "cpc médio",
+    // Generic
+    "CPC", "cpc", "Cost per click", "cost per click", "cpc_medio", "cpc_med"
+  ],
+  reach: [
+    // Meta Ads exact
+    "Alcance", "alcance", "Pessoas alcançadas", "pessoas alcançadas",
+    // English
+    "Reach", "reach", "Alcance total", "alcance total"
+  ],
+  frequency: [
+    // Meta Ads exact
+    "Frequência", "frequência", "Frequencia", "frequencia",
+    // Generic
+    "Frequency", "frequency", "Freq", "freq", "Frequência média", "frequência média"
+  ],
+  date: [
+    // Meta Ads com segmentação por MÊS — coluna chama-se 'Mês'
+    "Mês", "mês", "Mes", "mes", "Month", "month",
+    "Mês do relatório", "mês do relatório",
+    // Meta Ads com segmentação por DIA — coluna chama-se 'Início dos relatórios'
+    "Início dos relatórios", "início dos relatórios",
+    "Inicio dos relatorios", "inicio dos relatorios",
+    // Google Ads
+    "Dia", "dia", "Day", "day", "Data", "data", "Date", "date",
+    "Reporting starts", "reporting starts", "Reporting start", "reporting start",
+    "data_inicio", "start_date",
+    "Dia da semana", "dia da semana", "Day of week", "day of week"
+  ],
+  hour: [
+    "Hora", "hora", "Hour", "hour",
+    "Hora de início", "hora de início", "Hour of day", "hour of day",
+    "Hora de inicio", "hora de inicio", "Horário", "horário", "Horario", "horario", "hora_dia"
+  ],
+  status: [
+    // Meta Ads exact
+    "Veiculação da campanha", "veiculação da campanha",
+    "Veiculação", "veiculação", "Veiculacao", "veiculacao",
+    // Generic
+    "Status", "status", "Estado", "estado", "Situação", "situação",
+    "Delivery", "delivery", "Status da campanha", "status da campanha", "status_campanha"
+  ],
+  adset_name: [
+    // Meta Ads exact
+    "Nome do conjunto de anúncios", "nome do conjunto de anúncios",
+    "Nome do conjunto de anuncios", "nome do conjunto de anuncios",
+    // English
+    "Ad Set Name", "ad set name", "Ad Set", "ad set", "Adset name", "adset name",
+    // Generic
+    "Conjunto de anúncios", "conjunto de anúncios", "Conjunto de anuncios", "conjunto de anuncios",
+    "adset", "nome_do_conjunto", "conjunto", "ad_set", "adset_name", "adset_id"
+  ],
+  ad_name: [
+    // Meta Ads exact
+    "Nome do anúncio", "nome do anúncio",
+    "Nome do anuncio", "nome do anuncio",
+    // English
+    "Ad Name", "ad name", "Ad", "ad",
+    // Generic
+    "Anúncio", "anúncio", "Anuncio", "anuncio",
+    "nome_do_anuncio", "anuncio_nome", "ad_name", "ad_id", "Anúncios", "anúncios"
+  ],
+  placement: [
+    // Meta Ads exact
+    "Posicionamento", "posicionamento", "Posicionamentos", "posicionamentos",
+    "Plataforma de posicionamento", "plataforma de posicionamento",
+    "Posicionamento e dispositivo", "posicionamento e dispositivo",
+    // English
+    "Placement", "placement",
+    // Generic
+    "Canal", "canal", "placement_platform"
+  ],
+  device: [
+    // Meta Ads / Google Ads
+    "Dispositivo", "dispositivo", "Device", "device",
+    "Equipamento", "equipamento",
+    "Tipo de dispositivo", "tipo de dispositivo", "Device category", "device category"
+  ],
+  gender: [
+    "Sexo", "sexo", "Gender", "gender",
+    "Gênero", "gênero", "Genero", "genero", "Gêneros", "gêneros"
+  ],
+  age_range: [
+    "Faixa de idade", "faixa de idade", "Age range", "age range",
+    "Idade", "idade", "Age", "age",
+    "Faixa etária", "faixa etária", "Faixa etaria", "faixa etaria",
+    "age_range", "faixa_etaria", "grupo_idade"
+  ],
+  keyword: [
+    // Google Ads exact
+    "Palavra-chave da Rede de Pesquisa", "palavra-chave da rede de pesquisa",
+    "Palavra-chave", "palavra-chave", "Palavras-chave", "palavras-chave",
+    // English
+    "Keyword", "keyword", "Keyword name", "keyword name",
+    // Generic
+    "Palavra chave", "palavra chave", "Palavras chave", "palavras chave", "keyword_name"
+  ],
+  search_term: [
+    // Google Ads exact
+    "Pesquisa do Google", "pesquisa do google",
+    "Termo de pesquisa", "termo de pesquisa",
+    // Generic
+    "Search term", "search term", "Pesquisar", "pesquisar",
+    "Termo pesquisado", "termo pesquisado", "Termo", "termo",
+    "search_term", "query", "pesquisa_usuario"
+  ],
+  network: [
+    // Google Ads exact
+    "Rede", "rede", "Rede com parceiros de pesquisa", "rede com parceiros de pesquisa",
+    "Rede de publicidade", "rede de publicidade",
+    // Generic
+    "Network", "network", "Network type", "network type",
+    "network_type", "posicionamento", "Posicionamento", "placement", "Placement",
+    "posicionamentos", "Posicionamentos", "plataforma de posicionamento",
+    "Plataforma de posicionamento", "placement_platform", "posicionamento e dispositivo", "Canal", "canal"
+  ]
 };
 
 export function getSemanticValue(row, targetField, defaultValue = undefined) {
@@ -367,6 +622,7 @@ export function getSemanticValue(row, targetField, defaultValue = undefined) {
 // File Content Parsing (CSV/Excel)
 // ----------------------------------------------------
 
+// BP-08 FIX: RFC 4180 compliant CSV parser supporting double-quote escape ("")
 export function splitCsvLine(line, delimiter) {
   const result = [];
   let current = "";
@@ -374,7 +630,13 @@ export function splitCsvLine(line, delimiter) {
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
     if (char === '"') {
-      inQuotes = !inQuotes;
+      // RFC 4180: two consecutive quotes inside a quoted field = literal quote
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++; // skip next quote
+      } else {
+        inQuotes = !inQuotes;
+      }
     } else if (char === delimiter && !inQuotes) {
       result.push(current.trim());
       current = "";
@@ -428,8 +690,10 @@ export function parseCsv(text) {
   const headerLine = rawLines[headerLineIndex];
   const delimiter = bestDelimiter;
 
+  // FIX: Keep original header case for display in the wizard dropdown
+  // Matching is done case-insensitively everywhere (detectPlatform, detectDataset, getSemanticValue, wizard auto-mapping)
   const headers = splitCsvLine(headerLine, delimiter).map((item) =>
-    sanitizeMojibake(item.replace(/^["']|["']$/g, "").trim()).toLowerCase()
+    sanitizeMojibake(item.replace(/^["']|["']$/g, "").trim())
   );
 
   const dataLines = rawLines.slice(headerLineIndex + 1);
@@ -464,9 +728,10 @@ export async function parseExcelFile(file) {
     }
   });
 
+  // FIX: Keep original header case for display in the wizard dropdown
   const headers = rawRows[headerIndex].map((header, index) => {
-    const value = sanitizeMojibake(String(header || "").trim()).toLowerCase();
-    return value || `coluna_${index + 1}`;
+    const value = sanitizeMojibake(String(header || "").trim());
+    return value || `Coluna_${index + 1}`;
   });
 
   return rawRows.slice(headerIndex + 1).map((row) =>
@@ -525,6 +790,7 @@ export function inferReferenceMonth(fileName, rows) {
   return `${year}-${month}`;
 }
 
+// BP-07 FIX: Extended to cover more Meta Ads footer/header row patterns
 export function isTotalOrMetadata(name) {
   if (!name) return true;
   const lowercaseName = String(name).toLowerCase().trim();
@@ -538,7 +804,19 @@ export function isTotalOrMetadata(name) {
     lowercaseName.startsWith("period:") ||
     lowercaseName.includes("filtros aplicados") ||
     lowercaseName.includes("relatório gerado") ||
-    lowercaseName.includes("gerado em")
+    lowercaseName.includes("gerado em") ||
+    // Meta Ads specific footer patterns
+    lowercaseName.startsWith("resultados encontrados:") ||
+    lowercaseName.startsWith("configuração de atribuição:") ||
+    lowercaseName.startsWith("configuracao de atribuicao:") ||
+    lowercaseName.startsWith("orçamento") ||
+    lowercaseName.startsWith("orcamento") ||
+    lowercaseName.includes("account id") ||
+    lowercaseName.includes("account name") ||
+    lowercaseName === "soma de resultados" ||
+    lowercaseName === "encerramento dos relatórios" ||
+    lowercaseName === "início dos relatórios" ||
+    (lowercaseName.startsWith("\"encerramento") || lowercaseName.startsWith("encerramento dos"))
   );
 }
 
@@ -628,7 +906,9 @@ export async function processUploadFile(file) {
       const clicks = Math.round(parseFormattedFloat(getSemanticValue(row, "clicks", 0)));
       const impressions = Math.round(parseFormattedFloat(getSemanticValue(row, "impressions", 0)));
       const conversions = Math.round(parseFormattedFloat(getSemanticValue(row, "conversions", 0)));
-      const leads = Math.round(parseFormattedFloat(getSemanticValue(row, "conversions", 0))); // map leads to conversions as fallback
+      // C-03 FIX: leads reads its own dedicated column; fallback to conversions only if leads column is absent
+      const leadsRaw = Math.round(parseFormattedFloat(getSemanticValue(row, "leads", -1)));
+      const leads = leadsRaw >= 0 ? leadsRaw : conversions;
       const reach = Math.round(parseFormattedFloat(getSemanticValue(row, "reach", 0)));
       const frequency = parseFormattedFloat(getSemanticValue(row, "frequency", 0));
       const revenue = parseFormattedFloat(getSemanticValue(row, "revenue", 0));

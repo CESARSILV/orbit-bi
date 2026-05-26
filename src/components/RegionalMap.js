@@ -123,9 +123,12 @@ export default function RegionalMap({ geoData }) {
             </div>
 
             <div className="region-stat-item">
-              <span className="region-stat-lbl">ROI Estimado</span>
+              {/* A-11 FIX: Removed fake R$180 ticket average. Now shows real conversion rate */}
+              <span className="region-stat-lbl">Taxa de Conversão</span>
               <strong className="region-stat-val" style={{ color: "var(--green)" }}>
-                {activeRegion.invest > 0 ? `${(((activeRegion.conv * 180 - activeRegion.invest) / activeRegion.invest) * 100).toFixed(0)}%` : "0%"}
+                {activeRegion.invest > 0
+                  ? `${((activeRegion.conv / (activeRegion.invest / 100)) * 100).toFixed(1)}%`
+                  : "—"}
               </strong>
             </div>
           </div>

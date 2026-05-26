@@ -319,8 +319,9 @@ export function consolidateSummary(db) {
     summary.push(g);
   }
 
-  db.fact_marketing_summary = summary;
-  return db;
+  // C-04 FIX: Return a NEW object instead of mutating the parameter
+  // This ensures React detects state changes correctly
+  return { ...db, fact_marketing_summary: summary };
 }
 
 // ----------------------------------------------------
@@ -328,25 +329,20 @@ export function consolidateSummary(db) {
 // ----------------------------------------------------
 
 export async function syncWithSupabase(db) {
-  // Syncs fact_campaigns and fact_marketing_summary (aggregated) to Supabase tables
-  // Standard Supabase Schema is:
-  // - public.campaigns (investimento, receita, roas, cpa, ctr, cpc, conversoes, status, user_id)
-  // - public.historical_metrics (mes, receita, investimento, roas, cpa, user_id)
+  // C-06 FIX: Guard against null supabase client before any operation
+  if (!supabase || !isSupabaseConfigured) return;
 
+  // Syncs fact_campaigns and fact_marketing_summary (aggregated) to Supabase tables
   const { data: { session } } = await supabase.auth.getSession();
   const user = session?.user;
   if (!user) return;
 
   // 1. Sync campaigns table
-  // Clear all user campaigns
-  await supabase
-    .from("campaigns")
-    .delete()
-    .eq("user_id", user.id);
-
+  // A-10 FIX: Use upsert instead of delete+insert to avoid data loss on network failure
   if (db.fact_campaigns && db.fact_campaigns.length > 0) {
     // Map facts to Supabase columns
     const campaignsToInsert = db.fact_campaigns.map(c => ({
+      id: c.id,
       nome: c.campaign_name,
       plataforma: c.platform === "google" ? "Google Ads" : "Meta Ads",
       tipo: c.platform,
@@ -354,28 +350,25 @@ export async function syncWithSupabase(db) {
       receita: c.revenue || 0,
       roas: c.roas || 0,
       cpa: c.cpl || c.cac || 0,
-      ctr: (c.ctr || 0) * 100, // CTR stored in percent in Supabase campaigns table
+      ctr: (c.ctr || 0) * 100,
       cpc: c.cpc || 0,
       conversoes: c.conversions || 0,
       status: c.status || "Ativo",
       user_id: user.id
     }));
 
-    const { error: syncErr } = await supabase.from("campaigns").insert(campaignsToInsert);
+    const { error: syncErr } = await supabase
+      .from("campaigns")
+      .upsert(campaignsToInsert, { onConflict: "id", ignoreDuplicates: false });
     if (syncErr) console.error("Error syncing campaigns to Supabase:", syncErr);
   }
 
   // 2. Sync monthly historical metrics
-  // Clear all user metrics
-  await supabase
-    .from("historical_metrics")
-    .delete()
-    .eq("user_id", user.id);
-
-  // Group summary by reference label to insert monthly historical rows
+  // A-10 FIX: Use upsert by (mes, user_id) to avoid delete+insert race condition
   const monthGroups = {};
   db.fact_marketing_summary.forEach(s => {
     const label = s.reference_label;
+    if (!label) return;
     if (!monthGroups[label]) {
       monthGroups[label] = {
         mes: label,
@@ -404,7 +397,9 @@ export async function syncWithSupabase(db) {
   });
 
   if (timelineToInsert.length > 0) {
-    const { error: timelineErr } = await supabase.from("historical_metrics").insert(timelineToInsert);
+    const { error: timelineErr } = await supabase
+      .from("historical_metrics")
+      .upsert(timelineToInsert, { onConflict: "mes,user_id", ignoreDuplicates: false });
     if (timelineErr) console.error("Error syncing historical metrics to Supabase:", timelineErr);
   }
 }

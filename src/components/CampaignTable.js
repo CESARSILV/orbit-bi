@@ -49,8 +49,8 @@ export default function CampaignTable({ campaigns }) {
                 </td>
               </tr>
             ) : (
-              sortedCampaigns.map((item, index) => (
-                <tr key={index}>
+              sortedCampaigns.map((item) => (
+                <tr key={`${item.tipo}_${item.nome}`}>
                   <td>
                     <strong>{item.nome}</strong>
                   </td>

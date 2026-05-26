@@ -1,18 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 // Formatter helper functions
+// brl: used for large monetary totals (Investimento, Receita) — no decimals
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+// brl2: used for unit costs (CPC, CPL, CAC, CPM) — always 2 decimal places
+const brl2 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const number = new Intl.NumberFormat("pt-BR");
 
 function AnimatedNumber({ value, formatFn }) {
   const [displayValue, setDisplayValue] = useState(0);
+  // A-04 FIX: Track current display value in a ref to avoid stale closure
+  const displayRef = useRef(0);
 
   useEffect(() => {
     let startTimestamp = null;
     const duration = 600; // ms
-    const startValue = displayValue;
+    // Read from ref so we always get the actual current animated value
+    const startValue = displayRef.current;
     const endValue = value;
 
     const step = (timestamp) => {
@@ -21,18 +27,19 @@ function AnimatedNumber({ value, formatFn }) {
       const eased = 1 - Math.pow(1 - progress, 3); // Cubic ease out
       const current = startValue + (endValue - startValue) * eased;
       
+      displayRef.current = current;
       setDisplayValue(current);
 
       if (progress < 1) {
         window.requestAnimationFrame(step);
       } else {
+        displayRef.current = endValue;
         setDisplayValue(endValue);
       }
     };
 
     const animationId = window.requestAnimationFrame(step);
     return () => window.cancelAnimationFrame(animationId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   return <>{formatFn(displayValue)}</>;
@@ -97,45 +104,47 @@ export default function KpiGrid({ totals }) {
     },
     {
       label: "CTR Médio",
-      value: (totals.ctr || 0) * 100, // CTR ratio to percent
+      value: (totals.ctr || 0) * 100,
       formatFn: (v) => `${v.toFixed(2).replace(".", ",")}%`,
       meta: "Taxa de cliques (Clicks/Impr)",
-      accent: "#ffd481", // Amber
+      accent: "#ffd481",
     },
     {
       label: "CPC Médio",
       value: totals.cpc || 0,
-      formatFn: (v) => brl.format(v),
+      // Use brl2 (2 decimal places) so R$0,37 doesn't show as R$0
+      formatFn: (v) => v > 0 ? brl2.format(v) : "R$ —",
       meta: "Custo por clique médio",
-      accent: "#7cf7be", // Green
+      accent: "#7cf7be",
     },
     {
       label: "CPM Médio",
       value: totals.cpm || 0,
-      formatFn: (v) => brl.format(v),
+      formatFn: (v) => v > 0 ? brl2.format(v) : "R$ —",
       meta: "Custo por mil impressões",
-      accent: "#b99cff", // Purple
+      accent: "#b99cff",
     },
     {
       label: "CPL Médio",
       value: totals.cpl || 0,
-      formatFn: (v) => brl.format(v),
+      formatFn: (v) => v > 0 ? brl2.format(v) : "R$ —",
       meta: "Custo por Lead capturado",
-      accent: "#7bb7ff", // Blue
+      accent: "#7bb7ff",
     },
     {
       label: "ROAS Médio",
       value: totals.roas || 0,
       formatFn: (v) => `${v.toFixed(2).replace(".", ",")}x`,
       meta: "Retorno do investimento em anúncio",
-      accent: "#7cf7be", // Green
+      accent: "#7cf7be",
     },
     {
       label: "CAC Médio",
       value: totals.cac || 0,
-      formatFn: (v) => brl.format(v),
+      // Use brl2 (2 decimal places) so R$0,53 doesn't show as R$1
+      formatFn: (v) => v > 0 ? brl2.format(v) : "R$ —",
       meta: "Custo de aquisição por cliente",
-      accent: "#ffd481", // Amber
+      accent: "#ffd481",
     },
     {
       label: "Alcance",
