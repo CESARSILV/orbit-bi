@@ -104,11 +104,31 @@ export default function Home() {
   const [wizardDatasetType, setWizardDatasetType] = useState("campaign_performance");
   const [wizardDetectedMonths, setWizardDetectedMonths] = useState([]); // months found in CSV date column
 
-  const getWizardFields = (platform) => {
+  // Tipos de arquivo que NÃO precisam de Investimento e Campanha como obrigatórios
+  const TIME_OR_SEGMENT_TYPES = [
+    "daily_time_series",
+    "weekday_hour_performance",
+    "weekday_performance",
+    "hourly_performance",
+    "device_performance",
+    "network_performance",
+    "demographics_gender_age",
+    "demographics_age",
+    "demographics_gender",
+    "search_keywords",
+    "search_terms",
+    "geo_performance",
+    "location_performance",
+  ];
+
+  const getWizardFields = (platform, datasetType) => {
+    // Para séries temporais e relatórios segmentados, Investimento e Campanha NÃO são obrigatórios
+    const isSegmented = TIME_OR_SEGMENT_TYPES.includes(datasetType);
+
     // ---- CAMPOS COMUNS A AMBAS AS PLATAFORMAS ----
     const commonBase = [
       { key: "campaign_name", label: "Nome da Campanha", required: false, description: "Coluna que identifica o nome de cada campanha." },
-      { key: "spend",         label: "Investimento / Gasto (Obrigatório)", required: true,  description: "Custo total acumulado da campanha." },
+      { key: "spend",         label: isSegmented ? "Investimento / Gasto" : "Investimento / Gasto (Obrigatório)", required: !isSegmented, description: "Custo total acumulado da campanha." },
       { key: "clicks",        label: "Cliques Totais",    required: false, description: "Total de cliques recebidos (se houver na planilha)." },
       { key: "impressions",   label: "Impressões",        required: false, description: "Total de visualizações dos anúncios." },
       { key: "date",          label: "Data / Período",    required: false, description: "Data ou período de referência (ex: 2025-10-01)." },
@@ -117,8 +137,8 @@ export default function Home() {
     if (platform === "google") {
       // ---- GOOGLE ADS: campos com nomes exatos das colunas do CSV exportado ----
       return [
-        { key: "campaign_name", label: "Campanha (Obrigatório)",          required: false, description: "Coluna 'Campanha' — nome de cada campanha no Google Ads." },
-        { key: "spend",         label: "Investimento (Obrigatório)",      required: true,  description: "Coluna 'Custo' no Google Ads — custo total acumulado." },
+        { key: "campaign_name", label: isSegmented ? "Campanha" : "Campanha (Obrigatório)", required: false, description: "Coluna 'Campanha' — nome de cada campanha no Google Ads." },
+        { key: "spend",         label: isSegmented ? "Investimento" : "Investimento (Obrigatório)", required: !isSegmented, description: "Coluna 'Custo' no Google Ads — custo total acumulado." },
         { key: "clicks",        label: "Cliques / Interações",            required: false, description: "Coluna 'Interações' no relatório padrão do Google Ads (= cliques para Search/Display)." },
         { key: "impressions",   label: "Impressões — 'Impr.'",            required: false, description: "Coluna 'Impr.' no Google Ads — total de exibições dos anúncios." },
         { key: "date",          label: "Mês / Data",                      required: false, description: "Coluna 'Mês' (segmentação por Mês) ou 'Dia'. Formato: 'outubro de 2025' ou YYYY-MM-DD." },
@@ -136,8 +156,6 @@ export default function Home() {
       ];
     } else if (platform === "meta") {
       // ---- META ADS: apenas campos presentes no relatório padrão de campanhas ----
-      // Removidos: CTR, Receita, Frequência, Posicionamento, Dispositivo, Sexo, Faixa de Idade
-      // (não existem no export padrão de campanhas do Meta Ads)
       return [
         ...commonBase,
         { key: "conversions", label: "Resultados / Conversões",           required: false, description: "Total de resultados (compras, leads, etc.) — coluna 'Resultados' no Meta." },
@@ -159,7 +177,7 @@ export default function Home() {
     ];
   };
 
-  const WIZARD_STANDARD_FIELDS = getWizardFields(wizardPlatform);
+  const WIZARD_STANDARD_FIELDS = getWizardFields(wizardPlatform, wizardDatasetType);
 
   const [isIntelligenceUpdating, setIsIntelligenceUpdating] = useState(false);
   const processingFilesRef = useRef(new Set());
