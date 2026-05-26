@@ -490,7 +490,21 @@ export default function Home() {
 
   // A-03 FIX: Memoized campaign grouped list
   const filteredCampaigns = useMemo(() => {
-    const list = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
+    // Exclui linhas com nome de campanha vazio, só traços, ou sem nenhum gasto histórico.
+    // Entradas com nome vazio vêm de arquivos de série temporal (ex: "Gráfico de série temporal")
+    // que não têm coluna de campanha — esses dados devem alimentar gráficos de tendência,
+    // não a tabela de campanhas.
+    const isValidCampaignName = (name) => {
+      if (!name) return false;
+      const n = String(name).trim();
+      if (!n) return false;
+      if (/^[-–—\s]+$/.test(n)) return false; // só traços
+      return true;
+    };
+
+    const list = marketingDb.fact_marketing_summary.filter(r =>
+      matchesCoreFilters(r) && isValidCampaignName(r.campaign_name)
+    );
 
     // ── Determinar o mês mais recente com dados por plataforma ──────────────
     // Usamos TODOS os registros da plataforma (sem filtro de período) para encontrar
