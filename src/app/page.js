@@ -1234,8 +1234,12 @@ export default function Home() {
             quarter: enrichedDate.quarter,
             year: enrichedDate.year,
             year_month: enrichedDate.year_month,
-            reference_month,
-            reference_label,
+            // ✅ Use per-row date-derived values, NOT the file-level inference.
+            // This is what makes month-by-month filtering work correctly
+            // when the report has multiple months (e.g. exported with Detalhamento por Mês).
+            reference_month: enrichedDate.reference_month || reference_month,
+            reference_label: enrichedDate.reference_label || reference_label,
+
             hour: isNaN(hourVal) ? null : hourVal,
 
             spend,
