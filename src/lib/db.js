@@ -363,9 +363,45 @@ export function consolidateSummary(db) {
     summary.push(g);
   }
 
+  // AUTO-DERIVE fact_devices from fact_campaigns rows that have device segmentation.
+  // Triggered when fact_devices is empty but campaign rows have a non-empty device field.
+  // This handles Google Ads exports that include "Segment: Device" in the campaign report.
+  let derivedDevices = db.fact_devices || [];
+  if (derivedDevices.length === 0 && db.fact_campaigns && db.fact_campaigns.length > 0) {
+    const deviceRows = db.fact_campaigns.filter(r => r.device && String(r.device).trim() !== "");
+    if (deviceRows.length > 0) {
+      // Group by platform + reference_month + campaign_name + device
+      const devGroups = {};
+      deviceRows.forEach(r => {
+        const key = `${r.platform}_${r.reference_month}_${r.campaign_name}_${r.device}`;
+        if (!devGroups[key]) {
+          devGroups[key] = {
+            platform: r.platform,
+            reference_month: r.reference_month,
+            reference_label: r.reference_label,
+            campaign_name: r.campaign_name,
+            device: r.device,
+            date: r.date || `${r.reference_month}-01`,
+            spend: 0, clicks: 0, impressions: 0, conversions: 0, leads: 0, reach: 0, revenue: 0
+          };
+        }
+        const g = devGroups[key];
+        g.spend       += r.spend       || 0;
+        g.clicks      += r.clicks      || 0;
+        g.impressions += r.impressions || 0;
+        g.conversions += r.conversions || 0;
+        g.leads       += r.leads       || 0;
+        g.reach       += r.reach       || 0;
+        g.revenue     += r.revenue     || 0;
+      });
+      derivedDevices = Object.values(devGroups);
+      console.log(`[DB] Auto-derived ${derivedDevices.length} device records from fact_campaigns.`);
+    }
+  }
+
   // C-04 FIX: Return a NEW object instead of mutating the parameter
   // This ensures React detects state changes correctly
-  return { ...db, fact_marketing_summary: summary };
+  return { ...db, fact_marketing_summary: summary, fact_devices: derivedDevices };
 }
 
 // ----------------------------------------------------
