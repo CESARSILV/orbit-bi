@@ -129,22 +129,38 @@ export async function insertDataset(db, fileMeta, rows, action = "replace") {
 
   // 1. Handle actions for existing data
   if (action === "replace") {
-    // Delete existing records matching this raw_file_name from the target table
-    newDb[targetTable] = newDb[targetTable].filter(
-      r => r.raw_file_name !== fileMeta.raw_file_name
-    );
-    
-    // If saving campaigns, delete campaigns with the same raw_file_name
-    if (targetTable === "fact_campaigns") {
-      newDb.fact_campaigns = newDb.fact_campaigns.filter(
+    // PLATAFORMA-LEVEL REPLACE: ao importar relatório de campanhas,
+    // remove TODOS os dados existentes da mesma plataforma.
+    // Isso evita acúmulo por múltiplas importações, renomeação de arquivo, etc.
+    const isCampaignReport = [
+      "campaign_performance",
+      "meta_campaign_performance",
+      "meta_adset_performance",
+      "meta_ad_performance"
+    ].includes(fileMeta.dataset_type);
+
+    if (isCampaignReport && platform) {
+      // Remove todos os registros da mesma plataforma de todas as tabelas relevantes
+      console.log(`[DB] Replace platform-level: removendo TODOS os dados de '${platform}' antes de inserir novo arquivo.`);
+      newDb.fact_marketing_summary = (newDb.fact_marketing_summary || []).filter(r => r.platform !== platform);
+      newDb.fact_campaigns = (newDb.fact_campaigns || []).filter(r => r.platform !== platform);
+      newDb.fact_time_series = (newDb.fact_time_series || []).filter(r => r.platform !== platform);
+      newDb.fact_devices = (newDb.fact_devices || []).filter(r => r.platform !== platform);
+      newDb.fact_keywords = (newDb.fact_keywords || []).filter(r => r.platform !== platform);
+      newDb.fact_search_terms = (newDb.fact_search_terms || []).filter(r => r.platform !== platform);
+      newDb.fact_networks = (newDb.fact_networks || []).filter(r => r.platform !== platform);
+      newDb.fact_demographics = (newDb.fact_demographics || []).filter(r => r.platform !== platform);
+      // Remove também o log de arquivos desta plataforma
+      newDb.uploaded_files = (newDb.uploaded_files || []).filter(f => f.platform !== platform);
+    } else {
+      // Para outros tipos de dataset (devices, keywords, etc.): dedup por filename
+      newDb[targetTable] = newDb[targetTable].filter(
         r => r.raw_file_name !== fileMeta.raw_file_name
       );
+      newDb.uploaded_files = newDb.uploaded_files.filter(
+        f => f.raw_file_name !== fileMeta.raw_file_name
+      );
     }
-
-    // Remove file from file logs
-    newDb.uploaded_files = newDb.uploaded_files.filter(
-      f => f.raw_file_name !== fileMeta.raw_file_name
-    );
 
   } else if (action === "ignore") {
     // Return early
