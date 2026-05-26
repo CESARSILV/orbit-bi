@@ -429,10 +429,12 @@ export const SYNONYMS = {
     // Meta Ads exact
     "Cliques (todos)", "cliques (todos)", "Cliques no link", "cliques no link",
     "Cliques", "cliques", "Clique", "clique",
-    // Google Ads exact
-    "Cliques", "cliques",
+    // Google Ads PT-BR — relatório padrão de Campanhas usa 'Interações' para cliques
+    "Interações", "interações", "Interacoes", "interacoes",
+    "Interação", "interação",
     // English
     "Clicks", "clicks", "Link Clicks", "link clicks", "Clicks (all)", "clicks (all)",
+    "Interactions", "interactions",
     // Other
     "Cliques Totais", "cliques totais", "cliques_no_link", "cliques_totais", "total clicks", "total_clicks"
   ],
@@ -518,17 +520,23 @@ export const SYNONYMS = {
     // Meta Ads exact
     "CTR (todos)", "ctr (todos)", "CTR (all)", "ctr (all)",
     "CTR (link)", "ctr (link)",
+    // Google Ads PT-BR — relatório padrão usa 'Taxa de interação'
+    "Taxa de interação", "taxa de interação",
+    "Taxa de interacao", "taxa de interacao",
     // Generic
     "CTR", "ctr", "Taxa de cliques", "taxa de cliques",
     "Click-through rate", "click-through rate", "Taxa de clique", "taxa de clique",
     "taxa_de_clique", "ctr_total"
   ],
   cpc: [
-    // Meta Ads exact — 'Custo por resultados' = CPA do Meta (custo por resultado obtido)
+    // Meta Ads exact — 'Custo por resultados' = CPA do Meta
     "CPC (todos)", "cpc (todos)", "CPC (all)", "cpc (all)",
     "Custo por resultados", "custo por resultados",
     "Custo por resultado", "custo por resultado",
-    // Google Ads exact
+    // Google Ads PT-BR — relatório padrão usa 'Custo médio'
+    "Custo médio", "custo médio",
+    "Custo medio", "custo medio",
+    // Google Ads outros formatos
     "CPC méd.", "cpc méd.", "CPC médio", "cpc médio",
     // Generic
     "CPC", "cpc", "Cost per click", "cost per click", "cpc_medio", "cpc_med"
