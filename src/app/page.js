@@ -492,6 +492,19 @@ export default function Home() {
   const filteredCampaigns = useMemo(() => {
     const list = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
 
+    // ── Determinar o mês mais recente com dados por plataforma ──────────────
+    // Usamos TODOS os registros da plataforma (sem filtro de período) para encontrar
+    // o mês mais recente disponível, mesmo que o filtro de período exclua alguns meses.
+    const latestMonthByPlatform = {};
+    (marketingDb.fact_marketing_summary || []).forEach(r => {
+      if (!r.reference_month || !r.platform) return;
+      const cur = latestMonthByPlatform[r.platform];
+      if (!cur || r.reference_month > cur) {
+        latestMonthByPlatform[r.platform] = r.reference_month;
+      }
+    });
+
+    // ── Agrupar registros filtrados por campanha ────────────────────────────
     const grouped = {};
     list.forEach(c => {
       const name = c.campaign_name;
@@ -506,22 +519,47 @@ export default function Home() {
           conversoes: 0,
           cliques: 0,
           impressions: 0,
-          status: c.status || "Ativa"
+          lastMonthWithSpend: null,   // mês mais recente em que houve gasto
         };
       }
       const g = grouped[key];
       g.investimento += c.spend || 0;
-      g.receita += c.revenue || 0;
-      g.conversoes += c.conversions || 0;
-      g.cliques += c.clicks || 0;
-      g.impressions += c.impressions || 0;
+      g.receita      += c.revenue || 0;
+      g.conversoes   += c.conversions || 0;
+      g.cliques      += c.clicks || 0;
+      g.impressions  += c.impressions || 0;
+
+      // Rastrear o mês mais recente com spend > 0 por campanha
+      if ((c.spend || 0) > 0 && c.reference_month) {
+        if (!g.lastMonthWithSpend || c.reference_month > g.lastMonthWithSpend) {
+          g.lastMonthWithSpend = c.reference_month;
+        }
+      }
     });
 
+    // ── Calcular status com base em recência de gasto ──────────────────────
+    // Ativa    → campanha teve gasto no mês mais recente disponível
+    // Pausada  → campanha teve gasto no mês anterior ao mais recente
+    // Encerrada → campanha não teve gasto nos últimos 2+ meses
+    const monthDiff = (a, b) => {
+      if (!a || !b) return 99;
+      const [ay, am] = a.split("-").map(Number);
+      const [by, bm] = b.split("-").map(Number);
+      return (by - ay) * 12 + (bm - am);
+    };
+
     return Object.values(grouped).map(g => {
-      const ctr = g.impressions > 0 ? (g.cliques / g.impressions) * 100 : 0;
-      const cpc = g.cliques > 0 ? g.investimento / g.cliques : 0;
-      const cpa = g.conversoes > 0 ? g.investimento / g.conversoes : 0;
+      const ctr  = g.impressions > 0 ? (g.cliques / g.impressions) * 100 : 0;
+      const cpc  = g.cliques > 0 ? g.investimento / g.cliques : 0;
+      const cpa  = g.conversoes > 0 ? g.investimento / g.conversoes : 0;
       const roas = g.investimento > 0 ? g.receita / g.investimento : 0;
+
+      const latestMonth = latestMonthByPlatform[g.tipo];
+      const diff = monthDiff(g.lastMonthWithSpend, latestMonth);
+      let status;
+      if (diff === 0)      status = "Ativa";
+      else if (diff === 1) status = "Pausada";
+      else                 status = "Encerrada";
 
       return {
         nome: g.nome,
@@ -534,7 +572,8 @@ export default function Home() {
         ctr,
         cpc,
         conversoes: g.conversoes,
-        status: g.status
+        status,
+        lastMonthWithSpend: g.lastMonthWithSpend,
       };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps

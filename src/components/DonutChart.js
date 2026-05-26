@@ -110,6 +110,11 @@ export default function DonutChart({ campaigns }) {
   const googleCPA    = googleConv > 0 ? google / googleConv : 0;
   const metaCPA      = metaConv  > 0 ? meta   / metaConv   : 0;
 
+  const googleActive = campaigns.filter(c => c.tipo === "google" && c.status === "Ativa").length;
+  const metaActive   = campaigns.filter(c => c.tipo === "meta"   && c.status === "Ativa").length;
+  const googleTotal  = campaigns.filter(c => c.tipo === "google").length;
+  const metaTotal    = campaigns.filter(c => c.tipo === "meta").length;
+
   const googlePct = totalInvest > 0 ? Math.round((google / totalInvest) * 100) : 0;
   const metaPct   = totalInvest > 0 ? Math.round((meta   / totalInvest) * 100) : 0;
   const maxVal    = Math.max(google, meta, 1);
@@ -143,7 +148,7 @@ export default function DonutChart({ campaigns }) {
           color="123,183,255"
           glow="123,183,255"
           label="Google Ads"
-          sublabel={`${googleCampaigns.length} campanha${googleCampaigns.length !== 1 ? "s" : ""}`}
+          sublabel={googleTotal > 0 ? (googleActive === googleTotal ? `${googleTotal} ativa${googleTotal !== 1 ? "s" : ""}` : `${googleActive} ativa${googleActive !== 1 ? "s" : ""} · ${googleTotal} total`) : "sem dados"}
           percent={googlePct}
           delay={0}
         />
@@ -153,7 +158,7 @@ export default function DonutChart({ campaigns }) {
           color="124,247,190"
           glow="124,247,190"
           label="Meta Ads"
-          sublabel={`${metaCampaigns.length} campanha${metaCampaigns.length !== 1 ? "s" : ""}`}
+          sublabel={metaTotal > 0 ? (metaActive === metaTotal ? `${metaTotal} ativa${metaTotal !== 1 ? "s" : ""}` : `${metaActive} ativa${metaActive !== 1 ? "s" : ""} · ${metaTotal} total`) : "sem dados"}
           percent={metaPct}
           delay={80}
         />

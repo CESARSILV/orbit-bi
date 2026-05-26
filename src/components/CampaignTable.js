@@ -71,7 +71,33 @@ export default function CampaignTable({ campaigns }) {
                   <td>{item.roas.toFixed(2).replace(".", ",")}x</td>
                   <td>{brl.format(item.cpa)}</td>
                   <td>
-                    <span className="tag">{item.status}</span>
+                    <span style={{
+                      display: "inline-block",
+                      padding: "0.2rem 0.55rem",
+                      borderRadius: 99,
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.03em",
+                      background: item.status === "Ativa"
+                        ? "rgba(124,247,190,0.15)"
+                        : item.status === "Pausada"
+                        ? "rgba(255,209,102,0.15)"
+                        : "rgba(255,255,255,0.07)",
+                      color: item.status === "Ativa"
+                        ? "#7cf7be"
+                        : item.status === "Pausada"
+                        ? "#ffd166"
+                        : "rgba(245,247,251,0.42)",
+                      border: `1px solid ${
+                        item.status === "Ativa"
+                          ? "rgba(124,247,190,0.3)"
+                          : item.status === "Pausada"
+                          ? "rgba(255,209,102,0.3)"
+                          : "rgba(255,255,255,0.1)"
+                      }`,
+                    }}>
+                      {item.status === "Ativa" ? "● Ativa" : item.status === "Pausada" ? "◌ Pausada" : "○ Encerrada"}
+                    </span>
                   </td>
                 </tr>
               ))
