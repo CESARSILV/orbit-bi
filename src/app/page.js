@@ -166,6 +166,44 @@ export default function Home() {
   // C-08 FIX: Queue for multiple files uploaded at once
   const pendingFilesQueueRef = useRef([]);
 
+  // AUTO-DEDUP: roda uma única vez após o mount.
+  // Detecta e remove registros duplicados em fact_campaigns causados por
+  // múltiplas importações do mesmo arquivo. Corrige dados sem precisar
+  // de nenhuma ação do usuário.
+  useEffect(() => {
+    const campaigns = marketingDb.fact_campaigns;
+    if (!campaigns || campaigns.length === 0) return;
+
+    const seen = new Set();
+    const deduped = campaigns.filter(r => {
+      const key = [
+        r.platform || "",
+        r.reference_month || "",
+        r.campaign_name || "",
+        r.date || r.reference_month || "",
+        r.device || "",
+        r.keyword || "",
+        r.search_term || "",
+        r.gender || "",
+        r.age_range || ""
+      ].join("|");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    if (deduped.length < campaigns.length) {
+      const removed = campaigns.length - deduped.length;
+      console.warn(`[AUTO-DEDUP] Detectados ${removed} registros duplicados. Corrigindo automaticamente... (${campaigns.length} → ${deduped.length})`);
+      const fixedDb = { ...marketingDb, fact_campaigns: deduped };
+      const consolidated = consolidateSummary(fixedDb);
+      saveDatabase(consolidated);
+      setMarketingDb(consolidated);
+      triggerToast(`✅ Auto-correção: ${removed} registros duplicados removidos automaticamente.`);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // roda APENAS no mount inicial
+
   useEffect(() => {
     const timerStart = setTimeout(() => setIsIntelligenceUpdating(true), 0);
     const timerEnd = setTimeout(() => setIsIntelligenceUpdating(false), 250);
