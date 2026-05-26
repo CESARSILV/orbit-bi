@@ -136,9 +136,9 @@ export default function Home() {
       return [
         ...commonBase,
         { key: "conversions", label: "Resultados / Conversões",           required: false, description: "Total de resultados (compras, leads, etc.) — coluna 'Resultados' no Meta." },
-        { key: "leads",       label: "Leads / Preenchimento de Formulário", required: false, description: "Coluna 'Resultado de preenchimento de formulários' no export mensal do Meta Ads." },
+        { key: "leads",       label: "Leads na Meta / Leads no site",     required: false, description: "Colunas 'Leads na Meta' ou 'Leads no site' — visíveis em Personalizar Colunas do Meta Ads." },
         { key: "reach",       label: "Alcance",                           required: false, description: "Número de pessoas únicas que viram o anúncio." },
-        { key: "cpc",         label: "Custo por Resultado (CPA Meta)",    required: false, description: "Coluna 'Custo por resultados' no Meta Ads." },
+        { key: "cpc",         label: "Custo por Resultado / Custo por Lead", required: false, description: "Colunas 'Custo por resultados' ou 'Custo por lead' no Meta Ads." },
         { key: "adset_name",  label: "Nome do Conjunto de Anúncios",      required: false, description: "Ad Set (se o relatório for nível conjunto)." },
         { key: "ad_name",     label: "Nome do Anúncio (Ad)",              required: false, description: "Nome do anúncio específico (se nível anúncio)." },
       ];
