@@ -763,24 +763,28 @@ export default function Home() {
     if (list.length === 0) return null;
 
     // M-08 FIX: Added tablet bucket so it's counted separately
-    let mobile = { percent: 0, invest: 0, conv: 0, cpa: 0 };
-    let desktop = { percent: 0, invest: 0, conv: 0, cpa: 0 };
-    let tablet = { percent: 0, invest: 0, conv: 0, cpa: 0 };
+    let mobile = { percent: 0, invest: 0, clicks: 0, conv: 0, cpa: 0 };
+    let desktop = { percent: 0, invest: 0, clicks: 0, conv: 0, cpa: 0 };
+    let tablet = { percent: 0, invest: 0, clicks: 0, conv: 0, cpa: 0 };
 
     list.forEach(row => {
       const devVal = String(row.device || "").toLowerCase();
       const investVal = row.spend || 0;
       const convVal = row.conversions || 0;
-      
+      const clicksVal = row.clicks || 0;
+
       if (devVal.includes("tablet") || devVal.includes("ipad")) {
         tablet.invest += investVal;
         tablet.conv += convVal;
+        tablet.clicks += clicksVal;
       } else if (devVal.includes("mob") || devVal.includes("cel") || devVal.includes("phone")) {
         mobile.invest += investVal;
         mobile.conv += convVal;
+        mobile.clicks += clicksVal;
       } else if (devVal.includes("desk") || devVal.includes("comp") || devVal.includes("pc") || devVal.includes("tv")) {
         desktop.invest += investVal;
         desktop.conv += convVal;
+        desktop.clicks += clicksVal;
       }
     });
 
