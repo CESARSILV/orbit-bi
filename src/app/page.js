@@ -1248,10 +1248,18 @@ export default function Home() {
           }
 
           // M-05 FIX: leads usa apenas a coluna mapeada no wizard
-          // O Meta Ads exporta "Leads" (total) que já inclui Leads na Meta + Leads no site
-          // A detecção secundária anterior somava as sub-colunas novamente → dupla contagem
+          // REGRA DE NEGÓCIO:
+          // - Meta Ads: leads = coluna "Leads" (formulários, pixel)
+          // - Google Ads: quando não há coluna dedicada de leads,
+          //   usa "Conversões" pois em campanhas de captação
+          //   Conversões = Leads (formulários, ligações, WhatsApp, etc.)
           const leadsRawStr = wizardMapping.leads ? row[wizardMapping.leads] : undefined;
-          const leads = leadsRawStr !== undefined ? Math.round(parseFormattedFloat(leadsRawStr)) : 0;
+          let leads = leadsRawStr !== undefined ? Math.round(parseFormattedFloat(leadsRawStr)) : 0;
+
+          // Google Ads: se não mapeou leads explicitamente, usa conversões como leads
+          if (leads === 0 && wizardPlatform === "google" && conversions > 0) {
+            leads = conversions;
+          }
 
           // Capture report end date for BOTH Meta Ads and Google Ads aggregate reports.
           // Meta Ads: 'Encerramento dos relatórios' / Google Ads: 'Término', 'Data de término'
