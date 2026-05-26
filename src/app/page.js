@@ -101,6 +101,7 @@ export default function Home() {
   const [wizardErrorMsg, setWizardErrorMsg] = useState("");
   const [wizardResultCount, setWizardResultCount] = useState(0);
   const [wizardDatasetType, setWizardDatasetType] = useState("campaign_performance");
+  const [wizardDetectedMonths, setWizardDetectedMonths] = useState([]); // months found in CSV date column
 
   const getWizardFields = (platform) => {
     // ---- CAMPOS COMUNS A AMBAS AS PLATAFORMAS ----
@@ -1006,10 +1007,35 @@ export default function Home() {
         t.platform === detectedPlatform && 
         Object.values(t.mapping).every(v => !v || headers.includes(v))
       );
+      // FIX: Do NOT let saved template override the date mapping if the
+      // template's date column doesn't exist in the current CSV headers.
+      // This prevents aggregate-report templates from breaking monthly CSVs.
       if (matchedTemplate) {
-        Object.assign(initialMapping, matchedTemplate.mapping);
+        const safeMapping = { ...matchedTemplate.mapping };
+        if (safeMapping.date && !headers.includes(safeMapping.date)) {
+          delete safeMapping.date; // let auto-mapping pick the right date column
+        }
+        Object.assign(initialMapping, safeMapping);
         triggerToast("Modelo de importação salvo carregado automaticamente!");
       }
+
+      // --- Detect unique months from date column values ---
+      const dateColumnName = initialMapping.date || null;
+      const detectedMonthsMap = {};
+      rawRows.slice(0, 300).forEach(row => {
+        // Try mapped column first, then auto-detect via SYNONYMS
+        let dv = dateColumnName ? row[dateColumnName] : undefined;
+        if (!dv) dv = getSemanticValue(row, "date");
+        if (!dv) return;
+        const parsed = parseDate(dv);
+        if (!parsed || isNaN(parsed.getTime())) return;
+        const ym = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}`;
+        const label = `${["Janeiro","Fevereiro","Mar\u00e7o","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][parsed.getMonth()]}/${parsed.getFullYear()}`;
+        detectedMonthsMap[ym] = label;
+      });
+      const detectedMonths = Object.entries(detectedMonthsMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([, label]) => label);
 
       // Update wizard state
       setWizardFile(file);
@@ -1020,10 +1046,12 @@ export default function Home() {
       setWizardPreviewRows(previewRows);
       setWizardMapping(initialMapping);
       setWizardRawRows(rawRows);
+      setWizardDetectedMonths(detectedMonths);
       setWizardSaveTemplate(false);
       setWizardTemplateName(file.name.replace(/\.[^/.]+$/, "") + " Modelo");
       setWizardStep("preview_mapping");
       setWizardErrorMsg("");
+
       
     } catch (err) {
       console.error(err);
@@ -1948,9 +1976,39 @@ export default function Home() {
                   {/* Left Column: Spreadsheet Preview */}
                   <div>
                     <h3 className="wizard-section-title">📊 Pré-visualização da Planilha</h3>
-                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "12px" }}>
+                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "8px" }}>
                       Linhas iniciais detectadas. Período: <strong>{wizardDateRange.label}</strong>
                     </p>
+
+                    {/* MONTHS DIAGNOSTIC — shows before user confirms */}
+                    <div style={{
+                      padding: "10px 14px",
+                      borderRadius: "8px",
+                      marginBottom: "12px",
+                      background: wizardDetectedMonths.length > 1
+                        ? "rgba(124,247,190,0.08)" : "rgba(255,196,0,0.08)",
+                      border: `1px solid ${wizardDetectedMonths.length > 1 ? "rgba(124,247,190,0.3)" : "rgba(255,196,0,0.3)"}`,
+                    }}>
+                      <p style={{ fontSize: "0.78rem", fontWeight: 700, marginBottom: "4px",
+                        color: wizardDetectedMonths.length > 1 ? "#7cf7be" : "#ffc400" }}>
+                        {wizardDetectedMonths.length > 1
+                          ? `✅ ${wizardDetectedMonths.length} meses detectados no arquivo`
+                          : wizardDetectedMonths.length === 1
+                            ? "⚠️ Apenas 1 mês detectado — possível relatório agregado"
+                            : "⚠️ Nenhuma data detectada nas linhas"}
+                      </p>
+                      {wizardDetectedMonths.length > 0 && (
+                        <p style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>
+                          {wizardDetectedMonths.join(" · ")}
+                        </p>
+                      )}
+                      {wizardDetectedMonths.length <= 1 && (
+                        <p style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: "4px" }}>
+                          Para dados reais por mês: no Meta Ads, use <strong style={{color:"var(--text)"}}>Detalhamento → Tempo → Mês</strong> antes de exportar.
+                        </p>
+                      )}
+                    </div>
+
                     <div className="wizard-preview-table-container">
                       <table className="wizard-preview-table">
                         <thead>
