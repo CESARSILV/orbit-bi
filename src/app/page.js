@@ -166,16 +166,24 @@ export default function Home() {
   // C-08 FIX: Queue for multiple files uploaded at once
   const pendingFilesQueueRef = useRef([]);
 
-  // AUTO-DEDUP: roda uma única vez após o mount.
-  // Detecta e remove registros duplicados em fact_campaigns causados por
-  // múltiplas importações do mesmo arquivo. Corrige dados sem precisar
-  // de nenhuma ação do usuário.
+  // AUTO-DEDUP + AUTO-CLEAN: roda uma única vez após o mount.
+  // 1. Remove linhas de total/resumo importadas com campaign_name = "--"
+  // 2. Remove registros duplicados (mesma plataforma+mês+campanha+data)
+  // Corrige dados corrompidos no localStorage sem precisar de nenhuma ação do usuário.
   useEffect(() => {
     const campaigns = marketingDb.fact_campaigns;
     if (!campaigns || campaigns.length === 0) return;
 
+    // Regex para detectar nomes de campanha que são apenas traços/dashes (ex: "--", "---", "–")
+    const isDashOnly = (name) => !name || /^[-–—\s]+$/.test(String(name).trim());
+
+    // Passo 1: Remove linhas de total/resumo com campaign_name = "--" ou similar
+    const withoutTotals = campaigns.filter(r => !isDashOnly(r.campaign_name));
+    const removedTotals = campaigns.length - withoutTotals.length;
+
+    // Passo 2: Remove duplicatas por chave composite
     const seen = new Set();
-    const deduped = campaigns.filter(r => {
+    const deduped = withoutTotals.filter(r => {
       const key = [
         r.platform || "",
         r.reference_month || "",
@@ -191,15 +199,16 @@ export default function Home() {
       seen.add(key);
       return true;
     });
+    const removedDups = withoutTotals.length - deduped.length;
+    const totalRemoved = removedTotals + removedDups;
 
-    if (deduped.length < campaigns.length) {
-      const removed = campaigns.length - deduped.length;
-      console.warn(`[AUTO-DEDUP] Detectados ${removed} registros duplicados. Corrigindo automaticamente... (${campaigns.length} → ${deduped.length})`);
+    if (totalRemoved > 0) {
+      console.warn(`[AUTO-CLEAN] Corrigindo: ${removedTotals} linhas de total ("--") + ${removedDups} duplicatas removidas. (${campaigns.length} → ${deduped.length} registros)`);
       const fixedDb = { ...marketingDb, fact_campaigns: deduped };
       const consolidated = consolidateSummary(fixedDb);
       saveDatabase(consolidated);
       setMarketingDb(consolidated);
-      triggerToast(`✅ Auto-correção: ${removed} registros duplicados removidos automaticamente.`);
+      triggerToast(`✅ Auto-correção: dados normalizados (${totalRemoved} registros inválidos removidos).`);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // roda APENAS no mount inicial

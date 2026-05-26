@@ -902,12 +902,28 @@ export function inferReferenceMonth(fileName, rows) {
 export function isTotalOrMetadata(name) {
   if (!name) return true;
   const lowercaseName = String(name).toLowerCase().trim();
+  
+  // Padrões de dash/traço — o Google Ads usa "--" em linhas de subtotal/total
+  // Ex: coluna Campanha = "--" nas linhas de total por segmentação
+  if (/^[-–—\s]+$/.test(lowercaseName)) return true; // apenas traços/hífens/espaços
+
   return (
     lowercaseName === "total" ||
     lowercaseName.startsWith("total:") ||
     lowercaseName.startsWith("total ") ||
     lowercaseName === "total geral" ||
     lowercaseName === "resumo" ||
+    // Google Ads aggregate row patterns
+    lowercaseName === "todas as campanhas" ||
+    lowercaseName === "all campaigns" ||
+    lowercaseName === "todos os conjuntos de anúncios" ||
+    lowercaseName === "all ad sets" ||
+    lowercaseName === "todos os anúncios" ||
+    lowercaseName === "all ads" ||
+    lowercaseName === "sem campanha" ||
+    lowercaseName === "unknown" ||
+    lowercaseName === "(not set)" ||
+    lowercaseName === "(not provided)" ||
     lowercaseName.startsWith("período:") ||
     lowercaseName.startsWith("period:") ||
     lowercaseName.includes("filtros aplicados") ||
