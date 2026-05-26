@@ -1112,7 +1112,15 @@ export default function Home() {
         })
         .map((row, idx) => {
           const campName = String(row[wizardMapping.campaign_name] || "").trim();
-          const dateVal = row[wizardMapping.date];
+
+          // Smart date resolution:
+          // 1st: use the explicitly mapped date column
+          // 2nd: auto-detect any date column in the row via SYNONYMS (handles 'Mês', 'Início dos relatórios', 'Data', 'Dia')
+          // 3rd: fallback to file-level reference month (first day)
+          let dateVal = wizardMapping.date ? row[wizardMapping.date] : undefined;
+          if (!dateVal) {
+            dateVal = getSemanticValue(row, "date");
+          }
           const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`);
 
           const spend = parseFormattedFloat(row[wizardMapping.spend]);
