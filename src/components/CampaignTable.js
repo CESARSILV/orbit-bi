@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const INITIAL_VISIBLE = 5;
 
 export default function CampaignTable({ campaigns }) {
   const [isUpdating, setIsUpdating] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const timerStart = setTimeout(() => setIsUpdating(true), 0);
@@ -16,8 +18,10 @@ export default function CampaignTable({ campaigns }) {
     };
   }, [campaigns]);
 
-  // Sort campaigns by ROAS descending like in original app
-  const sortedCampaigns = [...campaigns].sort((a, b) => b.roas - a.roas);
+  // Sort campaigns by spend descending (maior investimento primeiro)
+  const sortedCampaigns = [...campaigns].sort((a, b) => b.investimento - a.investimento);
+  const visibleCampaigns = expanded ? sortedCampaigns : sortedCampaigns.slice(0, INITIAL_VISIBLE);
+  const hiddenCount = sortedCampaigns.length - INITIAL_VISIBLE;
 
   return (
     <article className={`table-panel ${isUpdating ? "is-updating" : ""}`} id="criativos">
@@ -49,8 +53,15 @@ export default function CampaignTable({ campaigns }) {
                 </td>
               </tr>
             ) : (
-              sortedCampaigns.map((item) => (
-                <tr key={`${item.tipo}_${item.nome}`}>
+              visibleCampaigns.map((item, idx) => (
+                <tr
+                  key={`${item.tipo}_${item.nome}_${idx}`}
+                  style={{
+                    animation: expanded && idx >= INITIAL_VISIBLE ? "fadeInRow 0.25s ease forwards" : "none",
+                    opacity: expanded && idx >= INITIAL_VISIBLE ? 0 : 1,
+                    animationDelay: expanded && idx >= INITIAL_VISIBLE ? `${(idx - INITIAL_VISIBLE) * 40}ms` : "0ms",
+                  }}
+                >
                   <td>
                     <strong>{item.nome}</strong>
                   </td>
@@ -68,6 +79,53 @@ export default function CampaignTable({ campaigns }) {
           </tbody>
         </table>
       </div>
+
+      {/* Botão Ver mais / Ver menos */}
+      {sortedCampaigns.length > INITIAL_VISIBLE && (
+        <button
+          onClick={() => setExpanded(prev => !prev)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.4rem",
+            width: "100%",
+            background: "rgba(255,255,255,0.03)",
+            border: "none",
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+            color: "rgba(245, 247, 251, 0.55)",
+            fontSize: "0.8rem",
+            fontWeight: 600,
+            padding: "0.75rem 1.25rem",
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+            letterSpacing: "0.02em",
+            justifyContent: "center",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "rgba(245,247,251,0.85)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.color = "rgba(245,247,251,0.55)"; }}
+        >
+          <span
+            style={{
+              display: "inline-block",
+              transition: "transform 0.25s ease",
+              transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+              fontSize: "0.75rem",
+            }}
+          >
+            ▾
+          </span>
+          {expanded
+            ? `Mostrar menos`
+            : `Ver mais ${hiddenCount} campanha${hiddenCount !== 1 ? "s" : ""}`}
+        </button>
+      )}
+
+      <style>{`
+        @keyframes fadeInRow {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </article>
   );
 }
