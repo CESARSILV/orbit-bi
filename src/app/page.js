@@ -114,20 +114,24 @@ export default function Home() {
     ];
 
     if (platform === "google") {
-      // ---- GOOGLE ADS: mostra todos os campos relevantes para relatórios Google ----
+      // ---- GOOGLE ADS: campos com nomes exatos das colunas do CSV exportado ----
       return [
-        ...commonBase,
-        { key: "conversions", label: "Conversões / Leads",            required: false, description: "Total de conversões ou leads cadastrados." },
-        { key: "revenue",     label: "Receita / Valor de Conversão",  required: false, description: "Valor financeiro retornado pelas conversões." },
-        { key: "cpc",         label: "CPC Médio",                     required: false, description: "Custo por clique médio (se houver)." },
-        { key: "ctr",         label: "CTR Geral",                     required: false, description: "Taxa de cliques (se houver)." },
-        { key: "keyword",     label: "Palavra-chave",                 required: false, description: "Termo de palavra-chave (se houver)." },
-        { key: "search_term", label: "Termo de Pesquisa",             required: false, description: "Consulta digitada pelo usuário (se houver)." },
-        { key: "device",      label: "Dispositivo",                   required: false, description: "Computador, Celular, Tablet, etc. (se houver)." },
-        { key: "network",     label: "Rede",                          required: false, description: "Rede de Pesquisa, Display, YouTube, etc. (se houver)." },
-        { key: "gender",      label: "Sexo / Gênero",                 required: false, description: "Masculino, feminino ou desconhecido (se houver)." },
-        { key: "age_range",   label: "Faixa de Idade",                required: false, description: "Intervalos de idade do público (se houver)." },
-        { key: "hour",        label: "Hora do Dia",                   required: false, description: "Hora do registro de desempenho (se houver)." },
+        { key: "campaign_name", label: "Campanha (Obrigatório)",          required: false, description: "Coluna 'Campanha' — nome de cada campanha no Google Ads." },
+        { key: "spend",         label: "Investimento (Obrigatório)",      required: true,  description: "Coluna 'Custo' no Google Ads — custo total acumulado." },
+        { key: "clicks",        label: "Cliques",                         required: false, description: "Coluna 'Cliques' no Google Ads." },
+        { key: "impressions",   label: "Impressões",                      required: false, description: "Coluna 'Impressões' no Google Ads." },
+        { key: "date",          label: "Mês / Data",                      required: false, description: "Coluna 'Mês' (com segmentação por Mês) ou 'Dia' (diário). Formato: 'outubro de 2025' ou 'YYYY-MM-DD'." },
+        { key: "conversions",   label: "Conversões — 'Todas as conv.'",   required: false, description: "Coluna 'Todas as conv.' no Google Ads — total de conversões incluindo assistidas." },
+        { key: "revenue",       label: "Receita — 'Valor de todas as conv.'", required: false, description: "Coluna 'Valor de todas as conv.' no Google Ads — valor total das conversões (para ROAS)." },
+        { key: "cpc",           label: "CPC — 'CPC méd.'",               required: false, description: "Coluna 'CPC méd.' no Google Ads — custo por clique médio." },
+        { key: "ctr",           label: "CTR",                             required: false, description: "Coluna 'CTR' no Google Ads — taxa de cliques." },
+        { key: "keyword",       label: "Palavra-chave",                   required: false, description: "Coluna 'Palavra-chave da Rede de Pesquisa' (relatório de palavras-chave)." },
+        { key: "search_term",   label: "Termo de Pesquisa",               required: false, description: "Coluna 'Pesquisa do Google' (relatório de termos de pesquisa)." },
+        { key: "device",        label: "Dispositivo",                     required: false, description: "Coluna 'Dispositivo' — Computador, Celular, Tablet." },
+        { key: "network",       label: "Rede",                            required: false, description: "Rede de Pesquisa, Display, YouTube, etc." },
+        { key: "gender",        label: "Sexo / Gênero",                   required: false, description: "Masculino, Feminino ou Não especificado." },
+        { key: "age_range",     label: "Faixa de Idade",                  required: false, description: "Intervalos de idade do público." },
+        { key: "hour",          label: "Hora do Dia",                     required: false, description: "Coluna 'Hora' (relatório por hora)." },
       ];
     } else if (platform === "meta") {
       // ---- META ADS: apenas campos presentes no relatório padrão de campanhas ----

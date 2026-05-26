@@ -453,7 +453,9 @@ export const SYNONYMS = {
     "Compras (pixel do Facebook)", "compras (pixel do facebook)",
     "Compras no Facebook", "compras no facebook",
     "Conversões de compras", "conversões de compras",
-    // Google Ads
+    // Google Ads PT-BR — nomes exatos do CSV exportado
+    "Todas as conv.", "todas as conv.",           // total de conversões (inclui assistidas)
+    "Conv.", "conv.",                             // abreviação usada em alguns relatórios
     "Conversões", "conversões", "Conversoes", "conversoes",
     "Conversões totais", "conversões totais", "Todas as conversões", "todas as conversões",
     // English
@@ -494,12 +496,16 @@ export const SYNONYMS = {
     "Compras (valor de conversão)", "compras (valor de conversão)",
     "Valor de conversão de compras no site", "valor de conversão de compras no site",
     "Valor de conversão de compras no Facebook", "valor de conversão de compras no facebook",
-    // Google Ads exact
-    "Valor de conv. / custo", "valor de conv. / custo",
+    // Google Ads PT-BR — nomes exatos do CSV exportado
+    "Valor de todas as conv.", "valor de todas as conv.",   // receita total de todas as conversões
+    "Valor de conv.", "valor de conv.",                     // receita de conversões primárias
+    "Valor conv.", "valor conv.",
+    "Valor de conversão", "valor de conversão",
     "All conv. value", "all conv. value",
     "Valor das conversões", "valor das conversões",
     "Valor total de conversões", "valor total de conversões",
     "Valor de conversão de todas as conversões", "valor de conversão de todas as conversões",
+    // ATENÇÃO: "Valor de conv. / custo" é ROAS (ratio), NÃO receita — removido
     // Generic
     "Receita", "receita", "Receita (BRL)", "receita (brl)",
     "Revenue", "revenue", "Conversion value", "conversion value",
