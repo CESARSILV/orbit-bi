@@ -80,6 +80,7 @@ export default function Home() {
   const [pendingUpload, setPendingUpload] = useState(null);
   const [duplicateFileInfo, setDuplicateFileInfo] = useState(null);
   const [showDeduplicationModal, setShowDeduplicationModal] = useState(false);
+  const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
 
   // Chat State
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
@@ -268,67 +269,67 @@ export default function Home() {
   };
 
   const handleClearData = async () => {
-    if (window.confirm("Tem certeza que deseja excluir todas as campanhas, histórico e facts? Esta ação é irreversível e limpará 100% do cache local.")) {
-      // 1. A-07 FIX: Remove ONLY Orbit BI specific keys, not everything in localStorage
-      if (typeof window !== "undefined") {
-        ["orbit_marketing_bi_db", "orbit_import_templates"].forEach(key => localStorage.removeItem(key));
-      }
-      
-      // 2. Resetar todos os estados de métricas e tabelas fact do React
-      setMarketingDb(createInitialDb());
-      setFiles([]);
-      setBase64Files([]);
-      setPendingUpload(null);
-      setDuplicateFileInfo(null);
-      setShowDeduplicationModal(false);
-      
-      // 3. Resetar todos os seletores e intervalos de datas
-      setPlatform("todas");
-      setPeriod("todos");
-      setStartDate("");
-      setEndDate("");
-      setCampaign("todas");
-      setDevice("todos");
-      setGender("todos");
-      setAge("todas");
-      setNetwork("todas");
-      setKeyword("todas");
-      setSearchTerm("todos");
-      
-      // 4. Resetar chat e assistente de IA
-      setMessages(INITIAL_MESSAGES);
-      setChatPending(false);
-      
-      // 5. Excluir dados remotos se o Supabase estiver conectado
-      if (user && isSupabaseConfigured) {
-        try {
-          const { error: campaignsErr } = await supabase
-            .from("campaigns")
-            .delete()
-            .eq("user_id", user.id);
-            
-          const { error: timelineErr } = await supabase
-            .from("historical_metrics")
-            .delete()
-            .eq("user_id", user.id);
-
-          if (campaignsErr) throw campaignsErr;
-          if (timelineErr) throw timelineErr;
-          
-          triggerToast("Dados locais e Supabase limpos com sucesso!");
-        } catch (err) {
-          console.error("Error clearing Supabase database records:", err);
-          triggerToast("Limpo localmente. Erro ao sincronizar com Supabase.");
-        }
-      } else {
-        triggerToast("Painel e cache limpos 100% com sucesso!");
-      }
-
-      // 6. Forçar recarregamento da página para limpar cache em memória do React
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+    // Executa limpeza real sem window.confirm (bloqueado em Safari/mobile)
+    // 1. Remover chaves do localStorage
+    if (typeof window !== "undefined") {
+      ["orbit_marketing_bi_db", "orbit_import_templates"].forEach(key => localStorage.removeItem(key));
     }
+    
+    // 2. Resetar todos os estados de métricas e tabelas fact do React
+    setMarketingDb(createInitialDb());
+    setFiles([]);
+    setBase64Files([]);
+    setPendingUpload(null);
+    setDuplicateFileInfo(null);
+    setShowDeduplicationModal(false);
+    setShowClearConfirmModal(false);
+    
+    // 3. Resetar todos os seletores e intervalos de datas
+    setPlatform("todas");
+    setPeriod("todos");
+    setStartDate("");
+    setEndDate("");
+    setCampaign("todas");
+    setDevice("todos");
+    setGender("todos");
+    setAge("todas");
+    setNetwork("todas");
+    setKeyword("todas");
+    setSearchTerm("todos");
+    
+    // 4. Resetar chat e assistente de IA
+    setMessages(INITIAL_MESSAGES);
+    setChatPending(false);
+    
+    // 5. Excluir dados remotos se o Supabase estiver conectado
+    if (user && isSupabaseConfigured) {
+      try {
+        const { error: campaignsErr } = await supabase
+          .from("campaigns")
+          .delete()
+          .eq("user_id", user.id);
+          
+        const { error: timelineErr } = await supabase
+          .from("historical_metrics")
+          .delete()
+          .eq("user_id", user.id);
+
+        if (campaignsErr) throw campaignsErr;
+        if (timelineErr) throw timelineErr;
+        
+        triggerToast("Dados locais e Supabase limpos com sucesso!");
+      } catch (err) {
+        console.error("Error clearing Supabase database records:", err);
+        triggerToast("Limpo localmente. Erro ao sincronizar com Supabase.");
+      }
+    } else {
+      triggerToast("Painel e cache limpos 100% com sucesso!");
+    }
+
+    // 6. Forçar recarregamento da página para limpar cache em memória do React
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
   };
 
   const handleAuthSuccess = (authenticatedUser) => {
@@ -1783,7 +1784,7 @@ export default function Home() {
               triggerToast("Dados recarregados do banco local com sucesso.");
             }} 
             onGenerateReport={handleGenerateReport} 
-            onClearData={handleClearData} 
+            onClearData={() => setShowClearConfirmModal(true)} 
           />
 
           <ControlStrip
@@ -1965,6 +1966,37 @@ export default function Home() {
               </button>
               <button className="danger-btn flex-1" onClick={() => handleDeduplicationResolve("ignore")}>
                 Ignorar envio
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear Data Confirmation Modal */}
+      {showClearConfirmModal && (
+        <div className="dedup-modal-overlay" style={{zIndex: 9999}}>
+          <div className="dedup-modal-box" style={{maxWidth: 420, textAlign: "center"}}>
+            <div style={{fontSize: 48, marginBottom: 12}}>🗑️</div>
+            <h3 style={{color: "#ff4d4d", marginBottom: 8}}>Limpar todos os dados?</h3>
+            <p style={{color: "rgba(255,255,255,0.7)", marginBottom: 4}}>
+              Esta ação irá apagar <strong style={{color:"#fff"}}>todos os relatórios importados</strong> e resetar o painel completamente.
+            </p>
+            <p style={{color: "rgba(255,255,255,0.5)", fontSize: 13, marginBottom: 24}}>
+              📊 {marketingDb.fact_marketing_summary.length} registros serão removidos. Esta ação é irreversível.
+            </p>
+            <div className="dedup-actions">
+              <button
+                className="ghost-btn flex-1"
+                onClick={() => setShowClearConfirmModal(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                className="danger-btn flex-1"
+                style={{background: "linear-gradient(135deg,#ff4d4d,#c0392b)"}}
+                onClick={handleClearData}
+              >
+                🗑️ Confirmar Limpeza
               </button>
             </div>
           </div>
