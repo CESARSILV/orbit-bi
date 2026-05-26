@@ -70,19 +70,72 @@ export function parseFormattedFloat(val) {
     .replace(/[R$\s%]/g, "") // remove currency, percentage and spaces
     .trim();
 
-  if (cleaned === "" || cleaned === "-") return 0;
+  if (cleaned === "" || cleaned === "-" || cleaned === "--") return 0;
 
-  // Handle European/Brazilian number format: e.g. 1.200,50 or 1200,50
-  if (cleaned.includes(",") && !cleaned.includes(".")) {
-    cleaned = cleaned.replace(",", ".");
-  } else if (cleaned.includes(",") && cleaned.includes(".")) {
-    // 1.200,50 -> 1200.50
-    if (cleaned.indexOf(".") < cleaned.indexOf(",")) {
+  // ---------------------------------------------------------------
+  // Number format detection:
+  //
+  // Brazilian/European formats:
+  //   "4.234.567"    → 4234567     (multiple dots = thousand separators)
+  //   "1.200,50"     → 1200.50     (dot=thousand, comma=decimal)
+  //   "1200,50"      → 1200.50     (comma only = decimal)
+  //
+  // US/English formats:
+  //   "1,200.50"     → 1200.50     (comma=thousand, dot=decimal)
+  //   "1,200"        → 1200        (comma=thousand, no decimal)
+  //
+  // Ambiguous:
+  //   "4.234"        → could be 4.234 (decimal) or 4234 (thousands)
+  //                    Rule: if exactly 3 digits after single dot → 4234
+  // ---------------------------------------------------------------
+
+  const commaCount = (cleaned.match(/,/g) || []).length;
+  const dotCount   = (cleaned.match(/\./g) || []).length;
+
+  if (dotCount > 1 && commaCount === 0) {
+    // Multiple dots, no comma: "4.234.567" → Brazilian thousand separators
+    cleaned = cleaned.replaceAll(".", "");
+
+  } else if (dotCount > 1 && commaCount > 0) {
+    // Multiple dots + comma: "4.234.567,89" → BR format
+    if (cleaned.lastIndexOf(".") < cleaned.lastIndexOf(",")) {
+      // dot before comma → BR: dot=thousand, comma=decimal
       cleaned = cleaned.replaceAll(".", "").replace(",", ".");
     } else {
-      // 1,200.50 -> 1200.50 (US Format but with commas)
+      // comma before dot → US: comma=thousand, dot=decimal
       cleaned = cleaned.replaceAll(",", "");
     }
+
+  } else if (dotCount === 1 && commaCount === 0) {
+    // Single dot, no comma: could be decimal OR thousand
+    const afterDot = cleaned.split(".")[1] || "";
+    if (afterDot.length === 3) {
+      // Exactly 3 digits after dot: "4.234" → 4234 (thousand separator)
+      // Exception: if the part before dot has 0 digits it's decimal: ".234"
+      const beforeDot = cleaned.split(".")[0];
+      if (beforeDot.length >= 1 && beforeDot !== "") {
+        cleaned = cleaned.replace(".", "");
+      }
+      // else leave as-is (decimal like ".5" → 0.5)
+    }
+    // Otherwise: "4.5", "1.23", "0.99" → leave as-is (decimal)
+
+  } else if (commaCount === 1 && dotCount === 0) {
+    // Single comma, no dot: "1200,50" → BR decimal
+    cleaned = cleaned.replace(",", ".");
+
+  } else if (commaCount === 1 && dotCount === 1) {
+    if (cleaned.indexOf(".") < cleaned.indexOf(",")) {
+      // "1.200,50" → BR format: dot=thousand, comma=decimal
+      cleaned = cleaned.replaceAll(".", "").replace(",", ".");
+    } else {
+      // "1,200.50" → US format: comma=thousand, dot=decimal
+      cleaned = cleaned.replaceAll(",", "");
+    }
+
+  } else if (commaCount > 0 && dotCount === 0) {
+    // Multiple commas, no dot: "1,234,567" → US thousand separators
+    cleaned = cleaned.replaceAll(",", "");
   }
 
   const parsed = parseFloat(cleaned);
