@@ -147,10 +147,12 @@ export function parseDate(val) {
   // Handle 'qua., 1 de abr. de 2026' / '1 de abr. de 2026'
   const cleanStr = strLower.replace(/[.,]/g, "").replace(/\s+/g, " ");
   
-  // Check for day/month/year patterns
+  // FIX: Handle "month de year" format (e.g. "outubro de 2025") — Meta Ads monthly export
+  // Split on " de " gives ["outubro", "2025"] (only 2 parts, no day)
   if (cleanStr.includes(" de ")) {
     const parts = cleanStr.split(" de ");
     if (parts.length >= 3) {
+      // "1 de outubro de 2025" — day + month + year
       let dayPart = parts[0].trim();
       const monthPart = parts[1].trim();
       const yearPart = parts[2].trim();
@@ -161,6 +163,26 @@ export function parseDate(val) {
       const year = parseInt(yearPart, 10) || new Date().getFullYear();
 
       return new Date(year, month, day);
+    } else if (parts.length === 2) {
+      // "outubro de 2025" — month + year only (no day) — treat as 1st of month
+      const monthPart = parts[0].trim();
+      const yearPart = parts[1].trim();
+      const month = MONTH_MAP_PT[monthPart];
+      const year = parseInt(yearPart, 10);
+      if (month !== undefined && !isNaN(year)) {
+        return new Date(year, month, 1);
+      }
+    }
+  }
+
+  // FIX: Handle "outubro/2025" or "outubro 2025" formats (month name + slash/space + year)
+  const monthYearSlash = cleanStr.match(/^([a-z\u00e0-\u00ff]+)[\s\/]+(\d{4})$/);
+  if (monthYearSlash) {
+    const monthPart = monthYearSlash[1].trim();
+    const year = parseInt(monthYearSlash[2], 10);
+    const month = MONTH_MAP_PT[monthPart];
+    if (month !== undefined && !isNaN(year)) {
+      return new Date(year, month, 1);
     }
   }
 
@@ -608,11 +630,15 @@ export function getSemanticValue(row, targetField, defaultValue = undefined) {
   const synonyms = SYNONYMS[targetField];
   if (!synonyms) return defaultValue;
 
+  // Normalize: remove accents and lowercase for robust matching
+  const normalize = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
   for (const syn of synonyms) {
-    // Exact match
+    // Exact match first
     if (row[syn] !== undefined) return row[syn];
-    // Case-insensitive match on row keys
-    const foundKey = Object.keys(row).find(k => k.toLowerCase().trim() === syn);
+    // Accent-insensitive + case-insensitive match on row keys
+    const normSyn = normalize(syn);
+    const foundKey = Object.keys(row).find(k => normalize(k) === normSyn);
     if (foundKey !== undefined && row[foundKey] !== undefined) return row[foundKey];
   }
   return defaultValue;

@@ -975,6 +975,9 @@ export default function Home() {
       const previewRows = rawRows.slice(0, 5);
 
       // Step 4: AI suggests automatic column mapping based on SYNONYMS
+      // Normalize accents for robust matching (e.g. "Mês" matches "mes", "Mês" matches "Mes")
+      const normalizeStr = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
       const initialMapping = {};
       const fields = getWizardFields(detectedPlatform).map(f => f.key);
       
@@ -982,17 +985,19 @@ export default function Home() {
         const synonyms = SYNONYMS[field] || [];
         let matchedHeader = "";
         for (const syn of synonyms) {
-          const found = headers.find(h => h.toLowerCase().trim() === syn.toLowerCase().trim());
+          const normSyn = normalizeStr(syn);
+          const found = headers.find(h => normalizeStr(h) === normSyn);
           if (found) {
             matchedHeader = found;
             break;
           }
         }
         if (!matchedHeader) {
-          const found = headers.find(h => h.toLowerCase().trim() === field.toLowerCase().trim());
+          const found = headers.find(h => normalizeStr(h) === normalizeStr(field));
           if (found) matchedHeader = found;
         }
         initialMapping[field] = matchedHeader || "";
+
       });
 
       // Check if there is an existing import template matching the headers to prefill
