@@ -1646,100 +1646,241 @@ export default function Home() {
       console.error(err);
       updateFileStatus(file.name, "erro", "Erro ao resolver duplicado");
     } finally {
-      setPendingUpload(null);
-      setDuplicateFileInfo(null);
-      setShowDeduplicationModal(false);
+      set
+  // ─── GERAÇÃO DO RELATÓRIO EXECUTIVO (HTML → Print → PDF) ────────────────────
+  // Substitui a geração raw-PDF que causava caracteres corrompidos (ÿ, ãØ, etc.)
+  // por uma janela HTML estilizada com UTF-8 + Google Fonts → o browser converte em PDF limpo.
+  const openExecutiveReportWindow = (reportData = null) => {
+    const brlFmt = (v) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v || 0);
+    const numFmt = (v) => new Intl.NumberFormat("pt-BR").format(v || 0);
+    const pct    = (v) => `${(v || 0).toFixed(2).replace(".", ",")}%`;
+    const now    = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+
+    const title        = reportData?.titulo        || "Relatório Executivo de Mídia Paga";
+    const subtitle     = reportData?.subtitulo     || "Diagnóstico estratégico consolidado";
+    const conclusion   = reportData?.conclusao     || insights?.summary || "Dados consolidados do período analisado.";
+    const recs         = reportData?.recomendacoes || [
+      "Analise as campanhas com maior ROAS e considere escalar o investimento gradualmente.",
+      "Revise criativos e segmentação das campanhas com CPA acima da média.",
+      "Monitore as métricas diariamente para identificar oportunidades de otimização.",
+    ];
+    const steps        = reportData?.proximosPassos || [
+      "Validar a qualidade e completude dos dados importados.",
+      "Definir metas de ROAS e CPA para o próximo ciclo.",
+      "Gerar nova leitura após o próximo período de otimização.",
+    ];
+
+    const sorted   = [...filteredCampaigns].sort((a, b) => b.investimento - a.investimento);
+    const topCamps = sorted.slice(0, 10);
+
+    const campRows = topCamps.map(c => `
+      <tr>
+        <td>${c.nome || "-"}</td>
+        <td><span class="badge ${c.tipo}">${c.plataforma}</span></td>
+        <td class="num">${brlFmt(c.investimento)}</td>
+        <td class="num">${numFmt(c.cliques)}</td>
+        <td class="num">${numFmt(c.conversoes)}</td>
+        <td class="num">${brlFmt(c.cpa)}</td>
+        <td class="num">${c.roas.toFixed(2).replace(".", ",")}x</td>
+        <td><span class="status ${c.status === "Ativa" ? "ativa" : c.status === "Pausada" ? "pausada" : "encerrada"}">${c.status}</span></td>
+      </tr>`).join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title} – Orbit BI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #fff; color: #0f172a; font-size: 10pt; line-height: 1.55; }
+  .page { max-width: 210mm; margin: 0 auto; padding: 12mm 14mm; }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8mm; padding-bottom: 5mm; border-bottom: 2px solid #0f172a; }
+  .brand { font-size: 20pt; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+  .brand span { color: #10b981; }
+  .header-right { text-align: right; }
+  .header-date { font-size: 8pt; color: #64748b; font-weight: 500; }
+  .header-period { font-size: 8pt; color: #64748b; }
+
+  /* Title block */
+  .title-block { margin-bottom: 7mm; }
+  .report-title { font-size: 17pt; font-weight: 800; color: #0f172a; line-height: 1.2; margin-bottom: 2mm; }
+  .report-subtitle { font-size: 9.5pt; color: #475569; font-weight: 500; }
+
+  /* KPI grid */
+  .section-title { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #10b981; margin: 6mm 0 3mm; border-left: 3px solid #10b981; padding-left: 5px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin-bottom: 5mm; }
+  .kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 3.5mm 4mm; }
+  .kpi-label { font-size: 7pt; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1mm; }
+  .kpi-value { font-size: 14pt; font-weight: 800; color: #0f172a; line-height: 1; }
+  .kpi-sub   { font-size: 7pt; color: #94a3b8; margin-top: 0.5mm; }
+
+  /* Platform comparison */
+  .platform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; margin-bottom: 5mm; }
+  .platform-card { border-radius: 6px; padding: 3.5mm 4mm; }
+  .platform-card.google { background: #eff6ff; border: 1px solid #bfdbfe; }
+  .platform-card.meta   { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .platform-name { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1.5mm; }
+  .google .platform-name { color: #1d4ed8; }
+  .meta   .platform-name { color: #065f46; }
+  .platform-invest { font-size: 13pt; font-weight: 800; color: #0f172a; }
+  .platform-meta-row { display: flex; gap: 4mm; margin-top: 1.5mm; flex-wrap: wrap; }
+  .platform-meta-item { font-size: 7pt; color: #475569; }
+  .platform-meta-item strong { font-weight: 700; color: #0f172a; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 5mm; font-size: 8pt; }
+  thead tr { background: #0f172a; color: #fff; }
+  thead th { padding: 2.5mm 3mm; text-align: left; font-weight: 600; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.05em; }
+  thead th.num { text-align: right; }
+  tbody tr { border-bottom: 1px solid #f1f5f9; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody td { padding: 2mm 3mm; }
+  tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .badge { display: inline-block; padding: 0.5mm 2mm; border-radius: 3px; font-size: 6.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge.google { background: #dbeafe; color: #1e40af; }
+  .badge.meta   { background: #dcfce7; color: #166534; }
+  .status { display: inline-block; padding: 0.5mm 2mm; border-radius: 3px; font-size: 6.5pt; font-weight: 700; }
+  .status.ativa     { background: #dcfce7; color: #166534; }
+  .status.pausada   { background: #fef9c3; color: #854d0e; }
+  .status.encerrada { background: #f1f5f9; color: #64748b; }
+
+  /* Text blocks */
+  .text-block { background: #f8fafc; border-left: 3px solid #10b981; padding: 3.5mm 5mm; border-radius: 0 6px 6px 0; margin-bottom: 4mm; font-size: 9pt; color: #1e293b; line-height: 1.6; }
+  .recs-list, .steps-list { list-style: none; padding: 0; margin-bottom: 5mm; }
+  .recs-list li, .steps-list li { display: flex; gap: 2.5mm; align-items: flex-start; padding: 2mm 0; border-bottom: 1px solid #f1f5f9; font-size: 8.5pt; color: #334155; }
+  .recs-list li::before { content: '●'; color: #10b981; font-size: 7pt; margin-top: 1mm; flex-shrink: 0; }
+  .steps-list li::before { content: '→'; color: #6366f1; font-size: 9pt; flex-shrink: 0; }
+
+  /* Footer */
+  .footer { margin-top: 8mm; padding-top: 4mm; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 7pt; color: #94a3b8; }
+
+  @media print {
+    body { font-size: 9.5pt; }
+    .page { padding: 8mm 10mm; }
+    .no-print { display: none; }
+    @page { margin: 10mm; size: A4; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- CABEÇALHO -->
+  <div class="header">
+    <div class="brand">Orbit<span>BI</span></div>
+    <div class="header-right">
+      <div class="header-date">Gerado em ${now}</div>
+      <div class="header-period">Relatório Executivo de Mídia Paga</div>
+    </div>
+  </div>
+
+  <!-- TÍTULO -->
+  <div class="title-block">
+    <div class="report-title">${title}</div>
+    <div class="report-subtitle">${subtitle}</div>
+  </div>
+
+  <!-- KPIs CONSOLIDADOS -->
+  <div class="section-title">KPIs Consolidados</div>
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Investimento Total</div>
+      <div class="kpi-value">${brlFmt(totals.investimento)}</div>
+      <div class="kpi-sub">Mídia paga consolidada</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Cliques Totais</div>
+      <div class="kpi-value">${numFmt(totals.cliques)}</div>
+      <div class="kpi-sub">CTR: ${pct(totals.ctr)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Conversões</div>
+      <div class="kpi-value">${numFmt(totals.conversoes)}</div>
+      <div class="kpi-sub">CPA: ${brlFmt(totals.cpa)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">CPC Médio</div>
+      <div class="kpi-value">${brlFmt(totals.cpc)}</div>
+      <div class="kpi-sub">Impressões: ${numFmt(totals.impressoes)}</div>
+    </div>
+  </div>
+
+  <!-- COMPARAÇÃO POR PLATAFORMA -->
+  <div class="section-title">Investimento por Plataforma</div>
+  <div class="platform-grid">
+    <div class="platform-card google">
+      <div class="platform-name">Google Ads</div>
+      <div class="platform-invest">${brlFmt(filteredCampaigns.filter(c => c.tipo === "google").reduce((s, c) => s + c.investimento, 0))}</div>
+      <div class="platform-meta-row">
+        <span class="platform-meta-item"><strong>${filteredCampaigns.filter(c => c.tipo === "google" && c.status === "Ativa").length}</strong> ativas</span>
+        <span class="platform-meta-item"><strong>${filteredCampaigns.filter(c => c.tipo === "google").length}</strong> total</span>
+      </div>
+    </div>
+    <div class="platform-card meta">
+      <div class="platform-name">Meta Ads</div>
+      <div class="platform-invest">${brlFmt(filteredCampaigns.filter(c => c.tipo === "meta").reduce((s, c) => s + c.investimento, 0))}</div>
+      <div class="platform-meta-row">
+        <span class="platform-meta-item"><strong>${filteredCampaigns.filter(c => c.tipo === "meta" && c.status === "Ativa").length}</strong> ativas</span>
+        <span class="platform-meta-item"><strong>${filteredCampaigns.filter(c => c.tipo === "meta").length}</strong> total</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABELA DE CAMPANHAS -->
+  <div class="section-title">Campanhas (top 10 por investimento)</div>
+  <table>
+    <thead><tr>
+      <th>Campanha</th>
+      <th>Plataforma</th>
+      <th class="num">Investimento</th>
+      <th class="num">Cliques</th>
+      <th class="num">Conversões</th>
+      <th class="num">CPA</th>
+      <th class="num">ROAS</th>
+      <th>Status</th>
+    </tr></thead>
+    <tbody>${campRows || "<tr><td colspan=8 style='text-align:center;color:#94a3b8;padding:4mm'>Nenhuma campanha disponível</td></tr>"}</tbody>
+  </table>
+
+  <!-- CONCLUSÃO -->
+  <div class="section-title">Conclusão Executiva</div>
+  <div class="text-block">${conclusion}</div>
+
+  <!-- RECOMENDAÇÕES -->
+  <div class="section-title">Recomendações Estratégicas</div>
+  <ul class="recs-list">${recs.map(r => `<li>${r}</li>`).join("")}</ul>
+
+  <!-- PRÓXIMOS PASSOS -->
+  <div class="section-title">Próximos Passos</div>
+  <ul class="steps-list">${steps.map(s => `<li>${s}</li>`).join("")}</ul>
+
+  <!-- RODAPÉ -->
+  <div class="footer">
+    <span>Orbit BI — Plataforma de Business Intelligence de Mídia Paga</span>
+    <span>Documento gerado automaticamente em ${now}</span>
+  </div>
+
+  <!-- BOTÃO IMPRIMIR (some ao imprimir) -->
+  <div class="no-print" style="text-align:center;margin-top:8mm">
+    <button onclick="window.print()" style="background:#0f172a;color:#fff;border:none;padding:10px 28px;border-radius:6px;font-size:11pt;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">Salvar como PDF</button>
+  </div>
+
+</div>
+</body></html>`;
+
+    const win = window.open("", "_blank");
+    if (!win) {
+      triggerToast("Permita pop-ups para gerar o relatório PDF.");
+      return;
     }
-  };
-
-  // Helper download blob
-  const downloadBlob = (blob, filename) => {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1200);
-  };
-
-  const pdfText = (value) => {
-    const bytes = [0xfe, 0xff];
-    for (const char of String(value)) {
-      const code = char.codePointAt(0);
-      if (code > 0xffff) continue;
-      bytes.push((code >> 8) & 255, code & 255);
-    }
-    return `<${bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("")}>`;
-  };
-
-  const createExecutivePdf = (reportData = null) => {
-    const sorted = [...filteredCampaigns].sort((a, b) => b.roas - a.roas);
-    const best = sorted[0];
-    const worst = sorted[sorted.length - 1];
-    const title = reportData?.titulo || "Relatório Executivo Orbit BI";
-    const subtitle = reportData?.subtitulo || "Diagnóstico estratégico de mídia paga";
-    const conclusion = reportData?.conclusao || insights.summary || "Aguardando dados consolidados para diagnóstico completo.";
-    const recommendations = reportData?.recomendacoes || [
-      best ? `Escalar gradualmente a campanha "${best.nome}" enquanto o ROAS permanecer acima da média.` : "Carregar dados de campanhas para identificar oportunidades de escala.",
-      worst ? `Revisar orçamento e criativos da campanha "${worst.nome}".` : "Importar dados de Google Ads e Meta Ads para comparação executiva.",
-      "Monitorar CPA, ROAS, CTR e conversões diariamente antes de ampliar investimento."
-    ];
-    const nextSteps = reportData?.proximosPassos || [
-      "Validar qualidade dos dados importados.",
-      "Priorizar campanhas com maior eficiência incremental.",
-      "Gerar nova leitura após o próximo ciclo de otimização."
-    ];
-
-    const lines = [
-      { text: "Orbit BI | Relatório Executivo de Mídia Paga", size: 14, y: 790 },
-      { text: title, size: 22, y: 756 },
-      { text: subtitle, size: 12, y: 728 },
-      { text: `Investimento: ${brl.format(totals.investimento)} | Receita: ${brl.format(totals.receita)} | ROAS: ${totals.roas.toFixed(2).replace(".", ",")}x`, size: 12, y: 684 },
-      { text: `Conversões: ${number.format(totals.conversoes)} | CPA: ${brl.format(totals.cpa)} | Lucro estimado: ${brl.format(totals.lucro)}`, size: 12, y: 662 },
-      { text: "Conclusão executiva", size: 16, y: 612 },
-      { text: conclusion.slice(0, 115), size: 10, y: 588 },
-      { text: conclusion.slice(115, 230), size: 10, y: 570 },
-      { text: "Recomendações", size: 16, y: 520 },
-      ...recommendations.slice(0, 3).map((item, index) => ({ text: `${index + 1}. ${item}`.slice(0, 125), size: 10, y: 492 - index * 22 })),
-      { text: "Próximos passos", size: 16, y: 394 },
-      ...nextSteps.slice(0, 3).map((item, index) => ({ text: `${index + 1}. ${item}`.slice(0, 125), size: 10, y: 366 - index * 22 })),
-      { text: "Documento gerado automaticamente em PT-BR pelo Orbit BI.", size: 9, y: 82 },
-    ];
-
-    const content = [
-      "q",
-      "0.02 0.03 0.06 rg 0 0 595 842 re f",
-      "0.07 0.10 0.16 rg 36 635 523 115 re f",
-      "0.05 0.08 0.13 rg 36 440 523 170 re f",
-      "0.05 0.08 0.13 rg 36 245 523 155 re f",
-      "0.49 0.97 0.75 rg 36 812 150 3 re f",
-      ...lines.map((line) => `BT /F1 ${line.size} Tf 54 ${line.y} Td 0.95 0.97 0.99 rg ${pdfText(line.text)} Tj ET`),
-      "Q",
-    ].join("\n");
-    // C-05 FIX: Calculate actual byte length of UTF-16 content for correct /Length in PDF
-    const contentBytes = new TextEncoder().encode(content).length;
-    const objects = [
-      "<< /Type /Catalog /Pages 2 0 R >>",
-      "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-      "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
-      "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-      `<< /Length ${contentBytes} >>\nstream\n${content}\nendstream`,
-    ];
-    let pdf = "%PDF-1.4\n";
-    const offsets = [0];
-    objects.forEach((object, index) => {
-      offsets.push(pdf.length);
-      pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
-    });
-    const xrefOffset = pdf.length;
-    pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-    offsets.slice(1).forEach((offset) => {
-      pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
-    });
-    pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-    return new Blob([pdf], { type: "application/pdf" });
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => win.print(), 800);
   };
 
   // Consolidated CSV/Excel Export Logic
@@ -1816,8 +1957,8 @@ export default function Home() {
     }
 
     const today = new Date().toLocaleDateString("pt-BR").replaceAll("/", "-");
-    downloadBlob(createExecutivePdf(reportData), `orbit-bi-relatorio-executivo-${today}.pdf`);
-    triggerToast("PDF executivo gerado. Verifique a pasta Downloads.");
+    openExecutiveReportWindow(reportData);
+    triggerToast("Relatório executivo aberto. Use Salvar como PDF no navegador.");
   };
 
   const handleToggleAutomation = () => {
