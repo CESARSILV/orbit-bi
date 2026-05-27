@@ -123,7 +123,7 @@ function SummaryCard({ kpi, value, prevValue }) {
     }}>
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0, height: 2,
-        background: "linear-gradient(90deg, #5b9cf6, #34d399)",
+        background: "linear-gradient(90deg, #fbbc05, #0866ff)",
         borderRadius: "12px 12px 0 0",
       }} />
       <div style={{ fontSize: 18, marginBottom: 4 }}>{def.icon}</div>
@@ -655,7 +655,7 @@ export default function ReportBuilder({
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{
                 width: 40, height: 40, borderRadius: 10,
-                background: "linear-gradient(135deg, #5b9cf6, #34d399)",
+                background: "linear-gradient(135deg, #fbbc05, #0866ff)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 18, fontWeight: 900, color: "#fff", flexShrink: 0,
               }}>O</div>
@@ -792,8 +792,8 @@ export default function ReportBuilder({
                       const pctG = totalAll > 0 ? (totalG / totalAll) * 100 : 0;
                       const pctM = totalAll > 0 ? (totalM / totalAll) * 100 : 0;
                       return [
-                        { label: "Google Ads", color: "#5b9cf6", rgb: "91,156,246", value: totalG, pct: pctG },
-                        { label: "Meta Ads",   color: "#34d399", rgb: "52,211,153", value: totalM, pct: pctM },
+                        { label: "Google Ads", color: "#FBBC05", rgb: "251,188,5", value: totalG, pct: pctG },
+                        { label: "Meta Ads",   color: "#0866FF", rgb: "8,102,255", value: totalM, pct: pctM },
                       ].map(p => (
                         <div key={p.label} className="platform-card" style={{ borderColor: `rgba(${p.rgb},0.25)`, background: `rgba(${p.rgb},0.06)` }}>
                           <div style={{ fontSize: "0.72rem", fontWeight: 700, color: p.color, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>

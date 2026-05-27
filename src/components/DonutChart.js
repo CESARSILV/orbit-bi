@@ -8,8 +8,8 @@ const brl2 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL"
 const pct  = (v) => (v >= 0 ? "+" : "") + v.toFixed(1).replace(".", ",") + "%";
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
-const GOOGLE = { hex: "#5B9CF6", rgb: "91,156,246",  name: "Google Ads" };
-const META   = { hex: "#34D399", rgb: "52,211,153",   name: "Meta Ads"   };
+const GOOGLE = { hex: "#FBBC05", rgb: "251,188,5",   name: "Google Ads" };
+const META   = { hex: "#0866FF", rgb: "8,102,255",   name: "Meta Ads"   };
 
 // ─── Hook: animação numérica suave (lerp por RAF) ─────────────────────────────
 function useRollingNumber(target, duration = 700) {

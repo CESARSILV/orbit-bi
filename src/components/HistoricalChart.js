@@ -65,9 +65,9 @@ function usePalette() {
   const { theme } = useTheme();
   const dark = theme !== "light";
   return {
-    google:  "#5B9CF6",
-    meta:    "#34D399",
-    leads:   "#FBBF24",
+    google:  "#FBBC05",
+    meta:    "#0866FF",
+    leads:   "#10B981",
     bg:      dark ? "#0A0F1E"                       : "#ffffff",
     surface: dark ? "#0f1629"                       : "#f8fafc",
     border:  dark ? "rgba(255,255,255,0.07)"        : "rgba(15,23,42,0.08)",
@@ -191,15 +191,15 @@ export default function HistoricalChart({ timeline }) {
           const total = gVal + mVal;
           const cpl   = lVal > 0 ? total / lVal : 0;
           const grow  = growthByMonth[idx];
-          const growColor = grow >= 0 ? "#34D399" : "#F87171";
+          const growColor = grow >= 0 ? C.leads : "#F87171";
           const growIcon  = grow >= 0 ? "▲" : "▼";
           return `<div style="font-family:Inter,sans-serif;min-width:210px">
             <div style="font-weight:700;font-size:13px;color:rgba(245,247,251,0.95);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08)">${month}</div>
             <div style="display:flex;flex-direction:column;gap:5px;">
-              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#5B9CF6;font-size:12px">● Google Ads</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl.format(gVal)}</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#34D399;font-size:12px">● Meta Ads</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl.format(mVal)}</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${C.google};font-size:12px">● Google Ads</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl.format(gVal)}</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${C.meta};font-size:12px">● Meta Ads</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl.format(mVal)}</span></div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.07)"><span style="color:rgba(245,247,251,0.55);font-size:12px">Total</span><span style="font-weight:700;color:rgba(245,247,251,0.95)">${brl.format(total)}</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#FBBF24;font-size:12px">◆ Leads</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${num.format(lVal)}</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${C.leads};font-size:12px">◆ Leads</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${num.format(lVal)}</span></div>
               <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:rgba(245,247,251,0.55);font-size:12px">CPL</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl2.format(cpl)}</span></div>
               ${idx > 0 ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.07)"><span style="color:rgba(245,247,251,0.55);font-size:12px">Crescimento</span><span style="font-weight:700;color:${growColor}">${growIcon} ${Math.abs(grow).toFixed(1).replace(".",",")}%</span></div>` : ""}
             </div></div>`;
@@ -225,26 +225,26 @@ export default function HistoricalChart({ timeline }) {
         {
           type: "value", name: "", max: maxLeads, min: 0, splitNumber: 4,
           axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
-          axisLabel: { color: "rgba(251,191,36,0.6)", fontFamily: "Inter, sans-serif", fontSize: 10.5, formatter: (v) => num.format(Math.round(v)) },
+          axisLabel: { color: "rgba(16,185,129,0.6)", fontFamily: "Inter, sans-serif", fontSize: 10.5, formatter: (v) => num.format(Math.round(v)) },
         },
       ],
       series: [
         {
           name: "Google Ads", type: "bar", yAxisIndex: 0, data: googleV, barWidth: "22%", barGap: "8%",
-          itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#5B9CF6" }, { offset: 1, color: "rgba(91,156,246,0.25)" }] }, borderRadius: [5, 5, 0, 0] },
-          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#7BB7FF" }, { offset: 1, color: "rgba(123,183,255,0.4)" }] }, shadowBlur: 12, shadowColor: "rgba(91,156,246,0.5)" } },
+          itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#FBBC05" }, { offset: 1, color: "rgba(251,188,5,0.25)" }] }, borderRadius: [5, 5, 0, 0] },
+          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#FFD54F" }, { offset: 1, color: "rgba(255,213,79,0.4)" }] }, shadowBlur: 12, shadowColor: "rgba(251,188,5,0.5)" } },
         },
         {
           name: "Meta Ads", type: "bar", yAxisIndex: 0, data: metaV, barWidth: "22%",
-          itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#34D399" }, { offset: 1, color: "rgba(52,211,153,0.2)" }] }, borderRadius: [5, 5, 0, 0] },
-          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#6EEEC7" }, { offset: 1, color: "rgba(110,238,199,0.4)" }] }, shadowBlur: 12, shadowColor: "rgba(52,211,153,0.5)" } },
+          itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#0866FF" }, { offset: 1, color: "rgba(8,102,255,0.2)" }] }, borderRadius: [5, 5, 0, 0] },
+          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#478CFF" }, { offset: 1, color: "rgba(71,140,255,0.4)" }] }, shadowBlur: 12, shadowColor: "rgba(8,102,255,0.5)" } },
         },
         {
           name: "Leads", type: "line", yAxisIndex: 1, data: leadsV, smooth: 0.55, symbol: "circle", symbolSize: 7,
-          lineStyle: { color: C.leads, width: 2.5, shadowBlur: 10, shadowColor: "rgba(251,191,36,0.45)" },
+          lineStyle: { color: C.leads, width: 2.5, shadowBlur: 10, shadowColor: "rgba(16,185,129,0.45)" },
           itemStyle: { color: C.leads, borderColor: C.bg, borderWidth: 2 },
-          emphasis: { scale: true, itemStyle: { shadowBlur: 16, shadowColor: "rgba(251,191,36,0.7)" } },
-          areaStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "rgba(251,191,36,0.15)" }, { offset: 1, color: "rgba(251,191,36,0.01)" }] } },
+          emphasis: { scale: true, itemStyle: { shadowBlur: 16, shadowColor: "rgba(16,185,129,0.7)" } },
+          areaStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "rgba(16,185,129,0.15)" }, { offset: 1, color: "rgba(16,185,129,0.01)" }] } },
         },
       ],
     };
