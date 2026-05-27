@@ -211,14 +211,22 @@ export default function ReportBuilder({
   endDate,
 }) {
   const printRef = useRef(null);
-  const prefs = useMemo(() => loadPrefs(), []);
-
-  // Config state — inicializa do localStorage se "Manter como Padrão" estava ativo
-  const [selectedKpis,   setSelectedKpis]   = useState(() => prefs?.selectedKpis   || DEFAULT_KPIS);
-  const [clientName,     setClientName]      = useState(() => prefs?.clientName     || "");
+  // Config state — inicializa do localStorage após montar no cliente (SSR-safe)
+  const [selectedKpis,   setSelectedKpis]   = useState(DEFAULT_KPIS);
+  const [clientName,     setClientName]      = useState("");
   const [showConfig,     setShowConfig]      = useState(true);
-  const [highlight,      setHighlight]       = useState(() => prefs?.highlight      ?? true);
-  const [saveAsDefault,  setSaveAsDefault]   = useState(() => prefs?.saveAsDefault  ?? false);
+  const [highlight,      setHighlight]       = useState(true);
+  const [saveAsDefault,  setSaveAsDefault]   = useState(false);
+
+  useEffect(() => {
+    const prefs = loadPrefs();
+    if (prefs) {
+      if (prefs.selectedKpis) setSelectedKpis(prefs.selectedKpis);
+      if (prefs.clientName) setClientName(prefs.clientName);
+      if (prefs.highlight !== undefined) setHighlight(prefs.highlight);
+      if (prefs.saveAsDefault !== undefined) setSaveAsDefault(prefs.saveAsDefault);
+    }
+  }, []);
 
   // Persiste preferências no localStorage sempre que algo mudar (se saveAsDefault estiver ativo)
   useEffect(() => {
