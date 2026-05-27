@@ -2,12 +2,12 @@
 
 import { useTheme } from "@/lib/ThemeContext";
 
-export default function Topbar({ onRefresh, onGenerateReport, onClearData }) {
+export default function Topbar({ onRefresh, onGenerateReport, onClearData, isScrolled }) {
   const { theme } = useTheme();
   const isLight = theme === "light";
 
   return (
-    <header className="topbar-premium">
+    <header className={`topbar-premium ${isScrolled ? "topbar-premium--compact" : ""}`}>
       {/* ── Lado esquerdo: identidade ──────────────────────────────── */}
       <div className="topbar-left">
         <div className="topbar-badge">

@@ -32,6 +32,7 @@ export default function ControlStrip({
   searchTerm, onSearchTermChange,
   uniqueValues = {},
   onExport,
+  isScrolled,
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -74,7 +75,7 @@ export default function ControlStrip({
   };
 
   return (
-    <section className="filter-shell" aria-label="Filtros avançados do painel">
+    <section className={`filter-shell ${isScrolled ? "filter-shell--compact" : ""}`} aria-label="Filtros avançados do painel">
 
       {/* ── Barra superior sempre visível ────────────────────────── */}
       <div className="filter-toprow">
@@ -168,6 +169,28 @@ export default function ControlStrip({
             {campaignsList.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </label>
+
+        {/* Ações inline compactas (visíveis apenas no modo compact / isScrolled) */}
+        <div className="filter-inline-actions">
+          {activeCount > 0 && (
+            <button className="filter-reset-btn" onClick={resetAll} title="Limpar todos os filtros" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <ResetIcon />
+              <span>Limpar</span>
+            </button>
+          )}
+          <button
+            className="filter-expand-btn"
+            onClick={() => setIsExpanded(v => !v)}
+            aria-expanded={isExpanded}
+            style={{ display: "flex", alignItems: "center", gap: "6px" }}
+          >
+            <span>{isExpanded ? "▲ Recolher" : "▼ Filtros"}</span>
+          </button>
+          <button className="filter-export-btn" onClick={onExport} title="Exportar CSV" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <ExportIcon />
+            <span>CSV</span>
+          </button>
+        </div>
       </div>
 
       {/* ── Filtros avançados (colapsáveis) ──────────────────────── */}

@@ -422,6 +422,8 @@ html[data-theme="light"] .insight-card span {
   background: rgba(5, 7, 13, 0.64);
   backdrop-filter: blur(24px);
   z-index: 200;
+  display: flex;
+  flex-direction: column;
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -4280,3 +4282,187 @@ html[data-theme="light"] .chart-panel:hover {
 html[data-theme="light"] .filter-chip-label:hover .fchip-name svg {
   color: #3b82f6;
 }
+
+/* =========================================================================
+   STICKY & COMPACT NAVIGATION (Orbit BI Premium Scroll UX)
+   ========================================================================= */
+
+/* Sticky container para os elementos do cabeçalho */
+.workspace-header-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: transparent;
+}
+
+/* Quando scrolled, adiciona um leve padding/shadow ao container e melhora o glassmorphism */
+.workspace-header-sticky.scrolled {
+  top: 8px; /* Floating look premium */
+  gap: 8px;
+}
+
+/* --- TOPBAR COMPACTO --- */
+.topbar-premium.topbar-premium--compact {
+  padding: 10px 20px;
+  border-radius: 12px;
+  margin-bottom: 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: rgba(15, 20, 32, 0.85) !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+html[data-theme="light"] .topbar-premium.topbar-premium--compact {
+  background: rgba(255, 255, 255, 0.90) !important;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+.topbar-premium--compact .topbar-badge,
+.topbar-premium--compact .topbar-subtitle,
+.topbar-premium--compact .topbar-platforms {
+  display: none !important;
+}
+
+.topbar-premium--compact .topbar-left {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-premium--compact .topbar-title {
+  font-size: 1.15rem !important;
+  font-weight: 700;
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.topbar-premium--compact .topbar-actions-premium {
+  gap: 8px;
+}
+
+.topbar-premium--compact .topbar-actions-premium .action-btn {
+  padding: 6px 12px !important;
+  font-size: 0.76rem !important;
+  border-radius: 8px;
+}
+
+/* --- FILTROS COMPACTOS (ControlStrip) --- */
+.filter-shell.filter-shell--compact {
+  margin-bottom: 0;
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: rgba(15, 20, 32, 0.85) !important;
+  backdrop-filter: blur(20px) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html[data-theme="light"] .filter-shell.filter-shell--compact {
+  background: rgba(255, 255, 255, 0.90) !important;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Oculta o cabeçalho de filtros original no modo compacto */
+.filter-shell--compact .filter-toprow {
+  display: none !important;
+}
+
+/* Transforma a linha de filtros primária em chips horizontais elegantes */
+.filter-shell--compact .filter-primary-row {
+  padding: 8px 16px;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-shell--compact .filter-chip-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 4px 10px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+html[data-theme="light"] .filter-shell--compact .filter-chip-label {
+  background: rgba(15, 23, 42, 0.03);
+  border-color: rgba(15, 23, 42, 0.06);
+}
+
+.filter-shell--compact .filter-chip-label:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-theme="light"] .filter-shell--compact .filter-chip-label:hover {
+  background: rgba(15, 23, 42, 0.06);
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+.filter-shell--compact .fchip-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.filter-shell--compact .filter-chip-label select,
+.filter-shell--compact .filter-chip-label input {
+  background: transparent !important;
+  border: none !important;
+  padding: 2px 4px !important;
+  font-size: 0.78rem !important;
+  height: auto !important;
+  width: auto !important;
+  min-width: 80px;
+  color: var(--text) !important;
+  box-shadow: none !important;
+  font-weight: 500;
+}
+
+.filter-shell--compact .filter-chip-label input[type="date"] {
+  min-width: 110px;
+}
+
+/* Gerenciamento dos botões de ação inline */
+.filter-inline-actions {
+  display: none;
+  margin-left: auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-shell--compact .filter-inline-actions {
+  display: flex;
+}
+
+/* Botões menores no modo inline */
+.filter-inline-actions button {
+  padding: 5px 10px !important;
+  font-size: 0.7rem !important;
+  border-radius: 7px !important;
+}
+
+.filter-inline-actions .filter-expand-btn {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.filter-shell--compact .filter-advanced-row--open {
+  padding: 8px 16px;
+  gap: 8px;
+  background: rgba(5, 7, 13, 0.2);
+}
+
+.filter-shell--compact .filter-advanced-row .filter-chip-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
