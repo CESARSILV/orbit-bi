@@ -75,14 +75,19 @@ export default function Home() {
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrolled = window.scrollY > 40;
-      if (scrolled !== isScrolled) {
-        setIsScrolled(scrolled);
-      }
+      const currentScroll = window.scrollY;
+      setIsScrolled(prev => {
+        if (currentScroll > 120) {
+          return true;
+        } else if (currentScroll < 30) {
+          return false;
+        }
+        return prev;
+      });
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [isScrolled]);
+  }, []);
 
   const toggleSidebarCollapse = () => {
     setIsSidebarCollapsed(prev => {
@@ -2128,6 +2133,7 @@ export default function Home() {
     <>
       <AuroraBackground />
       <div className={`app-shell${isSidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+        <div className="sidebar-placeholder" style={{ pointerEvents: "none" }} />
         <Sidebar 
           activeSection={activeSection} 
           onSectionChange={setActiveSection} 
