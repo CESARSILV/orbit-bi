@@ -82,6 +82,7 @@ function usePalette() {
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 function KpiMini({ label, value, accent, sub }) {
+  const C = usePalette();
   const [visible, setVisible] = useState(false);
   useEffect(() => { const t = setTimeout(() => setVisible(true), 80); return () => clearTimeout(t); }, []);
   return (
