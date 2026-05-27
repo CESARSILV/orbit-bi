@@ -2245,7 +2245,7 @@ export default function Home() {
 
           <section className="analytics-grid">
             <HistoricalChart timeline={timeline} />
-            <DonutChart campaigns={Object.values(allCampaigns)} />
+            <DonutChart campaigns={Object.values(allCampaigns)} timeline={timeline} />
           </section>
 
           <section className="segmentation-grid">
