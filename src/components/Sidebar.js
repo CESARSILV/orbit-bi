@@ -3,16 +3,25 @@
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { useTheme } from "@/lib/ThemeContext";
 
-export default function Sidebar({ activeSection, onSectionChange, user, onSignOut, isOpen, onToggle }) {
+export default function Sidebar({
+  activeSection,
+  onSectionChange,
+  user,
+  onSignOut,
+  isOpen,
+  onToggle,
+  isCollapsed,
+  onCollapseToggle,
+}) {
   const { theme, toggleTheme } = useTheme();
   const isLight = theme === "light";
 
   const navItems = [
-    { label: "Visão geral",  section: "visao-geral" },
-    { label: "Comparações",  section: "comparacao" },
-    { label: "Criativos",    section: "criativos" },
-    { label: "Relatórios",   section: "relatorios" },
-    { label: "Automações",   section: "automacoes" },
+    { label: "Visão geral",  section: "visao-geral",  icon: "📊" },
+    { label: "Comparações",  section: "comparacao",   icon: "📈" },
+    { label: "Criativos",    section: "criativos",    icon: "🎨" },
+    { label: "Relatórios",   section: "relatorios",   icon: "📄" },
+    { label: "Automações",   section: "automacoes",   icon: "⚡" },
   ];
 
   const handleNavClick = (section) => {
@@ -24,113 +33,183 @@ export default function Sidebar({ activeSection, onSectionChange, user, onSignOu
 
   return (
     <>
+      {/* Overlay mobile */}
       <div className={`sidebar-overlay ${isOpen ? "active" : ""}`} onClick={onToggle} aria-hidden="true" />
 
-      <button className="sidebar-hamburger" onClick={onToggle} aria-label={isOpen ? "Fechar menu" : "Abrir menu"} aria-expanded={isOpen}>
+      {/* Hamburger mobile */}
+      <button
+        className="sidebar-hamburger"
+        onClick={onToggle}
+        aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
+        aria-expanded={isOpen}
+      >
         {isOpen ? "✕" : "☰"}
       </button>
 
-      <aside className={`sidebar${isOpen ? " open" : ""}`} aria-label="Navegação principal">
+      <aside
+        className={`sidebar${isOpen ? " open" : ""}${isCollapsed ? " sidebar--collapsed" : ""}`}
+        aria-label="Navegação principal"
+      >
+        {/* ── Botão de recolher (desktop) ─────────────────────────── */}
+        <button
+          className="sidebar-collapse-btn"
+          onClick={onCollapseToggle}
+          title={isCollapsed ? "Expandir menu" : "Recolher menu"}
+          aria-label={isCollapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform 0.30s cubic-bezier(0.4,0,0.2,1)",
+            }}
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
 
+        {/* ── Brand ────────────────────────────────────────────────── */}
         <div className="brand">
           <div className="brand-mark">O</div>
-          <div>
-            <strong>Orbit BI</strong>
-            <span>Inteligência de mídia paga</span>
-          </div>
+          {!isCollapsed && (
+            <div className="brand-text">
+              <strong>Orbit BI</strong>
+              <span>Inteligência de mídia paga</span>
+            </div>
+          )}
         </div>
 
+        {/* ── Nav ──────────────────────────────────────────────────── */}
         <nav className="nav-list" style={{ marginBottom: "20px" }}>
           {navItems.map((item) => (
             <button
               key={item.section}
               className={`nav-item ${activeSection === item.section ? "active" : ""}`}
               onClick={() => handleNavClick(item.section)}
+              title={isCollapsed ? item.label : undefined}
             >
-              {item.label}
+              <span className="nav-item-icon">{item.icon}</span>
+              {!isCollapsed && <span className="nav-item-label">{item.label}</span>}
             </button>
           ))}
-          <a
-            href="/apresentacao"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="nav-item"
-            style={{
-              display: "flex", alignItems: "center", gap: "8px",
-              textDecoration: "none", marginTop: "16px",
-              border: "1px dashed var(--line-strong)",
-              background: "rgba(123,183,255,0.05)",
-              color: "var(--blue)", justifyContent: "center", fontWeight: "600",
-            }}
-          >
-            Apresentação e PDF
-          </a>
+
+          {!isCollapsed && (
+            <a
+              href="/apresentacao"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="nav-item"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                gap: "8px", textDecoration: "none", marginTop: "16px",
+                border: "1px dashed var(--line-strong)",
+                background: "rgba(123,183,255,0.05)",
+                color: "var(--blue)", fontWeight: "600",
+              }}
+            >
+              <span>📋</span>
+              <span>Apresentação e PDF</span>
+            </a>
+          )}
+          {isCollapsed && (
+            <a
+              href="/apresentacao"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="nav-item"
+              title="Apresentação e PDF"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                textDecoration: "none", marginTop: "16px",
+                border: "1px dashed var(--line-strong)",
+                background: "rgba(123,183,255,0.05)",
+                color: "var(--blue)",
+              }}
+            >
+              📋
+            </a>
+          )}
         </nav>
 
-        {/* ── THEME TOGGLE ─────────────────────────────────────── */}
-        <div style={{
-          marginTop: "auto",
-          marginBottom: "14px",
-          padding: "10px 12px",
-          borderRadius: "12px",
-          background: isLight ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.04)",
-          border: `1px solid ${isLight ? "rgba(15,23,42,0.10)" : "rgba(255,255,255,0.08)"}`,
-        }}>
-          <p style={{
-            fontSize: "0.62rem", fontWeight: 700, color: "var(--muted)",
-            textTransform: "uppercase", letterSpacing: "0.09em", margin: "0 0 8px 0",
-          }}>Aparência</p>
-
+        {/* ── Theme Toggle ─────────────────────────────────────────── */}
+        {!isCollapsed ? (
           <div style={{
-            display: "flex",
-            background: isLight ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.06)",
-            borderRadius: "9px", padding: "3px", gap: "2px",
+            marginTop: "auto",
+            marginBottom: "14px",
+            padding: "10px 12px",
+            borderRadius: "12px",
+            background: isLight ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.04)",
+            border: `1px solid ${isLight ? "rgba(15,23,42,0.10)" : "rgba(255,255,255,0.08)"}`,
           }}>
-            <button
-              onClick={() => { if (isLight) toggleTheme(); }}
-              style={{
-                flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-                gap: "5px", padding: "7px 6px", border: "none", borderRadius: "7px",
-                fontSize: "0.74rem", fontWeight: 700,
-                cursor: isLight ? "pointer" : "default",
-                background: !isLight
-                  ? "linear-gradient(135deg,rgba(123,183,255,0.18),rgba(91,156,246,0.12))"
-                  : "transparent",
-                color: !isLight ? "var(--blue)" : "var(--muted)",
-                boxShadow: !isLight ? "0 1px 6px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.08)" : "none",
-                transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)",
-              }}
-              title="Modo Escuro"
-            >
-              <span style={{ fontSize: "12px" }}>🌙</span>
-              <span>Escuro</span>
-            </button>
-
-            <button
-              onClick={() => { if (!isLight) toggleTheme(); }}
-              style={{
-                flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-                gap: "5px", padding: "7px 6px", border: "none", borderRadius: "7px",
-                fontSize: "0.74rem", fontWeight: 700,
-                cursor: !isLight ? "pointer" : "default",
-                background: isLight
-                  ? "linear-gradient(135deg,rgba(245,158,11,0.15),rgba(251,191,36,0.10))"
-                  : "transparent",
-                color: isLight ? "#b45309" : "var(--muted)",
-                boxShadow: isLight ? "0 1px 6px rgba(0,0,0,0.10),inset 0 1px 0 rgba(255,255,255,0.7)" : "none",
-                transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)",
-              }}
-              title="Modo Claro"
-            >
-              <span style={{ fontSize: "12px" }}>☀️</span>
-              <span>Claro</span>
-            </button>
+            <p style={{
+              fontSize: "0.62rem", fontWeight: 700, color: "var(--muted)",
+              textTransform: "uppercase", letterSpacing: "0.09em", margin: "0 0 8px 0",
+            }}>Aparência</p>
+            <div style={{
+              display: "flex",
+              background: isLight ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.06)",
+              borderRadius: "9px", padding: "3px", gap: "2px",
+            }}>
+              <button
+                onClick={() => { if (isLight) toggleTheme(); }}
+                style={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+                  gap: "5px", padding: "7px 6px", border: "none", borderRadius: "7px",
+                  fontSize: "0.74rem", fontWeight: 700,
+                  cursor: isLight ? "pointer" : "default",
+                  background: !isLight ? "linear-gradient(135deg,rgba(123,183,255,0.18),rgba(91,156,246,0.12))" : "transparent",
+                  color: !isLight ? "var(--blue)" : "var(--muted)",
+                  boxShadow: !isLight ? "0 1px 6px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.08)" : "none",
+                  transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)",
+                }} title="Modo Escuro">
+                <span style={{ fontSize: "12px" }}>🌙</span>
+                <span>Escuro</span>
+              </button>
+              <button
+                onClick={() => { if (!isLight) toggleTheme(); }}
+                style={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+                  gap: "5px", padding: "7px 6px", border: "none", borderRadius: "7px",
+                  fontSize: "0.74rem", fontWeight: 700,
+                  cursor: !isLight ? "pointer" : "default",
+                  background: isLight ? "linear-gradient(135deg,rgba(245,158,11,0.15),rgba(251,191,36,0.10))" : "transparent",
+                  color: isLight ? "#b45309" : "var(--muted)",
+                  boxShadow: isLight ? "0 1px 6px rgba(0,0,0,0.10),inset 0 1px 0 rgba(255,255,255,0.7)" : "none",
+                  transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)",
+                }} title="Modo Claro">
+                <span style={{ fontSize: "12px" }}>☀️</span>
+                <span>Claro</span>
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Collapsed: só botão de tema como ícone */
+          <button
+            onClick={toggleTheme}
+            title={isLight ? "Mudar para modo escuro" : "Mudar para modo claro"}
+            style={{
+              marginTop: "auto", marginBottom: "12px",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: "100%", padding: "9px", border: "1px solid var(--line)",
+              borderRadius: "10px", background: "var(--hover-bg)",
+              cursor: "pointer", fontSize: "16px",
+              transition: "all 0.22s ease",
+            }}
+          >
+            {isLight ? "🌙" : "☀️"}
+          </button>
+        )}
 
-        {/* Auth */}
-        {isSupabaseConfigured && (user || onSignOut) && (
-          <div className="user-profile-badge" style={{
+        {/* ── Auth ─────────────────────────────────────────────────── */}
+        {isSupabaseConfigured && (user || onSignOut) && !isCollapsed && (
+          <div style={{
             padding: "12px", borderRadius: "var(--radius)",
             background: "rgba(255,255,255,0.05)", border: "1px solid var(--line)",
             fontSize: "0.82rem", display: "flex", flexDirection: "column", gap: "8px",
@@ -150,10 +229,21 @@ export default function Sidebar({ activeSection, onSectionChange, user, onSignOu
           </div>
         )}
 
-        <div className="sidebar-card">
-          <span className="status-dot" />
-          <p>IA multimodal pronta para analisar imagens e PDFs no chat, além de estruturar CSV, XLS e XLSX de Google Ads e Meta Ads.</p>
-        </div>
+        {/* ── Status card ──────────────────────────────────────────── */}
+        {!isCollapsed && (
+          <div className="sidebar-card">
+            <span className="status-dot" />
+            <p>IA multimodal pronta para analisar imagens e PDFs no chat, além de estruturar CSV, XLS e XLSX de Google Ads e Meta Ads.</p>
+          </div>
+        )}
+        {isCollapsed && (
+          <div title="IA ativa" style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            marginBottom: "8px",
+          }}>
+            <span className="status-dot" />
+          </div>
+        )}
 
       </aside>
     </>

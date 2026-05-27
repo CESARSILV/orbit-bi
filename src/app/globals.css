@@ -3999,3 +3999,180 @@ html[data-theme="light"] .filter-chip-label input[type="date"]:focus {
   .filter-chip-label { flex: 1 1 100%; max-width: none; }
   .filter-toprow-right { gap: 4px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SIDEBAR COLLAPSE — botão + animação suave
+═══════════════════════════════════════════════════════════════════════ */
+
+/* App-shell: transição suave na coluna do grid */
+.app-shell {
+  transition: grid-template-columns 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.app-shell.sidebar-collapsed {
+  grid-template-columns: 66px minmax(0, 1fr) !important;
+}
+
+/* Sidebar collapsed: largura fixa, sem overflow de texto */
+.sidebar--collapsed {
+  width: 66px !important;
+  min-width: 66px !important;
+  max-width: 66px !important;
+  padding: 16px 10px !important;
+  overflow: hidden !important;
+  transition: width 0.35s cubic-bezier(0.4,0,0.2,1),
+              min-width 0.35s cubic-bezier(0.4,0,0.2,1),
+              max-width 0.35s cubic-bezier(0.4,0,0.2,1),
+              padding 0.35s cubic-bezier(0.4,0,0.2,1) !important;
+}
+
+/* Sidebar expandida: transição no width também */
+.sidebar {
+  transition: width 0.35s cubic-bezier(0.4,0,0.2,1),
+              min-width 0.35s cubic-bezier(0.4,0,0.2,1),
+              max-width 0.35s cubic-bezier(0.4,0,0.2,1),
+              padding 0.35s cubic-bezier(0.4,0,0.2,1),
+              transform 0.28s cubic-bezier(0.4,0,0.2,1),
+              background 0.28s cubic-bezier(0.4,0,0.2,1),
+              border-color 0.28s cubic-bezier(0.4,0,0.2,1) !important;
+}
+
+/* Brand: quando collapsed só o logo fica visível */
+.sidebar--collapsed .brand {
+  justify-content: center;
+  margin-bottom: 20px;
+}
+.brand-text {
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.25s ease, max-width 0.35s ease;
+  max-width: 200px;
+  opacity: 1;
+}
+.sidebar--collapsed .brand-text {
+  opacity: 0;
+  max-width: 0;
+  pointer-events: none;
+}
+
+/* Nav items: quando collapsed centraliza e esconde label */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sidebar--collapsed .nav-item {
+  justify-content: center;
+  padding: 10px !important;
+}
+.nav-item-icon {
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+.nav-item:hover .nav-item-icon {
+  transform: scale(1.15);
+}
+.nav-item-label {
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.22s ease, max-width 0.32s ease;
+  max-width: 200px;
+  opacity: 1;
+}
+.sidebar--collapsed .nav-item-label {
+  opacity: 0;
+  max-width: 0;
+  pointer-events: none;
+}
+
+/* ── Botão de recolher ─────────────────────────────────────────── */
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 18px;
+  right: -13px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-strong);
+  backdrop-filter: blur(12px);
+  color: var(--muted);
+  cursor: pointer;
+  z-index: 300;
+  transition: background 0.18s ease, border-color 0.18s ease,
+              color 0.18s ease, transform 0.18s ease,
+              box-shadow 0.18s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.sidebar-collapse-btn:hover {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(123,183,255,0.20), 0 2px 12px rgba(0,0,0,0.30);
+  transform: scale(1.08);
+}
+html[data-theme="light"] .sidebar-collapse-btn {
+  background: #fff;
+  border-color: rgba(15,23,42,0.18);
+  color: #64748b;
+  box-shadow: 0 2px 8px rgba(15,23,42,0.10);
+}
+html[data-theme="light"] .sidebar-collapse-btn:hover {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.18), 0 2px 12px rgba(15,23,42,0.12);
+}
+
+/* Sidebar precisa de position relative para o botão absoluto funcionar */
+.sidebar {
+  position: relative !important;
+}
+
+/* Em mobile: esconde botão de colapso e mantém comportamento original */
+@media (max-width: 1024px) {
+  .sidebar-collapse-btn { display: none !important; }
+  .sidebar--collapsed { width: auto !important; min-width: 0 !important; }
+  .app-shell.sidebar-collapsed {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Workspace: transição suave ao expandir/recolher */
+.workspace {
+  transition: padding 0.35s cubic-bezier(0.4,0,0.2,1) !important;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+/* Tooltip para itens collapsed */
+.sidebar--collapsed .nav-item[title] {
+  position: relative;
+}
+.sidebar--collapsed .nav-item[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 5px 10px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 999;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.30);
+  pointer-events: none;
+  animation: tooltipIn 0.15s ease;
+}
+@keyframes tooltipIn {
+  from { opacity: 0; transform: translateY(-50%) translateX(-4px); }
+  to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+}

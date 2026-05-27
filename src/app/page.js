@@ -69,6 +69,19 @@ export default function Home() {
   // UI state
   const [activeSection, setActiveSection] = useState("visao-geral");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("orbit-sidebar-collapsed") === "true";
+    }
+    return false;
+  });
+  const toggleSidebarCollapse = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem("orbit-sidebar-collapsed", next);
+      return next;
+    });
+  };
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   // A-01 FIX: Timer ID stored in useRef instead of useState to avoid unnecessary re-renders
@@ -2106,7 +2119,7 @@ export default function Home() {
   return (
     <>
       <AuroraBackground />
-      <div className="app-shell">
+      <div className={`app-shell${isSidebarCollapsed ? " sidebar-collapsed" : ""}`}>
         <Sidebar 
           activeSection={activeSection} 
           onSectionChange={setActiveSection} 
@@ -2114,6 +2127,8 @@ export default function Home() {
           onSignOut={handleSignOut}
           isOpen={isSidebarOpen}
           onToggle={() => setIsSidebarOpen(prev => !prev)}
+          isCollapsed={isSidebarCollapsed}
+          onCollapseToggle={toggleSidebarCollapse}
         />
 
         <main className="workspace">
