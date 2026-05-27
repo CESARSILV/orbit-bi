@@ -760,49 +760,50 @@ export default function Home() {
 
     if (list.length === 0) return null;
 
-    // M-08 FIX: Added tablet bucket so it's counted separately
-    let mobile = { percent: 0, invest: 0, clicks: 0, conv: 0, cpa: 0 };
-    let desktop = { percent: 0, invest: 0, clicks: 0, conv: 0, cpa: 0 };
-    let tablet = { percent: 0, invest: 0, clicks: 0, conv: 0, cpa: 0 };
+    let mobile  = { percent: 0, invest: 0, clicks: 0, impressions: 0, conv: 0, cpa: 0 };
+    let desktop = { percent: 0, invest: 0, clicks: 0, impressions: 0, conv: 0, cpa: 0 };
+    let tablet  = { percent: 0, invest: 0, clicks: 0, impressions: 0, conv: 0, cpa: 0 };
 
     list.forEach(row => {
-      const devVal = String(row.device || "").toLowerCase();
+      const devVal    = String(row.device || "").toLowerCase();
       const investVal = row.spend || 0;
-      const convVal = row.conversions || 0;
+      const convVal   = row.conversions || 0;
       const clicksVal = row.clicks || 0;
+      const imprVal   = row.impressions || 0;
 
       if (devVal.includes("tablet") || devVal.includes("ipad")) {
         tablet.invest += investVal;
-        tablet.conv += convVal;
+        tablet.conv   += convVal;
         tablet.clicks += clicksVal;
+        tablet.impressions += imprVal;
       } else if (devVal.includes("mob") || devVal.includes("cel") || devVal.includes("phone")) {
         mobile.invest += investVal;
-        mobile.conv += convVal;
+        mobile.conv   += convVal;
         mobile.clicks += clicksVal;
+        mobile.impressions += imprVal;
       } else if (devVal.includes("desk") || devVal.includes("comp") || devVal.includes("pc") || devVal.includes("tv")) {
         desktop.invest += investVal;
-        desktop.conv += convVal;
+        desktop.conv   += convVal;
         desktop.clicks += clicksVal;
+        desktop.impressions += imprVal;
       }
     });
 
     const totalInvest = mobile.invest + desktop.invest + tablet.invest;
     if (totalInvest > 0) {
-      mobile.percent = (mobile.invest / totalInvest) * 100;
+      mobile.percent  = (mobile.invest  / totalInvest) * 100;
       desktop.percent = (desktop.invest / totalInvest) * 100;
-      tablet.percent = (tablet.invest / totalInvest) * 100;
-    } else {
-      mobile.percent = 50;
-      desktop.percent = 50;
-      tablet.percent = 0;
+      tablet.percent  = (tablet.invest  / totalInvest) * 100;
     }
-    mobile.cpa = mobile.conv > 0 ? mobile.invest / mobile.conv : 0;
+    // ─ NÃO usar fallback 50/50 — sem dados = percent zero real
+    mobile.cpa  = mobile.conv  > 0 ? mobile.invest  / mobile.conv  : 0;
     desktop.cpa = desktop.conv > 0 ? desktop.invest / desktop.conv : 0;
-    tablet.cpa = tablet.conv > 0 ? tablet.invest / tablet.conv : 0;
+    tablet.cpa  = tablet.conv  > 0 ? tablet.invest  / tablet.conv  : 0;
 
     return { mobile, desktop, tablet };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketingDb, platform, period, startDate, endDate, campaign, device]);
+
 
   // Dynamic Heatmap Chronological Data
   const getTimeHeatmapData = () => {
