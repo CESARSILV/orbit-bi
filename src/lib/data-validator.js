@@ -22,9 +22,17 @@ const DRIFT_TOLERANCE = 0.005; // 0,5%
 //    diferentes (2025-10-01 vs 2025-10) produzam a mesma chave.
 // ----------------------------------------------------
 export function buildRowKey(row) {
-  // Normaliza a data para YYYY-MM (ignora o dia para comparação de meses)
-  const rawDate = row.date || row.reference_month || "";
-  const dateKey = rawDate.length >= 7 ? rawDate.slice(0, 7) : rawDate;
+  // IMPORTANTE: usa a data COMPLETA (não truncada para YYYY-MM).
+  //
+  // Bug anterior: rawDate.slice(0, 7) normalizava "2025-10-15" para "2025-10".
+  // Isso colapsava TODAS as linhas do mesmo mês/campanha em uma única chave,
+  // fazendo o PASSO 2 eliminar registros válidos (ex: múltiplas campanhas Meta
+  // sem nome que recebem o fallback "Campanha Geral" + mesmo mês = chave idêntica).
+  //
+  // A data completa (YYYY-MM-DD ou YYYY-MM) é usada diretamente.
+  // O PASSO 3 em getDatabase() cuida da dedup de double-import com agrupamento
+  // por mês separadamente — não depende mais deste buildRowKey para isso.
+  const dateKey = (row.date || row.reference_month || "").trim();
 
   return [
     (row.platform        || "").toLowerCase().trim(),
@@ -39,8 +47,13 @@ export function buildRowKey(row) {
     (row.age_range       || "").toLowerCase().trim(),
     (row.network         || "").toLowerCase().trim(),
     String(row.hour      ?? ""),
+    // spend como tiebreaker: se dois registros têm tudo igual mas spend diferente,
+    // são registros distintos (ex: mesmo adset em datas diferentes com mesmo nome).
+    // Arredondado para 2 casas para absorver diferenças de arredondamento.
+    String(Math.round((row.spend || 0) * 100)),
   ].join("|");
 }
+
 
 // ----------------------------------------------------
 // 2. Gera ID determinístico baseado nos dados da linha

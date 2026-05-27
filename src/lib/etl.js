@@ -1060,7 +1060,11 @@ export async function processUploadFile(file) {
       const normalizedRow = {
         platform,
         dataset_type,
-        campaign_name: sanitizeMojibake(campName) || "Campanha Geral",
+        // CRÍTICO: não usar nome genérico compartilhado como fallback.
+        // "Campanha Geral" para TODAS as linhas sem nome = chaves idênticas = dedup remove dados reais.
+        // Usa o spend como parte do identificador único para distinguir linhas sem campanha.
+        campaign_name: sanitizeMojibake(campName) || `Campanha Meta ${spend > 0 ? spend.toFixed(2) : idx}`,
+
         adset_name: sanitizeMojibake(adsetName) || null,
         ad_name: sanitizeMojibake(adName) || null,
         device: sanitizeMojibake(deviceName) || null,
