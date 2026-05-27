@@ -69,12 +69,12 @@ export default function Home() {
   // UI state
   const [activeSection, setActiveSection] = useState("visao-geral");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  useEffect(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("orbit-sidebar-collapsed") === "true";
+      setIsSidebarCollapsed(localStorage.getItem("orbit-sidebar-collapsed") === "true");
     }
-    return false;
-  });
+  }, []);
   const toggleSidebarCollapse = () => {
     setIsSidebarCollapsed(prev => {
       const next = !prev;
