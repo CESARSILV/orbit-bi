@@ -77,7 +77,23 @@ export default function ControlStrip({
           <select
             id="periodFilter"
             value={period}
-            onChange={(e) => onPeriodChange(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              onPeriodChange(val);
+              // Ao selecionar "Todos os Meses", limpa todos os demais filtros
+              if (val === "todos") {
+                onPlatformChange("todas");
+                onStartDateChange("");
+                onEndDateChange("");
+                onCampaignChange("todas");
+                onDeviceChange("todos");
+                onGenderChange("todos");
+                onAgeChange("todas");
+                onNetworkChange("todas");
+                onKeywordChange("todas");
+                onSearchTermChange("todos");
+              }
+            }}
           >
             <option value="todos">Todos os Meses</option>
             {monthsList.map((m) => (
