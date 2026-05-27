@@ -1,11 +1,58 @@
 "use client";
 
 import { useMemo, useRef, useState, useEffect } from "react";
-import dynamic from "next/dynamic";
 import { useTheme } from "@/lib/ThemeContext";
 
-// ECharts carregado no lado do cliente (evita SSR issues)
-const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
+// ─── Custom EChart Client-Safe Component (React 19 & SSR compatible) ─────────
+function EChart({ option, style }) {
+  const domRef = useRef(null);
+  const chartRef = useRef(null);
+
+  useEffect(() => {
+    if (!domRef.current) return;
+
+    let active = true;
+    let resizeObserver;
+
+    // Dynamically load echarts client-side to be 100% SSR-safe
+    import("echarts").then((echarts) => {
+      if (!active || !domRef.current) return;
+
+      chartRef.current = echarts.init(domRef.current, null, {
+        renderer: "canvas",
+        devicePixelRatio: typeof window !== "undefined" ? (window.devicePixelRatio || 2) : 2
+      });
+
+      chartRef.current.setOption(option);
+
+      // Listen for container resize to adjust chart layout dynamically
+      resizeObserver = new ResizeObserver(() => {
+        chartRef.current?.resize();
+      });
+      resizeObserver.observe(domRef.current);
+    });
+
+    return () => {
+      active = false;
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+      if (chartRef.current) {
+        chartRef.current.dispose();
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update options when they change (smooth animation)
+  useEffect(() => {
+    if (chartRef.current && option) {
+      chartRef.current.setOption(option, true);
+    }
+  }, [option]);
+
+  return <div ref={domRef} style={style} />;
+}
 
 // ─── Formatadores ─────────────────────────────────────────────────────────────
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -76,7 +123,6 @@ function KpiMini({ label, value, accent, sub }) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function HistoricalChart({ timeline }) {
   const C = usePalette();
-  const chartRef = useRef(null);
   const containerRef = useRef(null);
 
   const data = useMemo(() => {
@@ -203,29 +249,6 @@ export default function HistoricalChart({ timeline }) {
     };
   }, [data, growthByMonth, C]);
 
-  // ── ResizeObserver: redesenha ECharts ao redimensionar o container ───────
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const observer = new ResizeObserver(() => {
-      const instance = chartRef.current?.getEchartsInstance?.();
-      if (instance && !instance.isDisposed()) {
-        instance.resize();
-      }
-    });
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  // ── Dispose ECharts na desmontagem ───────────────────────────────────────
-  useEffect(() => {
-    return () => {
-      const instance = chartRef.current?.getEchartsInstance?.();
-      if (instance && !instance.isDisposed()) {
-        instance.dispose();
-      }
-    };
-  }, []);
-
   if (!data || data.length === 0) {
     return (
       <article
@@ -287,14 +310,9 @@ export default function HistoricalChart({ timeline }) {
 
       {/* ── Gráfico ECharts ───────────────────────────────────────────────── */}
       <div style={{ flex: 1, minHeight: 280, minWidth: 0, width: "100%" }}>
-        <ReactECharts
-          ref={chartRef}
+        <EChart
           option={option}
           style={{ height: "280px", width: "100%" }}
-          opts={{ renderer: "canvas", devicePixelRatio: typeof window !== "undefined" ? (window.devicePixelRatio || 2) : 2 }}
-          notMerge={false}
-          lazyUpdate={false}
-          theme={null}
         />
       </div>
     </article>
