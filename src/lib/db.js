@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
+import { buildRowKey, validateImportIntegrity, detectDuplicateRows } from "./data-validator";
 
 // ----------------------------------------------------
 // DB Initial State & Schema Definitions
@@ -99,21 +100,11 @@ export function getDatabase() {
       // PASSO 1: Remove linhas de total com campaign_name = "--" ou similar
       db.fact_campaigns = db.fact_campaigns.filter(r => !isDashOnly(r.campaign_name));
 
-      // PASSO 2: Dedup estrita — chave exata (platform + reference_month + campaign + date + segmentos)
-      // Remove duplicatas pixel-perfect (mesmos valores, mesma data, mesmo tudo).
+      // PASSO 2: Dedup estrita — usa buildRowKey centralizado (normaliza data para YYYY-MM)
+      // Evita falsos positivos causados por formatos de data diferentes (2025-10-01 vs 2025-10)
       const seenStrict = new Set();
       db.fact_campaigns = db.fact_campaigns.filter(r => {
-        const key = [
-          r.platform || "",
-          r.reference_month || "",
-          r.campaign_name || "",
-          r.date || r.reference_month || "",
-          r.device || "",
-          r.keyword || "",
-          r.search_term || "",
-          r.gender || "",
-          r.age_range || ""
-        ].join("|");
+        const key = buildRowKey(r);
         if (seenStrict.has(key)) return false;
         seenStrict.add(key);
         return true;
@@ -161,12 +152,12 @@ export function getDatabase() {
       }
     }
 
-    // Limpa duplicatas de fact_time_series
+    // Limpa duplicatas de fact_time_series usando buildRowKey
     if (db.fact_time_series && db.fact_time_series.length > 0) {
       const before = db.fact_time_series.length;
       const seen = new Set();
       db.fact_time_series = db.fact_time_series.filter(r => {
-        const key = `${r.platform}|${r.date || r.reference_month}|${r.campaign_name || ""}`;
+        const key = buildRowKey(r);
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -289,16 +280,12 @@ export async function insertDataset(db, fileMeta, rows, action = "replace") {
 
   // 2. Append new rows
   if (action === "merge") {
-    // To merge, filter out rows that have identical keys
-    const getRowKey = (r) => {
-      return `${r.platform}_${r.reference_month}_${r.campaign_name || ""}_${r.date || ""}_${r.device || ""}_${r.keyword || ""}_${r.search_term || ""}_${r.gender || ""}_${r.age_range || ""}_${r.hour || ""}`;
-    };
-    
-    const existingKeys = new Set(newDb[targetTable].map(getRowKey));
-    const uniqueNewRows = rows.filter(r => !existingKeys.has(getRowKey(r)));
+    // Para merge: filtra rows que têm chave idêntica usando buildRowKey
+    const existingKeys = new Set(newDb[targetTable].map(r => buildRowKey(r)));
+    const uniqueNewRows = rows.filter(r => !existingKeys.has(buildRowKey(r)));
     newDb[targetTable] = [...newDb[targetTable], ...uniqueNewRows];
   } else {
-    // Replace simply appends all new rows
+    // Replace: adiciona todas as rows novas (a limpeza prévia já garantiu idempotência)
     newDb[targetTable] = [...newDb[targetTable], ...rows];
   }
 
@@ -314,7 +301,16 @@ export async function insertDataset(db, fileMeta, rows, action = "replace") {
   // 5. Save database locally
   saveDatabase(updatedDb);
 
-  // 6. Optional Supabase Sync
+  // 6. Validação de integridade pós-importação
+  // Compara o total do arquivo (calculado no ETL) com o total consolidado no banco.
+  const integrityResult = validateImportIntegrity(fileMeta, updatedDb);
+  if (!integrityResult.ok && !integrityResult.skipped) {
+    console.warn(`[DB] INTEGRITY CHECK FAILED: ${integrityResult.message}`);
+  } else if (!integrityResult.skipped) {
+    console.log(`[DB] INTEGRITY CHECK OK: ${integrityResult.message}`);
+  }
+
+  // 7. Optional Supabase Sync
   if (isSupabaseConfigured && supabase) {
     try {
       await syncWithSupabase(updatedDb);
@@ -323,7 +319,7 @@ export async function insertDataset(db, fileMeta, rows, action = "replace") {
     }
   }
 
-  return updatedDb;
+  return { db: updatedDb, integrity: integrityResult };
 }
 
 // ----------------------------------------------------
@@ -425,31 +421,11 @@ export function consolidateSummary(db) {
     db.fact_time_series.forEach(r => addRowToGroups(r, false));
   }
 
-  // Helper to add segment rows if no campaign/daily data exists for that campaign+month+platform
-  const addSegmentRowToGroups = (r) => {
-    if (r.platform && r.reference_month && r.campaign_name) {
-      const matchKey = `${r.platform}_${r.reference_month}_${r.campaign_name}`;
-      if (hasDailyData.has(matchKey) || hasCampaignData.has(matchKey)) {
-        return; // Avoid double counting
-      }
-    }
-    addRowToGroups(r, false);
-  };
 
-  // If we have fact_devices
-  if (db.fact_devices && db.fact_devices.length > 0) {
-    db.fact_devices.forEach(addSegmentRowToGroups);
-  }
-
-  // If we have fact_networks
-  if (db.fact_networks && db.fact_networks.length > 0) {
-    db.fact_networks.forEach(addSegmentRowToGroups);
-  }
-
-  // If we have fact_demographics
-  if (db.fact_demographics && db.fact_demographics.length > 0) {
-    db.fact_demographics.forEach(addSegmentRowToGroups);
-  }
+  // ATENÇÃO: fact_devices, fact_networks e fact_demographics NÃO contribuem para
+  // fact_marketing_summary. Eles são sub-cortes do mesmo investimento e só alimentam
+  // gráficos de distribuição específicos (DeviceChart, RegionalMap, etc.).
+  // Incluir segmentos aqui causaria double-counting do investimento total.
 
   // Recalculate ratios and build final summary rows
   for (const g of Object.values(groups)) {
@@ -463,14 +439,13 @@ export function consolidateSummary(db) {
     summary.push(g);
   }
 
-  // AUTO-DERIVE fact_devices from fact_campaigns rows that have device segmentation.
-  // Triggered when fact_devices is empty but campaign rows have a non-empty device field.
-  // This handles Google Ads exports that include "Segment: Device" in the campaign report.
+  // AUTO-DERIVE fact_devices: apenas se fact_devices estiver vazio e fact_campaigns tiver device.
+  // IMPORTANTE: fact_devices é usado SOMENTE em gráficos de distribuição (DeviceChart).
+  // Ele NUNCA contribui para o fact_marketing_summary para evitar double-counting de investimento.
   let derivedDevices = db.fact_devices || [];
   if (derivedDevices.length === 0 && db.fact_campaigns && db.fact_campaigns.length > 0) {
     const deviceRows = db.fact_campaigns.filter(r => r.device && String(r.device).trim() !== "");
     if (deviceRows.length > 0) {
-      // Group by platform + reference_month + campaign_name + device
       const devGroups = {};
       deviceRows.forEach(r => {
         const key = `${r.platform}_${r.reference_month}_${r.campaign_name}_${r.device}`;
@@ -500,7 +475,6 @@ export function consolidateSummary(db) {
   }
 
   // C-04 FIX: Return a NEW object instead of mutating the parameter
-  // This ensures React detects state changes correctly
   return { ...db, fact_marketing_summary: summary, fact_devices: derivedDevices };
 }
 

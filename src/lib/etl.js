@@ -1,4 +1,5 @@
 import readXlsxFile from "read-excel-file/browser";
+import { buildDeterministicId } from "./data-validator";
 
 export function sanitizeMojibake(str) {
   if (str === undefined || str === null) return str;
@@ -1030,9 +1031,16 @@ export async function processUploadFile(file) {
       const clicks = Math.round(parseFormattedFloat(getSemanticValue(row, "clicks", 0)));
       const impressions = Math.round(parseFormattedFloat(getSemanticValue(row, "impressions", 0)));
       const conversions = Math.round(parseFormattedFloat(getSemanticValue(row, "conversions", 0)));
-      // C-03 FIX: leads reads its own dedicated column; fallback to conversions only if leads column is absent
-      const leadsRaw = Math.round(parseFormattedFloat(getSemanticValue(row, "leads", -1)));
-      const leads = leadsRaw >= 0 ? leadsRaw : conversions;
+      // FIX: Leads NUNCA herda conversions como fallback.
+      // Se a coluna de leads não existe no arquivo, leads = 0.
+      // Isso evita dupla contagem: conversions + leads = 2x o mesmo número.
+      // leads_is_derived = true indica que a coluna real não estava presente.
+      const leadsRawVal = getSemanticValue(row, "leads"); // undefined = coluna ausente
+      const leadsRaw = leadsRawVal !== undefined
+        ? Math.round(parseFormattedFloat(leadsRawVal))
+        : -1;
+      const leads = leadsRaw >= 0 ? leadsRaw : 0;
+      const leads_is_derived = leadsRaw < 0; // flag: não tem coluna real de leads
       const reach = Math.round(parseFormattedFloat(getSemanticValue(row, "reach", 0)));
       const frequency = parseFormattedFloat(getSemanticValue(row, "frequency", 0));
       const revenue = parseFormattedFloat(getSemanticValue(row, "revenue", 0));
@@ -1045,18 +1053,23 @@ export async function processUploadFile(file) {
       const cac = conversions > 0 ? spend / conversions : 0;
       const roas = spend > 0 ? revenue / spend : 0;
 
-      return {
-        id: `row_${reference_month}_${platform}_${idx}_${Date.now()}`,
+      // Adset / Ad names (Meta Ads)
+      const adsetName = getSemanticValue(row, "adset_name");
+      const adName    = getSemanticValue(row, "ad_name");
+
+      const normalizedRow = {
         platform,
         dataset_type,
         campaign_name: sanitizeMojibake(campName) || "Campanha Geral",
+        adset_name: sanitizeMojibake(adsetName) || null,
+        ad_name: sanitizeMojibake(adName) || null,
         device: sanitizeMojibake(deviceName) || null,
         gender: sanitizeMojibake(genderName) || null,
         age_range: sanitizeMojibake(ageName) || null,
         keyword: sanitizeMojibake(keyName) || null,
         search_term: sanitizeMojibake(termName) || null,
         network: sanitizeMojibake(netName) || null,
-        
+
         // Time intelligence attributes
         date: enrichedDate.date,
         day: enrichedDate.day,
@@ -1070,30 +1083,46 @@ export async function processUploadFile(file) {
         reference_label,
         hour: hourVal !== undefined ? parseInt(String(hourVal).match(/\d+/)?.[0] || "0", 10) : null,
 
-        // Core Metrics (resilient default is 0 or null)
+        // Core Metrics
         spend,
         clicks,
         impressions,
         conversions,
         leads,
+        leads_is_derived, // true = coluna de leads ausente no arquivo original
         reach: reach || null,
         frequency: frequency || null,
         revenue,
 
-        // Calulated metrics
+        // Métricas derivadas recalculadas matematicamente (nunca confiando nas do arquivo)
         ctr,
         cpc,
         cpm,
         cpl,
         cac,
         roas,
-        
+
         status: sanitizeMojibake(getSemanticValue(row, "status")) || "Ativo",
         raw_file_name: fileName,
         file_hash,
         created_at: new Date().toISOString()
       };
+
+      // FIX: ID determinístico baseado nos dados da linha (não em Date.now()).
+      // Garante idempotência: importar o mesmo arquivo 2x = mesmo ID = dedup funciona.
+      normalizedRow.id = buildDeterministicId(normalizedRow);
+
+      return normalizedRow;
     });
+
+  // Calcula o total real de investimento do arquivo para validação pós-importação.
+  // Esse valor é comparado com o total consolidado no banco após o insert.
+  const reportTotal = normalizedRows.reduce((sum, r) => {
+    // Apenas linhas SEM segmentação para não duplicar o total
+    // (linhas com device/keyword são sub-cortes do mesmo investimento)
+    if (r.device || r.keyword || r.gender || r.age_range || r.search_term) return sum;
+    return sum + (r.spend || 0);
+  }, 0);
 
   return {
     metadata: {
@@ -1103,7 +1132,8 @@ export async function processUploadFile(file) {
       reference_label,
       raw_file_name: fileName,
       file_hash,
-      count: normalizedRows.length
+      count: normalizedRows.length,
+      reportTotal, // soma real do arquivo — usada para validação de integridade
     },
     rows: normalizedRows
   };

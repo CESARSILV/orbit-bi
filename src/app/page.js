@@ -21,6 +21,7 @@ import SearchOperations from "@/components/SearchOperations";
 // Custom ETL & DB Ingestion Imports
 import { processUploadFile, parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticValue, parseDate, inferReferenceMonth, isTotalOrMetadata, applyTemporalIntelligence, parseFormattedFloat, sanitizeMojibake, SYNONYMS } from "@/lib/etl";
 import { getDatabase, saveDatabase, insertDataset, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary } from "@/lib/db";
+import { clearAnalyticsSystem } from "@/lib/clearAnalyticsSystem";
 
 // Formatting helpers
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -87,6 +88,12 @@ export default function Home() {
   const [chatPending, setChatPending] = useState(false);
 
   // Import Wizard State (Mandatory V1 Flow)
+  // UI / Clear System State
+  const [isClearingSystem, setIsClearingSystem] = useState(false); // controla a sequência de limpeza
+  const [clearStep, setClearStep] = useState(0);                   // passo visual do clear (0-4)
+  // dashboardResetKey: quando incrementado, força o unmount+remount de TODOS os componentes
+  // de gráfico. Isso destrói o estado interno do ECharts, Canvas, rAF e Recharts.
+  const [dashboardResetKey, setDashboardResetKey] = useState(0);
   const [wizardStep, setWizardStep] = useState(null); // null, 'preview_mapping', 'processing', 'success', 'error'
   const [wizardFile, setWizardFile] = useState(null);
   const [wizardPlatform, setWizardPlatform] = useState("google");
@@ -333,26 +340,51 @@ export default function Home() {
     }
   };
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // handleClearData — Limpeza GLOBAL e REAL do sistema analytics
+  //
+  // Sequência visual (4 fases):
+  //  FASE 1 — Zera TODOS os estados React imediatamente (paineis ficam em branco)
+  //  FASE 2 — Inicia anim. de fade-out do workspace + mostra overlay de wipe
+  //  FASE 3 — Limpa storages (localStorage, sessionStorage, Cache API, IndexedDB)
+  //  FASE 4 — Reload limpo via window.location.replace
+  // ─────────────────────────────────────────────────────────────────────────
   const handleClearData = async () => {
-    // NUCLEAR CLEAR: limpa TODO o localStorage (não só chaves específicas)
-    // Garante que nenhum dado residual permaneça
-    if (typeof window !== "undefined") {
-      console.log("[CLEAR] Iniciando limpeza nuclear do localStorage...");
-      console.log("[CLEAR] Chaves antes:", Object.keys(localStorage));
-      localStorage.clear(); // remove TODAS as chaves, não apenas as específicas
-      console.log("[CLEAR] Chaves após clear:", Object.keys(localStorage));
-    }
-    
-    // 2. Resetar todos os estados de métricas e tabelas fact do React
-    setMarketingDb(createInitialDb());
+
+    // ─ FASE 1: Reset instantâneo de TODO o estado React ───────────────────
+    // Os gráficos, KPIs e tabelas ficam em branco IMEDIATAMENTE.
+    const emptyDb = createInitialDb();
+
+    // Dados principais
+    setMarketingDb(emptyDb);
     setFiles([]);
     setBase64Files([]);
     setPendingUpload(null);
     setDuplicateFileInfo(null);
+
+    // Modais
     setShowDeduplicationModal(false);
     setShowClearConfirmModal(false);
-    
-    // 3. Resetar todos os seletores e intervalos de datas
+
+    // Wizard — desmontar completamente
+    setWizardStep(null);
+    setWizardFile(null);
+    setWizardPlatform("google");
+    setWizardColumns([]);
+    setWizardDateRange({ start: "", end: "", label: "" });
+    setWizardPreviewRows([]);
+    setWizardMapping({});
+    setWizardSaveTemplate(false);
+    setWizardTemplateName("");
+    setWizardRawRows([]);
+    setWizardProgress(0);
+    setWizardStatusText("");
+    setWizardErrorMsg("");
+    setWizardResultCount(0);
+    setWizardDatasetType("campaign_performance");
+    setWizardDetectedMonths([]);
+
+    // Filtros — volta ao estado padrão
     setPlatform("todas");
     setPeriod("todos");
     setStartDate("");
@@ -364,41 +396,44 @@ export default function Home() {
     setNetwork("todas");
     setKeyword("todas");
     setSearchTerm("todos");
-    
-    // 4. Resetar chat e assistente de IA
+
+    // Chat / IA
     setMessages(INITIAL_MESSAGES);
     setChatPending(false);
-    
-    // 5. Excluir dados remotos se o Supabase estiver conectado
-    if (user && isSupabaseConfigured) {
-      try {
-        const { error: campaignsErr } = await supabase
-          .from("campaigns")
-          .delete()
-          .eq("user_id", user.id);
-          
-        const { error: timelineErr } = await supabase
-          .from("historical_metrics")
-          .delete()
-          .eq("user_id", user.id);
+    setIsIntelligenceUpdating(false);
 
-        if (campaignsErr) throw campaignsErr;
-        if (timelineErr) throw timelineErr;
-        
-        triggerToast("Dados locais e Supabase limpos com sucesso!");
-      } catch (err) {
-        console.error("Error clearing Supabase database records:", err);
-        triggerToast("Limpo localmente. Erro ao sincronizar com Supabase.");
-      }
-    } else {
-      triggerToast("Painel e cache limpos 100% com sucesso!");
-    }
+    // UI
+    setActiveSection("visao-geral");
+    setShowToast(false);
+    setToastMessage("");
 
-    // 6. Forçar recarregamento HARD da página (sem cache) para limpar memória React
-    setTimeout(() => {
-      // Usa href redirect para garantir reload limpo sem Service Worker cache
-      window.location.href = window.location.origin + window.location.pathname;
-    }, 800);
+    // ─ FASE 2: Inicia sequência visual de limpeza ─────────────────────────
+    // Aplica fade-out no workspace e exibe overlay com progress steps.
+    // dashboardResetKey força unmount imediato de TODOS os gráficos:
+    // ECharts, Canvas, SVG, Recharts — estado interno destruído.
+    setDashboardResetKey(prev => prev + 1);
+    setIsClearingSystem(true);
+    setClearStep(1);
+
+    // ─ FASE 3: Limpeza assíncrona de todos os storages ─────────────────────
+    // clearAnalyticsSystem() cuida de localStorage, sessionStorage,
+    // Cache API, IndexedDB e Supabase.
+    await new Promise(resolve => setTimeout(resolve, 200)); // deixa fase 2 renderizar
+    setClearStep(2);
+
+    await clearAnalyticsSystem({
+      supabase: user && isSupabaseConfigured ? supabase : null,
+      userId: user?.id || null,
+    });
+    setClearStep(3);
+
+    await new Promise(resolve => setTimeout(resolve, 150));
+    setClearStep(4);
+
+    // ─ FASE 4: Reload limpo ────────────────────────────────────────────────
+    // window.location.replace garante que não haja histórico de volta (sem back button)
+    await new Promise(resolve => setTimeout(resolve, 350));
+    window.location.replace(window.location.origin + window.location.pathname);
   };
 
   const handleAuthSuccess = (authenticatedUser) => {
@@ -414,7 +449,6 @@ export default function Home() {
   // Dynamic Advanced Query & Filter Extractors
   // ----------------------------------------------------
 
-  // A-03 FIX: All filter/query functions memoized to avoid recalculation on every render
   const uniqueValues = useMemo(() => {
     const monthsMap = {};
     marketingDb.fact_marketing_summary.forEach(s => {
@@ -453,28 +487,31 @@ export default function Home() {
     return { months, campaigns, devices, genders, ages, networks, keywords, searchTerms, isAggregate, startPeriod, endPeriod };
   }, [marketingDb]);
 
+  // Normaliza string de data para YYYY-MM-DD para comparação segura
+  // Evita falsos positivos quando row.date está em formatos variantes (YYYY-MM, YYYY-MM-DD, etc.)
+  const normalizeDateStr = (d) => {
+    if (!d) return "";
+    const s = String(d).trim();
+    // YYYY-MM → YYYY-MM-01 (garante comparação uniforme)
+    if (/^\d{4}-\d{2}$/.test(s)) return `${s}-01`;
+    return s;
+  };
+
   const isInsideSelectedDateRange = (row) => {
-    // Fallback date: use date field or reference_month-01
-    const rowDate = row.date || (row.reference_month ? `${row.reference_month}-01` : "");
+    const rawRowDate = row.date || (row.reference_month ? `${row.reference_month}-01` : "");
+    const rowDate = normalizeDateStr(rawRowDate);
     if (!rowDate) return true;
 
-    // FIX: Detect Meta Ads aggregate reports
-    // These reports have a start date (date) AND an end date (report_end_date).
-    // If both exist and there's a wide gap (>31 days), this record represents
-    // the ENTIRE period — date filter should only include it if the filter range
-    // fully contains or overlaps the report period.
-    if (row.report_end_date && row.report_end_date !== rowDate) {
+    // FIX: Detect Meta Ads aggregate reports (com data de início e fim)
+    if (row.report_end_date && row.report_end_date !== rawRowDate) {
       const reportStart = rowDate;
-      const reportEnd = row.report_end_date;
-      // If filter start is after report end → exclude
+      const reportEnd = normalizeDateStr(row.report_end_date);
       if (startDate && reportEnd < startDate) return false;
-      // If filter end is before report start → exclude
       if (endDate && reportStart > endDate) return false;
-      // Otherwise the periods overlap → include (but data is for full period, not just filter range)
       return true;
     }
 
-    // Normal daily records: simple date comparison
+    // Normal daily records: comparação com datas normalizadas
     if (startDate && rowDate < startDate) return false;
     if (endDate && rowDate > endDate) return false;
     return true;
@@ -487,6 +524,7 @@ export default function Home() {
     if (campaign !== "todas" && row.campaign_name !== campaign) return false;
     return true;
   };
+
 
   // A-03 FIX: Memoized campaign grouped list
   const filteredCampaigns = useMemo(() => {
@@ -614,65 +652,13 @@ export default function Home() {
   }, [marketingDb, period, startDate, endDate, campaign]);
 
   // Calculate Consolidated KPIs from filtered summary
-  const getCalculatedTotals = () => {
-    const list = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
-
-    if (list.length === 0) {
-      return {
-        investimento: 0, receita: 0, lucro: 0, roas: 0, cpa: 0, ctr: 0, cpc: 0,
-        conversoes: 0, cliques: 0, impressoes: 0, alcance: 0, roi: 0, ticket: 0,
-        leads: 0, cpm: 0, cpl: 0, cac: 0
-      };
-    }
-
-    const investimento = list.reduce((sum, item) => sum + (item.spend || 0), 0);
-    const receita = list.reduce((sum, item) => sum + (item.revenue || 0), 0);
-    // CONVERSÕES = conversions + leads SEM dupla contagem:
-    // - Google Ads: leads = conversions (mesma métrica) → conta 1x
-    // - Meta Ads: conversions (Resultados) e leads são diferentes → soma ambos
-    const leads = list.reduce((sum, item) => sum + (item.leads || 0), 0);
-    const conversoes = list.reduce((sum, item) => {
-      const c = item.conversions || 0;
-      const l = item.leads || 0;
-      if (c > 0 && c === l) return sum + c; // mesma métrica (Google Ads) → conta 1x
-      return sum + c + l;                    // métricas distintas (Meta Ads) → soma ambos
-    }, 0);
-    const cliques = list.reduce((sum, item) => sum + (item.clicks || 0), 0);
-    const impressoes = list.reduce((sum, item) => sum + (item.impressions || 0), 0);
-    const reach = list.reduce((sum, item) => sum + (item.reach || 0), 0);
-
-    const ctr = impressoes > 0 ? cliques / impressoes : 0;
-    const cpc = cliques > 0 ? investimento / cliques : 0;
-    const cpm = impressoes > 0 ? (investimento / impressoes) * 1000 : 0;
-    const cpl = leads > 0 ? investimento / leads : 0;
-    const cac = conversoes > 0 ? investimento / conversoes : 0;
-    const roas = investimento > 0 ? receita / investimento : 0;
-    const profit = receita - investimento;
-    const roi = investimento > 0 ? (profit / investimento) * 100 : 0;
-    const ticket = conversoes > 0 ? receita / conversoes : 0;
-
-    return {
-      investimento,
-      receita,
-      lucro: profit,
-      roas,
-      cpa: cac,
-      ctr,
-      cpc,
-      conversoes,
-      cliques,
-      impressoes,
-      alcance: reach || Math.round(impressoes * 0.68),
-      roi,
-      ticket,
-      leads,
-      cpm,
-      cpl,
-      cac
-    };
-  };
-
   // A-03 FIX: Memoized KPI totals
+  // REGRA DEFINITIVA de leads vs conversões:
+  //   leads     = soma de item.leads (coluna real de leads, ex: Meta Leads Form)
+  //   conversoes = soma de item.conversions (conversões/resultados do objetivo da campanha)
+  //   CPL = spend / leads (quando leads > 0)
+  //   CAC = spend / conversions (quando conversions > 0)
+  //   As duas métricas são INDEPENDENTES — nunca são somadas nem uma é derivada da outra.
   const totals = useMemo(() => {
     const list = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
 
@@ -685,29 +671,21 @@ export default function Home() {
     }
 
     const investimento = list.reduce((sum, item) => sum + (item.spend || 0), 0);
-    const receita = list.reduce((sum, item) => sum + (item.revenue || 0), 0);
-    // CONVERSÕES = conversions + leads SEM dupla contagem:
-    // - Google Ads: leads = conversions (mesma métrica) → conta 1x
-    // - Meta Ads: conversions (Resultados) e leads são diferentes → soma ambos
-    const leads = list.reduce((sum, item) => sum + (item.leads || 0), 0);
-    const conversoes = list.reduce((sum, item) => {
-      const c = item.conversions || 0;
-      const l = item.leads || 0;
-      if (c > 0 && c === l) return sum + c; // mesma métrica (Google Ads) → conta 1x
-      return sum + c + l;                    // métricas distintas (Meta Ads) → soma ambos
-    }, 0);
-    const cliques = list.reduce((sum, item) => sum + (item.clicks || 0), 0);
-    const impressoes = list.reduce((sum, item) => sum + (item.impressions || 0), 0);
-    const reach = list.reduce((sum, item) => sum + (item.reach || 0), 0);
+    const receita      = list.reduce((sum, item) => sum + (item.revenue || 0), 0);
+    const leads        = list.reduce((sum, item) => sum + (item.leads || 0), 0);
+    const conversoes   = list.reduce((sum, item) => sum + (item.conversions || 0), 0);
+    const cliques      = list.reduce((sum, item) => sum + (item.clicks || 0), 0);
+    const impressoes   = list.reduce((sum, item) => sum + (item.impressions || 0), 0);
+    const reach        = list.reduce((sum, item) => sum + (item.reach || 0), 0);
 
-    const ctr = impressoes > 0 ? cliques / impressoes : 0;
-    const cpc = cliques > 0 ? investimento / cliques : 0;
-    const cpm = impressoes > 0 ? (investimento / impressoes) * 1000 : 0;
-    const cpl = leads > 0 ? investimento / leads : 0;
-    const cac = conversoes > 0 ? investimento / conversoes : 0;
-    const roas = investimento > 0 ? receita / investimento : 0;
+    const ctr    = impressoes > 0 ? cliques / impressoes : 0;
+    const cpc    = cliques > 0 ? investimento / cliques : 0;
+    const cpm    = impressoes > 0 ? (investimento / impressoes) * 1000 : 0;
+    const cpl    = leads > 0 ? investimento / leads : 0;
+    const cac    = conversoes > 0 ? investimento / conversoes : 0;
+    const roas   = investimento > 0 ? receita / investimento : 0;
     const profit = receita - investimento;
-    const roi = investimento > 0 ? (profit / investimento) * 100 : 0;
+    const roi    = investimento > 0 ? (profit / investimento) * 100 : 0;
     const ticket = conversoes > 0 ? receita / conversoes : 0;
 
     return {
@@ -1572,8 +1550,8 @@ export default function Home() {
           setWizardStep("processing");
           setWizardProgress(95);
           setWizardStatusText("Concluindo salvamento dos registros...");
-          const updatedDb = await insertDataset(marketingDb, metadata, finalRows, action);
-          setMarketingDb(updatedDb);
+          const result = await insertDataset(marketingDb, metadata, finalRows, action);
+          setMarketingDb(result.db);
 
           // Step 10 & 11: System recalculates KPIs & updates dashboard in realtime
           setWizardProgress(100);
@@ -1581,11 +1559,18 @@ export default function Home() {
           setWizardResultCount(finalRows.length);
           setWizardStep("success");
           updateFileStatus(wizardFile.name, "sucesso", "Sincronizado");
-          triggerToast(`Wizard: ${finalRows.length} registros mensais gerados com sucesso!`);
+
+          // Toast de validação de integridade: informa se os números batem
+          const iv = result.integrity;
+          if (iv && !iv.skipped) {
+            triggerToast(iv.message);
+          } else {
+            triggerToast(`Wizard: ${finalRows.length} registros processados com sucesso!`);
+          }
         });
       } else {
-        const updatedDb = await insertDataset(marketingDb, metadata, finalRows, "replace");
-        setMarketingDb(updatedDb);
+        const result = await insertDataset(marketingDb, metadata, finalRows, "replace");
+        setMarketingDb(result.db);
 
         // Step 10 & 11: System recalculates KPIs & updates dashboard in realtime
         setWizardProgress(100);
@@ -1593,7 +1578,14 @@ export default function Home() {
         setWizardResultCount(finalRows.length);
         setWizardStep("success");
         updateFileStatus(wizardFile.name, "sucesso", "Sincronizado");
-        triggerToast(`Wizard: ${finalRows.length} registros mensais gerados com sucesso!`);
+
+        // Toast de validação de integridade
+        const iv = result.integrity;
+        if (iv && !iv.skipped) {
+          triggerToast(iv.message);
+        } else {
+          triggerToast(`Wizard: ${finalRows.length} registros processados com sucesso!`);
+        }
       }
 
     } catch (err) {
@@ -2241,20 +2233,21 @@ export default function Home() {
             </div>
           )}
 
-          <KpiGrid totals={totals} />
+          <KpiGrid key={`kpi-${dashboardResetKey}`} totals={totals} />
 
           <section className="analytics-grid">
-            <HistoricalChart timeline={timeline} />
-            <DonutChart campaigns={Object.values(allCampaigns)} timeline={timeline} />
+            <HistoricalChart key={`hist-${dashboardResetKey}`} timeline={timeline} />
+            <DonutChart key={`donut-${dashboardResetKey}`} campaigns={Object.values(allCampaigns)} timeline={timeline} />
           </section>
 
           <section className="segmentation-grid">
-            <DeviceChart deviceData={deviceData} />
+            <DeviceChart key={`device-${dashboardResetKey}`} deviceData={deviceData} />
           </section>
 
           <section className="analytics-grid operations-grid">
-            <CampaignTable campaigns={filteredCampaigns} />
+            <CampaignTable key={`table-${dashboardResetKey}`} campaigns={filteredCampaigns} />
             <ChatAssistant
+              key={`chat-${dashboardResetKey}`}
               messages={messages}
               onSendMessage={handleSendMessage}
               isPending={chatPending}
@@ -2263,6 +2256,7 @@ export default function Home() {
 
           <section className="analytics-grid">
             <SearchOperations
+              key={`search-${dashboardResetKey}`}
               keywordsData={getKeywordsDataFiltered()}
               searchTermsData={getSearchTermsDataFiltered()}
             />
@@ -2314,34 +2308,97 @@ export default function Home() {
         </div>
       )}
 
-      {/* Clear Data Confirmation Modal */}
+      {/* ─── Clear Data Confirmation Modal ─────────────────────── */}
       {showClearConfirmModal && (
-        <div className="dedup-modal-overlay" style={{zIndex: 9999}}>
-          <div className="dedup-modal-box" style={{maxWidth: 420, textAlign: "center"}}>
-            <div style={{fontSize: 48, marginBottom: 12}}>🗑️</div>
-            <h3 style={{color: "#ff4d4d", marginBottom: 8}}>Limpar todos os dados?</h3>
-            <p style={{color: "rgba(255,255,255,0.7)", marginBottom: 4}}>
-              Esta ação irá apagar <strong style={{color:"#fff"}}>todos os relatórios importados</strong> e resetar o painel completamente.
+        <div
+          className="clear-modal-overlay"
+          onClick={(e) => e.target === e.currentTarget && !isClearingSystem && setShowClearConfirmModal(false)}
+        >
+          <div className="clear-modal-box">
+            {/* Ícone */}
+            <div className="clear-modal-icon">🗑️</div>
+
+            {/* Título */}
+            <h3 className="clear-modal-title">Limpar todos os dados?</h3>
+
+            {/* Descrição */}
+            <p className="clear-modal-desc">
+              Todos os relatórios importados, KPIs, gráficos, análises, filtros e
+              histórico de IA serão <strong style={{color: "#fff"}}>completamente removidos</strong> do
+              dashboard. O sistema voltará ao estado inicial.
             </p>
-            <p style={{color: "rgba(255,255,255,0.5)", fontSize: 13, marginBottom: 24}}>
-              📊 {marketingDb.fact_marketing_summary.length} registros serão removidos. Esta ação é irreversível.
+
+            {/* Badges com contagem real dos dados */}
+            {marketingDb.fact_marketing_summary?.length > 0 && (
+              <div className="clear-modal-badges">
+                {[
+                  { label: `${marketingDb.uploaded_files?.length || 0} Arquivos`, show: (marketingDb.uploaded_files?.length || 0) > 0 },
+                  { label: `${marketingDb.fact_campaigns?.length || 0} Campanhas`, show: (marketingDb.fact_campaigns?.length || 0) > 0 },
+                  { label: `${marketingDb.fact_marketing_summary?.length || 0} Registros`, show: (marketingDb.fact_marketing_summary?.length || 0) > 0 },
+                  { label: `${marketingDb.fact_devices?.length || 0} Segmentos`, show: (marketingDb.fact_devices?.length || 0) > 0 },
+                ].filter(b => b.show).map(b => (
+                  <span key={b.label} className="clear-modal-badge">{b.label}</span>
+                ))}
+              </div>
+            )}
+
+            {/* Aviso de irreversibilidade */}
+            <p className="clear-modal-warning">
+              ⚠️ Esta ação é irreversível. Você precisará reimportar os relatórios.
             </p>
-            <div className="dedup-actions">
+
+            {/* Ações */}
+            <div className="clear-modal-actions">
               <button
-                className="ghost-btn flex-1"
+                className="clear-modal-cancel"
                 onClick={() => setShowClearConfirmModal(false)}
+                disabled={isClearingSystem}
               >
                 Cancelar
               </button>
               <button
-                className="danger-btn flex-1"
-                style={{background: "linear-gradient(135deg,#ff4d4d,#c0392b)"}}
+                className="clear-modal-confirm"
                 onClick={handleClearData}
+                disabled={isClearingSystem}
               >
-                🗑️ Confirmar Limpeza
+                {isClearingSystem ? "Limpando..." : "🗑️ Limpar Tudo"}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ─── Overlay Full-Screen de Limpeza Progressiva ──────────────── */}
+      {isClearingSystem && (
+        <div className="system-clear-overlay">
+          <div className="clear-spinner" />
+
+          <div className="clear-title">Limpando o sistema analytics...</div>
+
+          <div className="clear-progress-track">
+            <div className="clear-progress-fill" />
+          </div>
+
+          <div className="clear-steps">
+            {[
+              { step: 1, label: "Zerando estados e KPIs" },
+              { step: 2, label: "Removendo dados importados" },
+              { step: 3, label: "Limpando cache e storage" },
+              { step: 4, label: "Reiniciando o painel" },
+            ].map(({ step, label }) => (
+              <div
+                key={step}
+                className={`clear-step ${
+                  clearStep > step ? "done" : clearStep === step ? "active" : ""
+                }`}
+              >
+                <span className="clear-step-dot" />
+                {clearStep > step ? `✓ ${label}` : label}
+              </div>
+            ))}
+          </div>
+
+          <div className="clear-subtitle">O dashboard será reiniciado automaticamente.</div>
         </div>
       )}
 

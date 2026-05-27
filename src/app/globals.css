@@ -2286,3 +2286,339 @@ td {
 }
 
 
+/* ============================================================
+   CLEAR ANALYTICS SYSTEM — Animações de Limpeza Premium
+   ============================================================ */
+
+/* ── Fase 1: Fade-out do workspace ───────────────────────── */
+.workspace-clearing {
+  animation: workspaceFadeOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+  user-select: none;
+}
+
+@keyframes workspaceFadeOut {
+  0%   { opacity: 1; filter: blur(0px); transform: scale(1); }
+  60%  { opacity: 0.3; filter: blur(2px); transform: scale(0.995); }
+  100% { opacity: 0; filter: blur(6px); transform: scale(0.99); }
+}
+
+/* ── Fase 2: Skeleton de KPI ─────────────────────────────── */
+.kpi-card-clearing {
+  animation: kpiClearPulse 0.6s ease forwards;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card-clearing .kpi-value,
+.kpi-card-clearing .kpi-label,
+.kpi-card-clearing .kpi-meta {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.kpi-skeleton-line {
+  border-radius: 6px;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.06) 0%,
+    rgba(255,255,255,0.12) 40%,
+    rgba(255,255,255,0.06) 100%);
+  background-size: 200% 100%;
+  animation: shimmerSweep 1s linear infinite;
+}
+
+.kpi-skeleton-line.line-label  { height: 10px; width: 60%; margin-bottom: 20px; }
+.kpi-skeleton-line.line-value  { height: 28px; width: 80%; margin-bottom: 16px; }
+.kpi-skeleton-line.line-meta   { height: 10px; width: 45%; }
+
+@keyframes shimmerSweep {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes kpiClearPulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(0.97); }
+  100% { transform: scale(1); opacity: 0.4; }
+}
+
+/* ── Fase 3: Overlay Full-Screen de Wipe ─────────────────── */
+.system-clear-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  background: var(--bg);
+  animation: overlayReveal 0.25s ease forwards;
+}
+
+@keyframes overlayReveal {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Spinner central */
+.clear-spinner {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+
+.clear-spinner::before,
+.clear-spinner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+
+.clear-spinner::before {
+  border: 3px solid rgba(255, 255, 255, 0.08);
+}
+
+.clear-spinner::after {
+  border: 3px solid transparent;
+  border-top-color: #6366f1;
+  border-right-color: rgba(99, 102, 241, 0.4);
+  animation: spinnerRotate 0.7s linear infinite;
+}
+
+@keyframes spinnerRotate {
+  to { transform: rotate(360deg); }
+}
+
+/* Texto principal */
+.clear-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: 0.3px;
+  text-align: center;
+}
+
+.clear-subtitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.35);
+  text-align: center;
+  margin-top: -16px;
+}
+
+/* Progress bar */
+.clear-progress-track {
+  width: 240px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.clear-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
+  background-size: 200% 100%;
+  animation: progressSlide 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+             progressShimmer 1s linear infinite;
+}
+
+@keyframes progressSlide {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+@keyframes progressShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Steps list */
+.clear-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 280px;
+}
+
+.clear-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  transition: color 0.2s ease;
+}
+
+.clear-step.done {
+  color: rgba(124, 247, 190, 0.8);
+}
+
+.clear-step.active {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.clear-step-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.clear-step.active .clear-step-dot {
+  animation: dotPulse 0.8s ease infinite alternate;
+}
+
+@keyframes dotPulse {
+  from { transform: scale(1); opacity: 0.6; }
+  to   { transform: scale(1.6); opacity: 1; }
+}
+
+/* ── Modal de Confirmação — Danger Premium ───────────────── */
+.clear-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(12px);
+  animation: fadeIn 0.2s ease;
+}
+
+.clear-modal-box {
+  width: 100%;
+  max-width: 480px;
+  padding: 36px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 77, 77, 0.2);
+  background: rgba(10, 10, 18, 0.96);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.05);
+  backdrop-filter: blur(32px);
+  animation: modalSlideUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalSlideUp {
+  from { transform: translateY(24px) scale(0.97); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.clear-modal-icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 77, 77, 0.18) 0%, rgba(192, 57, 43, 0.08) 100%);
+  border: 1px solid rgba(255, 77, 77, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  animation: iconPop 0.3s 0.1s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes iconPop {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.clear-modal-title {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 800;
+  color: #ff7070;
+  margin: 0 0 12px;
+  letter-spacing: -0.3px;
+}
+
+.clear-modal-desc {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+.clear-modal-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.clear-modal-badge {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 77, 77, 0.1);
+  border: 1px solid rgba(255, 77, 77, 0.2);
+  color: rgba(255, 160, 160, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.clear-modal-warning {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.28);
+  margin: 0 0 28px;
+}
+
+.clear-modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.clear-modal-cancel {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clear-modal-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.clear-modal-confirm {
+  flex: 1.4;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(180, 40, 40, 0.4);
+  background: linear-gradient(135deg, #b91c1c, #7f1d1d);
+  color: rgba(255, 220, 220, 0.95);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 24px rgba(185, 28, 28, 0.35);
+  letter-spacing: 0.2px;
+}
+
+.clear-modal-confirm:hover {
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  box-shadow: 0 6px 32px rgba(220, 38, 38, 0.5);
+  transform: translateY(-1px);
+}
+
+.clear-modal-confirm:active {
+  transform: translateY(0);
+}
+
+.clear-modal-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}

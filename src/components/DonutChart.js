@@ -318,8 +318,8 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
     campaigns.filter(c => c.tipo === "meta").reduce((s, c) => s + c.investimento, 0), [campaigns]);
   const totalInvest = google + meta;
 
-  const googlePct = totalInvest > 0 ? (google / totalInvest) * 100 : 50;
-  const metaPct   = totalInvest > 0 ? (meta   / totalInvest) * 100 : 50;
+  const googlePct = totalInvest > 0 ? (google / totalInvest) * 100 : 0;
+  const metaPct   = totalInvest > 0 ? (meta   / totalInvest) * 100 : 0;
 
   // Contagens de campanhas
   const googleActive = campaigns.filter(c => c.tipo === "google" && c.status === "Ativa").length;
@@ -349,6 +349,23 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
 
   const isDominantGoogle = google >= meta;
   const rolledTotal = useRollingNumber(totalInvest, 750);
+
+  // ── Empty state: sem dados importados ─────────────────────────────────────
+  if (totalInvest === 0 && campaigns.length === 0) {
+    return (
+      <article className="chart-panel" style={{
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        gap: "1rem", minHeight: 200, opacity: 0.5,
+      }}>
+        <div style={{ fontSize: 28, opacity: 0.4 }}>🍩</div>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.85rem", margin: 0, textAlign: "center" }}>
+          Nenhum dado de plataforma.<br />Importe relatórios para ver a distribuição.
+        </p>
+      </article>
+    );
+  }
+
 
   return (
     <article className="chart-panel" style={{ display: "flex", flexDirection: "column" }}>

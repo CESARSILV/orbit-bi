@@ -69,19 +69,13 @@ function KpiMini({ label, value, accent, sub, icon }) {
 export default function HistoricalChart({ timeline }) {
   const chartRef = useRef(null);
 
-  // ── fallback para dados fictícios quando não há dados reais ──────────────
+  // ── dados reais apenas — sem fallback fictício ────────────────────────────
+  // IMPORTANTE: NÃO usar dados de demonstração aqui.
+  // Quando timeline está vazio (após limpar ou antes de importar), o componente
+  // deve mostrar um estado vazio, não dados falsos que enganam o usuário.
   const data = useMemo(() => {
-    if (timeline && timeline.length >= 2) return timeline;
-    // dados demonstrativos
-    return [
-      { mes: "Outubro/2025",  reference_month: "2025-10", google: 980,  meta: 1050, leads: 58  },
-      { mes: "Novembro/2025", reference_month: "2025-11", google: 870,  meta: 960,  leads: 52  },
-      { mes: "Dezembro/2025", reference_month: "2025-12", google: 940,  meta: 1020, leads: 61  },
-      { mes: "Janeiro/2026",  reference_month: "2026-01", google: 1280, meta: 1170, leads: 88  },
-      { mes: "Fevereiro/2026",reference_month: "2026-02", google: 1420, meta: 1560, leads: 126 },
-      { mes: "Março/2026",    reference_month: "2026-03", google: 1820, meta: 1640, leads: 198 },
-      { mes: "Abril/2026",    reference_month: "2026-04", google: 1650, meta: 1580, leads: 172 },
-    ];
+    if (timeline && timeline.length >= 1) return timeline;
+    return []; // sem dados = estado vazio real
   }, [timeline]);
 
   // ── métricas derivadas ────────────────────────────────────────────────────
@@ -366,7 +360,36 @@ export default function HistoricalChart({ timeline }) {
     };
   }, [data, growthByMonth]);
 
+  // ── Dispose ECharts na desmontagem ───────────────────────────────────────
+  // Garante que a instância do ECharts seja destruída ao desmontar o componente.
+  // Isso evita vazamento de memória e dados fantasmas após limpeza.
+  useEffect(() => {
+    return () => {
+      const instance = chartRef.current?.getEchartsInstance?.();
+      if (instance && !instance.isDisposed()) {
+        instance.dispose();
+      }
+    };
+  }, []);
+
+  // ── Empty state: sem dados reais importados ───────────────────────────────
+  if (!data || data.length === 0) {
+    return (
+      <article
+        className="chart-panel wide"
+        id="comparacao"
+        style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem", padding: "2.5rem", minHeight: 280, opacity: 0.5 }}
+      >
+        <div style={{ fontSize: 32, opacity: 0.4 }}>📊</div>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.88rem", margin: 0, textAlign: "center" }}>
+          Nenhum dado importado ainda.<br />Importe um relatório para visualizar o histórico de investimento.
+        </p>
+      </article>
+    );
+  }
+
   if (!kpis) return null;
+
 
   const growthColor = kpis.growth >= 0 ? C.meta : "#F87171";
   const growthLabel = kpis.growth >= 0 ? `▲ ${pctFmt(kpis.growth)}` : `▼ ${pctFmt(kpis.growth)}`;
