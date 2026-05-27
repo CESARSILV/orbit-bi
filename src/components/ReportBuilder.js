@@ -313,7 +313,7 @@ export default function ReportBuilder({
     a.click(); URL.revokeObjectURL(url);
   };
 
-  // Export PDF — abre janela nova com HTML limpo em tema claro
+  // Export PDF — janela nova, tema claro, auto-scale para caber em 1 página
   const handleExportPdf = () => {
     const brlFmt  = (v) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v || 0);
     const brl2Fmt = (v) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0);
@@ -326,245 +326,128 @@ export default function ReportBuilder({
       return numFmt(val);
     };
 
-    // Cabeçalho sumário KPIs
+    // KPI Cards
     const kpiCardsHtml = summaryKpis.map(key => {
       const def = KPI_DEFS.find(d => d.key === key);
       if (!def) return "";
       const val = totals[key] ?? totalRow[key] ?? 0;
-      return `
-        <div class="kpi-card">
-          <div class="kpi-icon">${def.icon}</div>
-          <div class="kpi-label">${def.label}</div>
-          <div class="kpi-value">${fmtKpi(key, val)}</div>
-        </div>`;
+      return `<div class="kpi-card"><div class="kpi-ic">${def.icon}</div><div class="kpi-lb">${def.label}</div><div class="kpi-vl">${fmtKpi(key, val)}</div></div>`;
     }).join("");
 
-    // Thead da tabela
-    const theadHtml = `
-      <tr>
-        <th class="th-mes">Mês</th>
-        ${orderedKpis.map(k => `<th>${k.label}</th>`).join("")}
-      </tr>`;
-
-    // Tbody
+    // Tabela
+    const theadHtml = `<tr><th class="th-mes">Mês</th>${orderedKpis.map(k => `<th>${k.label}</th>`).join("")}</tr>`;
     const tbodyHtml = tableRows.map((row, idx) => {
       const isBest = highlight && idx === bestRowIdx;
-      return `
-        <tr class="${isBest ? "row-best" : idx % 2 === 1 ? "row-alt" : ""}">
-          <td class="td-mes">${isBest ? "★ " : ""}${row.mes}</td>
-          ${orderedKpis.map(k => `<td class="td-num">${fmtKpi(k.key, row[k.key] ?? 0)}</td>`).join("")}
-        </tr>`;
+      return `<tr class="${isBest ? "best" : idx % 2 === 1 ? "alt" : ""}"><td class="td-mes">${isBest ? "★ " : ""}${row.mes}</td>${orderedKpis.map(k => `<td class="td-n">${fmtKpi(k.key, row[k.key] ?? 0)}</td>`).join("")}</tr>`;
     }).join("");
-
-    // Tfoot total
-    const tfootHtml = `
-      <tr class="row-total">
-        <td class="td-mes">TOTAL</td>
-        ${orderedKpis.map(k => `<td class="td-num">${fmtKpi(k.key, totalRow[k.key] ?? 0)}</td>`).join("")}
-      </tr>`;
+    const tfootHtml = `<tr class="total"><td class="td-mes">TOTAL</td>${orderedKpis.map(k => `<td class="td-n">${fmtKpi(k.key, totalRow[k.key] ?? 0)}</td>`).join("")}</tr>`;
 
     // Insights
-    const insightsHtml = insights.length > 0 ? `
-      <div class="section">
-        <div class="section-title">⚡ Insights Automáticos</div>
-        <div class="insights-grid">
-          ${insights.map(ins => `<div class="insight-chip">${ins.icon} <span>${ins.text}</span></div>`).join("")}
-        </div>
-      </div>` : "";
+    const insightsHtml = insights.length > 0
+      ? `<div class="sec"><div class="sec-t">⚡ Insights Automáticos</div><div class="ins-grid">${insights.map(i => `<div class="ins">${i.icon} <span>${i.text}</span></div>`).join("")}</div></div>`
+      : "";
 
-    // Plataformas
+    // Plataformas inline
     let platformHtml = "";
     if (timeline && timeline.some(r => r.google > 0 || r.meta > 0)) {
-      const totalG   = timeline.reduce((s, r) => s + (r.google || 0), 0);
-      const totalM   = timeline.reduce((s, r) => s + (r.meta   || 0), 0);
-      const totalAll = totalG + totalM;
-      const pG = totalAll > 0 ? (totalG / totalAll * 100).toFixed(1).replace(".", ",") : "0,0";
-      const pM = totalAll > 0 ? (totalM / totalAll * 100).toFixed(1).replace(".", ",") : "0,0";
-      platformHtml = `
-        <div class="section">
-          <div class="section-title">🔀 Distribuição por Plataforma</div>
-          <div class="platform-grid">
-            <div class="platform-card" style="border-left: 4px solid #3b82f6">
-              <div class="plat-label" style="color:#3b82f6">Google Ads</div>
-              <div class="plat-value">${brlFmt(totalG)}</div>
-              <div class="plat-pct">${pG}% do investimento</div>
-            </div>
-            <div class="platform-card" style="border-left: 4px solid #10b981">
-              <div class="plat-label" style="color:#10b981">Meta Ads</div>
-              <div class="plat-value">${brlFmt(totalM)}</div>
-              <div class="plat-pct">${pM}% do investimento</div>
-            </div>
-          </div>
-        </div>`;
+      const totalG = timeline.reduce((s, r) => s + (r.google || 0), 0);
+      const totalM = timeline.reduce((s, r) => s + (r.meta   || 0), 0);
+      const tot    = totalG + totalM;
+      const pG = tot > 0 ? (totalG / tot * 100).toFixed(1).replace(".", ",") : "0,0";
+      const pM = tot > 0 ? (totalM / tot * 100).toFixed(1).replace(".", ",") : "0,0";
+      platformHtml = `<div class="sec"><div class="sec-t">🔀 Distribuição por Plataforma</div><div class="plat-row"><div class="plat" style="border-left:3px solid #3b82f6"><span class="plat-l" style="color:#3b82f6">Google Ads</span><span class="plat-v">${brlFmt(totalG)}</span><span class="plat-p">${pG}% do invest.</span></div><div class="plat" style="border-left:3px solid #10b981"><span class="plat-l" style="color:#10b981">Meta Ads</span><span class="plat-v">${brlFmt(totalM)}</span><span class="plat-p">${pM}% do invest.</span></div></div></div>`;
     }
 
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Relatório Executivo — ${clientName || "Orbit BI"}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #fff;
-      color: #0f172a;
-      font-size: 10pt;
-      line-height: 1.5;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .page { max-width: 297mm; margin: 0 auto; padding: 10mm 14mm; }
+<meta charset="UTF-8">
+<title>Relatório Executivo — ${clientName || "Orbit BI"}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',sans-serif;background:#fff;color:#0f172a;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 
-    /* Cabeçalho */
-    .header {
-      display: flex; justify-content: space-between; align-items: center;
-      padding-bottom: 5mm; border-bottom: 2px solid #0f172a;
-      margin-bottom: 7mm;
-    }
-    .brand-row { display: flex; align-items: center; gap: 10px; }
-    .brand-logo {
-      width: 38px; height: 38px; border-radius: 8px;
-      background: linear-gradient(135deg, #3b82f6, #10b981);
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 900; color: #fff; font-size: 18px;
-    }
-    .brand-name { font-size: 16pt; font-weight: 800; color: #0f172a; }
-    .brand-sub  { font-size: 8pt; color: #64748b; }
-    .header-right { text-align: right; }
-    .client-name  { font-size: 12pt; font-weight: 800; color: #0f172a; }
-    .header-meta  { font-size: 8pt; color: #64748b; margin-top: 2px; }
+  /* wrapper que será escalado pelo JS */
+  .page{width:277mm;padding:5mm 6mm;display:flex;flex-direction:column;gap:3mm}
 
-    /* KPI Cards */
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 8px; margin-bottom: 7mm;
-    }
-    .kpi-card {
-      border: 1px solid #e2e8f0; border-radius: 8px;
-      padding: 10px 12px; background: #f8fafc;
-      border-top: 3px solid #3b82f6;
-    }
-    .kpi-icon  { font-size: 14px; margin-bottom: 3px; }
-    .kpi-label { font-size: 7pt; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
-    .kpi-value { font-size: 11pt; font-weight: 800; color: #0f172a; }
+  /* CABEÇALHO */
+  .hdr{display:flex;justify-content:space-between;align-items:center;padding-bottom:3mm;border-bottom:2px solid #0f172a}
+  .brand{display:flex;align-items:center;gap:8px}
+  .logo{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#3b82f6,#10b981);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:14px;flex-shrink:0}
+  .brand-name{font-size:13pt;font-weight:800;line-height:1}
+  .brand-sub{font-size:7pt;color:#64748b}
+  .hdr-r{text-align:right}
+  .cli{font-size:11pt;font-weight:800}
+  .hdr-m{font-size:7pt;color:#64748b;margin-top:1px}
 
-    /* Seções */
-    .section { margin-bottom: 7mm; }
-    .section-title {
-      font-size: 8pt; font-weight: 700; color: #64748b;
-      text-transform: uppercase; letter-spacing: 0.07em;
-      margin-bottom: 4mm; padding-bottom: 2mm;
-      border-bottom: 1px solid #e2e8f0;
-    }
+  /* KPIs */
+  .kpi-row{display:flex;gap:4px}
+  .kpi-card{flex:1;border:1px solid #e2e8f0;border-radius:6px;padding:5px 7px;background:#f8fafc;border-top:2px solid #3b82f6;min-width:0}
+  .kpi-ic{font-size:11px;margin-bottom:1px}
+  .kpi-lb{font-size:6pt;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:1px;white-space:nowrap}
+  .kpi-vl{font-size:9pt;font-weight:800;color:#0f172a;white-space:nowrap}
 
-    /* Tabela */
-    table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
-    th {
-      padding: 7px 10px; text-align: right;
-      background: #0f172a; color: #fff;
-      font-size: 7.5pt; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.05em;
-      white-space: nowrap;
-    }
-    th.th-mes { text-align: left; }
-    td {
-      padding: 7px 10px; text-align: right;
-      border-bottom: 1px solid #f1f5f9;
-      color: #1e293b; white-space: nowrap;
-    }
-    td.td-mes { text-align: left; font-weight: 600; color: #0f172a; }
-    td.td-num { font-variant-numeric: tabular-nums; }
-    .row-alt { background: #f8fafc; }
-    .row-best td { background: #fef9c3 !important; color: #78350f !important; font-weight: 600; }
-    .row-best td.td-mes { color: #92400e !important; }
-    .row-total td {
-      background: #eff6ff !important;
-      border-top: 2px solid #93c5fd;
-      border-bottom: none;
-      font-weight: 800 !important;
-      color: #1e3a8a !important;
-    }
+  /* SEÇÕES */
+  .sec{display:flex;flex-direction:column;gap:1.5mm}
+  .sec-t{font-size:6.5pt;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;padding-bottom:1.5mm;border-bottom:1px solid #e2e8f0}
 
-    /* Insights */
-    .insights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .insight-chip {
-      display: flex; align-items: flex-start; gap: 8px;
-      padding: 8px 10px; border: 1px solid #e2e8f0;
-      border-radius: 6px; font-size: 8pt; color: #475569;
-      background: #f8fafc; line-height: 1.5;
-    }
-    .insight-chip strong { color: #0f172a; }
+  /* TABELA */
+  table{width:100%;border-collapse:collapse;font-size:7.5pt}
+  th{padding:4px 8px;text-align:right;background:#0f172a;color:#fff;font-size:6.5pt;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+  th.th-mes{text-align:left}
+  td{padding:4px 8px;text-align:right;border-bottom:1px solid #f1f5f9;color:#1e293b;white-space:nowrap;font-size:7.5pt}
+  td.td-mes{text-align:left;font-weight:600;color:#0f172a}
+  td.td-n{font-variant-numeric:tabular-nums}
+  tr.alt{background:#f8fafc}
+  tr.best td{background:#fef9c3!important;color:#78350f!important;font-weight:600}
+  tr.best td.td-mes{color:#92400e!important}
+  tr.total td{background:#eff6ff!important;border-top:2px solid #93c5fd;border-bottom:none;font-weight:800!important;color:#1e3a8a!important}
 
-    /* Plataformas */
-    .platform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .platform-card {
-      padding: 10px 14px; border: 1px solid #e2e8f0;
-      border-radius: 8px; background: #f8fafc;
-    }
-    .plat-label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
-    .plat-value { font-size: 13pt; font-weight: 900; color: #0f172a; }
-    .plat-pct   { font-size: 8pt; color: #64748b; margin-top: 3px; }
+  /* INSIGHTS */
+  .ins-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+  .ins{display:flex;align-items:flex-start;gap:5px;padding:5px 7px;border:1px solid #e2e8f0;border-radius:5px;font-size:7pt;color:#475569;background:#f8fafc;line-height:1.4}
+  .ins strong{color:#0f172a}
 
-    /* Rodapé */
-    .footer {
-      margin-top: 8mm; padding-top: 4mm;
-      border-top: 1px solid #e2e8f0;
-      display: flex; justify-content: space-between;
-      font-size: 7.5pt; color: #94a3b8;
-    }
+  /* PLATAFORMAS */
+  .plat-row{display:flex;gap:6px}
+  .plat{flex:1;display:flex;align-items:center;gap:10px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc}
+  .plat-l{font-size:7pt;font-weight:700;text-transform:uppercase;white-space:nowrap}
+  .plat-v{font-size:11pt;font-weight:900;color:#0f172a;flex:1;text-align:right}
+  .plat-p{font-size:6.5pt;color:#64748b;white-space:nowrap}
 
-    @page { size: A4 landscape; margin: 10mm 12mm; }
-    @media print {
-      body { background: #fff !important; }
-      .page { padding: 0; }
-      .no-print { display: none !important; }
-    }
-  </style>
+  /* RODAPÉ */
+  .footer{display:flex;justify-content:space-between;padding-top:2mm;border-top:1px solid #e2e8f0;font-size:6.5pt;color:#94a3b8;margin-top:auto}
+
+  @page{size:A4 landscape;margin:8mm 10mm}
+  @media print{body{background:#fff!important}.page{width:100%!important;transform:none!important}}
+</style>
 </head>
 <body>
-<div class="page">
+<div class="page" id="page">
 
-  <!-- CABEÇALHO -->
-  <div class="header">
-    <div class="brand-row">
-      <div class="brand-logo">O</div>
-      <div>
-        <div class="brand-name">Orbit BI</div>
-        <div class="brand-sub">Inteligência de mídia paga</div>
-      </div>
+  <div class="hdr">
+    <div class="brand">
+      <div class="logo">O</div>
+      <div><div class="brand-name">Orbit BI</div><div class="brand-sub">Inteligência de mídia paga</div></div>
     </div>
-    <div class="header-right">
-      <div class="client-name">${clientName || "Relatório Executivo"}</div>
-      <div class="header-meta">${platformLabel} &nbsp;·&nbsp; ${periodLabel}</div>
-      <div class="header-meta">Gerado em ${today}</div>
+    <div class="hdr-r">
+      <div class="cli">${clientName || "Relatório Executivo"}</div>
+      <div class="hdr-m">${platformLabel} &nbsp;·&nbsp; ${periodLabel}</div>
+      <div class="hdr-m">Gerado em ${today}</div>
     </div>
   </div>
 
-  <!-- KPI CARDS -->
-  <div class="kpi-grid">${kpiCardsHtml}</div>
+  <div class="kpi-row">${kpiCardsHtml}</div>
 
-  <!-- TABELA -->
-  <div class="section">
-    <div class="section-title">📅 Evolução Mensal — ${tableRows.length} ${tableRows.length === 1 ? "mês" : "meses"}</div>
-    <table>
-      <thead>${theadHtml}</thead>
-      <tbody>${tbodyHtml}</tbody>
-      <tfoot>${tfootHtml}</tfoot>
-    </table>
+  <div class="sec">
+    <div class="sec-t">📅 Evolução Mensal — ${tableRows.length} ${tableRows.length === 1 ? "mês" : "meses"}</div>
+    <table><thead>${theadHtml}</thead><tbody>${tbodyHtml}</tbody><tfoot>${tfootHtml}</tfoot></table>
   </div>
 
-  <!-- INSIGHTS -->
   ${insightsHtml}
-
-  <!-- PLATAFORMAS -->
   ${platformHtml}
 
-  <!-- RODAPÉ -->
   <div class="footer">
     <span>Orbit BI — Inteligência de Mídia Paga</span>
     <span>${clientName || "Relatório Executivo"} &nbsp;·&nbsp; ${periodLabel}</span>
@@ -573,16 +456,30 @@ export default function ReportBuilder({
 
 </div>
 <script>
-  window.onload = function() { window.print(); };
+  // Auto-scale: mede o conteúdo real e encolhe para caber em 1 página A4 landscape
+  window.addEventListener('load', function() {
+    var page = document.getElementById('page');
+    // Altura útil da página A4 landscape (210mm - 16mm margens) em px a 96dpi
+    var maxH = (210 - 16) * (96 / 25.4);
+    var maxW = (297 - 20) * (96 / 25.4);
+    var contentH = page.scrollHeight;
+    var contentW = page.scrollWidth;
+    var scaleH = contentH > maxH ? maxH / contentH : 1;
+    var scaleW = contentW > maxW ? maxW / contentW : 1;
+    var scale  = Math.min(scaleH, scaleW, 1);
+    if (scale < 1) {
+      page.style.transformOrigin = 'top left';
+      page.style.transform = 'scale(' + scale + ')';
+      document.body.style.height = Math.ceil(contentH * scale) + 'px';
+    }
+    setTimeout(function() { window.print(); }, 400);
+  });
 </script>
 </body>
 </html>`;
 
-    const win = window.open("", "_blank", "width=1200,height=800");
-    if (!win) {
-      alert("Permita pop-ups para este site e tente novamente.");
-      return;
-    }
+    const win = window.open("", "_blank", "width=1400,height=900");
+    if (!win) { alert("Permita pop-ups para este site e tente novamente."); return; }
     win.document.write(html);
     win.document.close();
   };
