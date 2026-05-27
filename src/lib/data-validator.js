@@ -32,20 +32,20 @@ export function buildRowKey(row) {
   // A data completa (YYYY-MM-DD ou YYYY-MM) é usada diretamente.
   // O PASSO 3 em getDatabase() cuida da dedup de double-import com agrupamento
   // por mês separadamente — não depende mais deste buildRowKey para isso.
-  const dateKey = (row.date || row.reference_month || "").trim();
+  const dateKey = String(row.date || row.reference_month || "").trim();
 
   return [
-    (row.platform        || "").toLowerCase().trim(),
+    String(row.platform        || "").toLowerCase().trim(),
     dateKey,
-    (row.campaign_name   || "").toLowerCase().trim(),
-    (row.adset_name      || "").toLowerCase().trim(),
-    (row.ad_name         || "").toLowerCase().trim(),
-    (row.device          || "").toLowerCase().trim(),
-    (row.keyword         || "").toLowerCase().trim(),
-    (row.search_term     || "").toLowerCase().trim(),
-    (row.gender          || "").toLowerCase().trim(),
-    (row.age_range       || "").toLowerCase().trim(),
-    (row.network         || "").toLowerCase().trim(),
+    String(row.campaign_name   || "").toLowerCase().trim(),
+    String(row.adset_name      || "").toLowerCase().trim(),
+    String(row.ad_name         || "").toLowerCase().trim(),
+    String(row.device          || "").toLowerCase().trim(),
+    String(row.keyword         || "").toLowerCase().trim(),
+    String(row.search_term     || "").toLowerCase().trim(),
+    String(row.gender          || "").toLowerCase().trim(),
+    String(row.age_range       || "").toLowerCase().trim(),
+    String(row.network         || "").toLowerCase().trim(),
     String(row.hour      ?? ""),
     // spend como tiebreaker: se dois registros têm tudo igual mas spend diferente,
     // são registros distintos (ex: mesmo adset em datas diferentes com mesmo nome).
