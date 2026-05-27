@@ -1,6 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
+import {
+  UploadCloudIcon,
+  StatusSuccessIcon,
+  StatusProcessingIcon,
+  StatusErrorIcon
+} from "./Icons";
 
 export default function UploadZone({ files, onFilesSelected }) {
   const fileInputRef = useRef(null);
@@ -57,7 +63,9 @@ export default function UploadZone({ files, onFilesSelected }) {
           aria-label="Selecionar arquivos para análise"
           onChange={handleFileChange}
         />
-        <div className="upload-icon">+</div>
+        <div className="upload-icon-container">
+          <UploadCloudIcon className="upload-icon-svg" />
+        </div>
         <h2>Enviar relatórios (CSV/XLSX)</h2>
         <p>Arraste arquivos de exportação do Google Ads ou Meta Ads (CSV, XLSX ou XLS).</p>
         <button className="ghost-btn" id="btnSelectFiles" type="button" onClick={triggerFileInput}>
@@ -73,10 +81,30 @@ export default function UploadZone({ files, onFilesSelected }) {
               <strong>{total}</strong> arquivo{total === 1 ? "" : "s"} recebido{total === 1 ? "" : "s"}
             </span>
             <div className="file-summary-badges">
-              {processando > 0 && <span className="file-status-badge status-processando">{processando} processando</span>}
-              {sucesso > 0 && <span className="file-status-badge status-sucesso">{sucesso} sincronizado{sucesso === 1 ? "" : "s"}</span>}
-              {anexosIa > 0 && <span className="file-status-badge status-anexo">{anexosIa} anexo{anexosIa === 1 ? "" : "s"} IA</span>}
-              {erros > 0 && <span className="file-status-badge status-erro">{erros} erro{erros === 1 ? "" : "s"}</span>}
+              {processando > 0 && (
+                <span className="file-status-badge status-processando" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <StatusProcessingIcon />
+                  <span>{processando} processando</span>
+                </span>
+              )}
+              {sucesso > 0 && (
+                <span className="file-status-badge status-sucesso" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <StatusSuccessIcon />
+                  <span>{sucesso} sincronizado{sucesso === 1 ? "" : "s"}</span>
+                </span>
+              )}
+              {anexosIa > 0 && (
+                <span className="file-status-badge status-anexo" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <StatusSuccessIcon />
+                  <span>{anexosIa} anexo{anexosIa === 1 ? "" : "s"} IA</span>
+                </span>
+              )}
+              {erros > 0 && (
+                <span className="file-status-badge status-erro" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <StatusErrorIcon />
+                  <span>{erros} erro{erros === 1 ? "" : "s"}</span>
+                </span>
+              )}
             </div>
           </div>
         )}

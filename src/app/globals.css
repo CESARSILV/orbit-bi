@@ -167,16 +167,16 @@ html[data-theme="light"] .nav-item {
   color: #334155 !important;
 }
 
-html[data-theme="light"] .nav-item:hover,
-html[data-theme="light"] .nav-item.active {
-  background: rgba(59, 130, 246, 0.08) !important;
-  color: #1d4ed8 !important;
-  border-color: rgba(59, 130, 246, 0.20) !important;
+html[data-theme="light"] .nav-item:hover {
+  background: rgba(15, 23, 42, 0.04) !important;
+  color: #0f172a !important;
 }
 
 html[data-theme="light"] .nav-item.active {
-  background: rgba(59, 130, 246, 0.12) !important;
+  border-color: rgba(59, 130, 246, 0.22) !important;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0.03)) !important;
   color: #1d4ed8 !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
 }
 
 html[data-theme="light"] .sidebar-card {
@@ -473,14 +473,24 @@ td,
   background: transparent;
   color: var(--soft);
   text-align: left;
-  transition: 180ms ease;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.nav-item:hover,
-.nav-item.active {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text);
+  transform: translateX(3px);
+}
+
+.nav-item.active {
+  border-color: rgba(123, 183, 255, 0.16) !important;
+  background: linear-gradient(135deg, rgba(123, 183, 255, 0.12), rgba(91, 156, 246, 0.06)) !important;
+  color: var(--blue) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  font-weight: 600;
 }
 
 .sidebar-card {
@@ -780,15 +790,30 @@ select {
   pointer-events: none;
 }
 
-.upload-icon {
+.upload-icon-container {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(123, 183, 255, 0.08);
+  border: 1px solid rgba(123, 183, 255, 0.20);
+  color: var(--blue);
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 8px;
+}
+.upload-zone:hover .upload-icon-container {
+  background: rgba(124, 247, 190, 0.12);
+  border-color: var(--green);
   color: var(--green);
-  font-size: 2rem;
+  transform: scale(1.1) translateY(-2px);
+  box-shadow: 0 0 20px rgba(124, 247, 190, 0.25);
+}
+.upload-icon-svg {
+  transition: transform 0.28s ease;
+}
+.upload-zone:hover .upload-icon-svg {
+  transform: translateY(-2px);
 }
 
 .file-feed {
@@ -4082,6 +4107,9 @@ html[data-theme="light"] .filter-chip-label input[type="date"]:focus {
   justify-content: center;
   padding: 10px !important;
 }
+.sidebar--collapsed .nav-item:hover {
+  transform: none !important;
+}
 .nav-item-icon {
   font-size: 1.05rem;
   flex-shrink: 0;
@@ -4193,4 +4221,65 @@ html[data-theme="light"] .sidebar-collapse-btn:hover {
 @keyframes tooltipIn {
   from { opacity: 0; transform: translateY(-50%) translateX(-4px); }
   to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PREMIUM MICRO-INTERACTIONS & GLOW EFFECTS
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Hover Lift and Glow for Cards & Panels */
+.kpi-card,
+.intelligence-panel,
+.upload-panel,
+.chart-panel {
+  position: relative;
+  transition: border-color 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background-color 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.kpi-card:hover,
+.intelligence-panel:hover,
+.upload-panel:hover,
+.chart-panel:hover {
+  border-color: rgba(123, 183, 255, 0.35) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(123, 183, 255, 0.12) !important;
+  transform: translateY(-3px);
+  background-color: var(--panel-strong) !important;
+}
+
+html[data-theme="light"] .kpi-card:hover,
+html[data-theme="light"] .intelligence-panel:hover,
+html[data-theme="light"] .upload-panel:hover,
+html[data-theme="light"] .chart-panel:hover {
+  border-color: rgba(59, 130, 246, 0.30) !important;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08) !important;
+  background-color: #ffffff !important;
+}
+
+/* Spinner Rotation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spinning-loader {
+  animation: spin 1.2s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Custom visual adjustments for filter labels */
+.fchip-name svg {
+  opacity: 0.7;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.filter-chip-label:hover .fchip-name svg {
+  transform: scale(1.1) rotate(-5deg);
+  color: var(--blue);
+  opacity: 1;
+}
+html[data-theme="light"] .filter-chip-label:hover .fchip-name svg {
+  color: #3b82f6;
 }

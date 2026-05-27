@@ -1,6 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import {
+  FilterIcon,
+  ResetIcon,
+  ExportIcon,
+  PlatformIcon,
+  CalendarIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  MegaphoneIcon,
+  DeviceIcon,
+  GenderIcon,
+  AgeIcon,
+  NetworkIcon,
+  KeywordIcon,
+  SearchIcon
+} from "./Icons";
 
 export default function ControlStrip({
   platform, onPlatformChange,
@@ -62,8 +78,8 @@ export default function ControlStrip({
 
       {/* ── Barra superior sempre visível ────────────────────────── */}
       <div className="filter-toprow">
-        <div className="filter-toprow-left">
-          <span className="filter-icon">⚙</span>
+        <div className="filter-toprow-left" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <FilterIcon className="filter-icon" style={{ opacity: 0.7 }} />
           <span className="filter-label-main">Filtros</span>
           {activeCount > 0 && (
             <span className="filter-badge">{activeCount} ativo{activeCount > 1 ? "s" : ""}</span>
@@ -72,8 +88,9 @@ export default function ControlStrip({
 
         <div className="filter-toprow-right">
           {activeCount > 0 && (
-            <button className="filter-reset-btn" onClick={resetAll} title="Limpar todos os filtros">
-              ✕ Limpar tudo
+            <button className="filter-reset-btn" onClick={resetAll} title="Limpar todos os filtros" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <ResetIcon />
+              <span>Limpar tudo</span>
             </button>
           )}
           <button
@@ -83,13 +100,9 @@ export default function ControlStrip({
           >
             {isExpanded ? "▲ Recolher" : "▼ Expandir filtros"}
           </button>
-          <button className="filter-export-btn" onClick={onExport} title="Exportar CSV">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            CSV
+          <button className="filter-export-btn" onClick={onExport} title="Exportar CSV" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <ExportIcon />
+            <span>CSV</span>
           </button>
         </div>
       </div>
@@ -97,8 +110,10 @@ export default function ControlStrip({
       {/* ── Linha de filtros principais (sempre visível) ──────────── */}
       <div className="filter-primary-row">
         <label className="filter-chip-label">
-          <span className="fchip-icon">🌐</span>
-          <span className="fchip-name">Plataforma</span>
+          <span className="fchip-name" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <PlatformIcon />
+            <span>Plataforma</span>
+          </span>
           <select id="platformFilter" value={platform} onChange={e => onPlatformChange(e.target.value)}>
             <option value="todas">Todas</option>
             <option value="google">Google Ads</option>
@@ -107,8 +122,10 @@ export default function ControlStrip({
         </label>
 
         <label className="filter-chip-label">
-          <span className="fchip-icon">📅</span>
-          <span className="fchip-name">Mês rápido</span>
+          <span className="fchip-name" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <CalendarIcon />
+            <span>Mês rápido</span>
+          </span>
           <select
             id="periodFilter"
             value={period}
@@ -126,20 +143,26 @@ export default function ControlStrip({
         </label>
 
         <label className="filter-chip-label">
-          <span className="fchip-icon">◀</span>
-          <span className="fchip-name">Data inicial</span>
+          <span className="fchip-name" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <ArrowLeftIcon />
+            <span>Data inicial</span>
+          </span>
           <input id="startDateFilter" type="date" value={startDate} onChange={e => onStartDateChange(e.target.value)} />
         </label>
 
         <label className="filter-chip-label">
-          <span className="fchip-icon">▶</span>
-          <span className="fchip-name">Data final</span>
+          <span className="fchip-name" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <ArrowRightIcon />
+            <span>Data final</span>
+          </span>
           <input id="endDateFilter" type="date" value={endDate} onChange={e => onEndDateChange(e.target.value)} />
         </label>
 
         <label className="filter-chip-label">
-          <span className="fchip-icon">📢</span>
-          <span className="fchip-name">Campanha</span>
+          <span className="fchip-name" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <MegaphoneIcon />
+            <span>Campanha</span>
+          </span>
           <select id="campaignFilter" value={campaign} onChange={e => onCampaignChange(e.target.value)}>
             <option value="todas">Todas</option>
             {campaignsList.map(c => <option key={c} value={c}>{c}</option>)}
@@ -150,8 +173,10 @@ export default function ControlStrip({
       {/* ── Filtros avançados (colapsáveis) ──────────────────────── */}
       <div className={`filter-advanced-row ${isExpanded ? "filter-advanced-row--open" : ""}`}>
         <label className="filter-chip-label">
-          <span className="fchip-icon">📱</span>
-          <span className="fchip-name">Dispositivo</span>
+          <span className="fchip-name" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <DeviceIcon />
+            <span>Dispositivo</span>
+          </span>
           <select id="deviceFilter" value={device} onChange={e => onDeviceChange(e.target.value)}>
             <option value="todos">Todos</option>
             {devicesList.map(d => (
@@ -163,8 +188,10 @@ export default function ControlStrip({
         </label>
 
         <label className="filter-chip-label">
-          <span className="fchip-icon">👥</span>
-          <span className="fchip-name">Sexo / Gênero</span>
+          <span className="fchip-name" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <GenderIcon />
+            <span>Sexo / Gênero</span>
+          </span>
           <select id="genderFilter" value={gender} onChange={e => onGenderChange(e.target.value)}>
             <option value="todos">Todos</option>
             {gendersList.map(g => <option key={g} value={g}>{g}</option>)}
@@ -172,8 +199,10 @@ export default function ControlStrip({
         </label>
 
         <label className="filter-chip-label">
-          <span className="fchip-icon">🎯</span>
-          <span className="fchip-name">Faixa Etária</span>
+          <span className="fchip-name" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <AgeIcon />
+            <span>Faixa Etária</span>
+          </span>
           <select id="ageFilter" value={age} onChange={e => onAgeChange(e.target.value)}>
             <option value="todas">Todas</option>
             {agesList.map(a => <option key={a} value={a}>{a}</option>)}
@@ -181,8 +210,10 @@ export default function ControlStrip({
         </label>
 
         <label className="filter-chip-label">
-          <span className="fchip-icon">🔗</span>
-          <span className="fchip-name">Rede</span>
+          <span className="fchip-name" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <NetworkIcon />
+            <span>Rede</span>
+          </span>
           <select id="networkFilter" value={network} onChange={e => onNetworkChange(e.target.value)}>
             <option value="todas">Todas</option>
             {networksList.map(n => <option key={n} value={n}>{n}</option>)}
@@ -190,8 +221,10 @@ export default function ControlStrip({
         </label>
 
         <label className="filter-chip-label">
-          <span className="fchip-icon">🔑</span>
-          <span className="fchip-name">Palavra-chave</span>
+          <span className="fchip-name" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <KeywordIcon />
+            <span>Palavra-chave</span>
+          </span>
           <select id="keywordFilter" value={keyword} onChange={e => onKeywordChange(e.target.value)}>
             <option value="todas">Todas</option>
             {keywordsList.map(k => <option key={k} value={k}>{k}</option>)}
@@ -199,8 +232,10 @@ export default function ControlStrip({
         </label>
 
         <label className="filter-chip-label">
-          <span className="fchip-icon">🔍</span>
-          <span className="fchip-name">Termo Pesquisado</span>
+          <span className="fchip-name" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <SearchIcon />
+            <span>Termo Pesquisado</span>
+          </span>
           <select id="searchTermFilter" value={searchTerm} onChange={e => onSearchTermChange(e.target.value)}>
             <option value="todos">Todos</option>
             {searchTermsList.map(s => <option key={s} value={s}>{s}</option>)}

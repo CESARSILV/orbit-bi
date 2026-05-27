@@ -2,6 +2,18 @@
 
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { useTheme } from "@/lib/ThemeContext";
+import {
+  DashboardIcon,
+  ComparisonIcon,
+  CreativesIcon,
+  ReportsIcon,
+  AutomationsIcon,
+  PresentationIcon,
+  ThemeDarkIcon,
+  ThemeLightIcon,
+  UserIcon,
+  LogoutIcon
+} from "./Icons";
 
 export default function Sidebar({
   activeSection,
@@ -17,11 +29,11 @@ export default function Sidebar({
   const isLight = theme === "light";
 
   const navItems = [
-    { label: "Visão geral",  section: "visao-geral",  icon: "📊" },
-    { label: "Comparações",  section: "comparacao",   icon: "📈" },
-    { label: "Criativos",    section: "criativos",    icon: "🎨" },
-    { label: "Relatórios",   section: "relatorios",   icon: "📄" },
-    { label: "Automações",   section: "automacoes",   icon: "⚡" },
+    { label: "Visão geral",  section: "visao-geral",  icon: DashboardIcon },
+    { label: "Comparações",  section: "comparacao",   icon: ComparisonIcon },
+    { label: "Criativos",    section: "criativos",    icon: CreativesIcon },
+    { label: "Relatórios",   section: "relatorios",   icon: ReportsIcon },
+    { label: "Automações",   section: "automacoes",   icon: AutomationsIcon },
   ];
 
   const handleNavClick = (section) => {
@@ -88,24 +100,29 @@ export default function Sidebar({
 
         {/* ── Nav ──────────────────────────────────────────────────── */}
         <nav className="nav-list" style={{ marginBottom: "20px" }}>
-          {navItems.map((item) => (
-            <button
-              key={item.section}
-              className={`nav-item ${activeSection === item.section ? "active" : ""}`}
-              onClick={() => handleNavClick(item.section)}
-              title={isCollapsed ? item.label : undefined}
-            >
-              <span className="nav-item-icon">{item.icon}</span>
-              {!isCollapsed && <span className="nav-item-label">{item.label}</span>}
-            </button>
-          ))}
+          {navItems.map((item) => {
+            const IconComponent = item.icon;
+            return (
+              <button
+                key={item.section}
+                className={`nav-item ${activeSection === item.section ? "active" : ""}`}
+                onClick={() => handleNavClick(item.section)}
+                title={isCollapsed ? item.label : undefined}
+              >
+                <span className="nav-item-icon">
+                  <IconComponent />
+                </span>
+                {!isCollapsed && <span className="nav-item-label">{item.label}</span>}
+              </button>
+            );
+          })}
 
-          {!isCollapsed && (
+          {!isCollapsed ? (
             <a
               href="/apresentacao"
               target="_blank"
               rel="noopener noreferrer"
-              className="nav-item"
+              className="nav-item presentation-link"
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 gap: "8px", textDecoration: "none", marginTop: "16px",
@@ -114,16 +131,17 @@ export default function Sidebar({
                 color: "var(--blue)", fontWeight: "600",
               }}
             >
-              <span>📋</span>
+              <span className="nav-item-icon">
+                <PresentationIcon />
+              </span>
               <span>Apresentação e PDF</span>
             </a>
-          )}
-          {isCollapsed && (
+          ) : (
             <a
               href="/apresentacao"
               target="_blank"
               rel="noopener noreferrer"
-              className="nav-item"
+              className="nav-item presentation-link"
               title="Apresentação e PDF"
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -133,7 +151,9 @@ export default function Sidebar({
                 color: "var(--blue)",
               }}
             >
-              📋
+              <span className="nav-item-icon">
+                <PresentationIcon />
+              </span>
             </a>
           )}
         </nav>
@@ -169,7 +189,7 @@ export default function Sidebar({
                   boxShadow: !isLight ? "0 1px 6px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.08)" : "none",
                   transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)",
                 }} title="Modo Escuro">
-                <span style={{ fontSize: "12px" }}>🌙</span>
+                <ThemeDarkIcon style={{ marginRight: 4 }} />
                 <span>Escuro</span>
               </button>
               <button
@@ -184,7 +204,7 @@ export default function Sidebar({
                   boxShadow: isLight ? "0 1px 6px rgba(0,0,0,0.10),inset 0 1px 0 rgba(255,255,255,0.7)" : "none",
                   transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)",
                 }} title="Modo Claro">
-                <span style={{ fontSize: "12px" }}>☀️</span>
+                <ThemeLightIcon style={{ marginRight: 4 }} />
                 <span>Claro</span>
               </button>
             </div>
@@ -203,7 +223,7 @@ export default function Sidebar({
               transition: "all 0.22s ease",
             }}
           >
-            {isLight ? "🌙" : "☀️"}
+            {isLight ? <ThemeDarkIcon width={16} height={16} /> : <ThemeLightIcon width={16} height={16} />}
           </button>
         )}
 
@@ -215,8 +235,9 @@ export default function Sidebar({
             fontSize: "0.82rem", display: "flex", flexDirection: "column", gap: "8px",
             marginBottom: "12px",
           }}>
-            <div style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", color: "var(--soft)" }}>
-              👤 {user ? user.email : "Modo Visitante"}
+            <div style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", color: "var(--soft)", display: "flex", alignItems: "center", gap: "6px" }}>
+              <UserIcon />
+              <span>{user ? user.email : "Modo Visitante"}</span>
             </div>
             {user && (
               <button onClick={onSignOut} style={{
@@ -224,7 +245,12 @@ export default function Sidebar({
                 border: "1px solid rgba(255,125,143,0.3)", borderRadius: "var(--radius)",
                 padding: "6px", width: "100%", fontSize: "0.76rem",
                 fontWeight: "bold", textAlign: "center",
-              }}>Desconectar</button>
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                cursor: "pointer",
+              }}>
+                <LogoutIcon />
+                <span>Desconectar</span>
+              </button>
             )}
           </div>
         )}
