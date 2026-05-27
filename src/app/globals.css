@@ -1,5 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
+/* ─── Reset Global ───────────────────────────────────────────── */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background-color: var(--bg);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    DARK MODE (padrão)
 ═══════════════════════════════════════════════════════════════ */
@@ -86,6 +97,7 @@ html[data-theme="light"] {
 *,
 *::before,
 *::after {
+  box-sizing: border-box;
   transition:
     background-color 0.28s cubic-bezier(0.4, 0, 0.2, 1),
     background      0.28s cubic-bezier(0.4, 0, 0.2, 1),
@@ -842,9 +854,15 @@ select {
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  grid-template-columns: repeat(6, 1fr);
   gap: 12px;
   margin-bottom: 16px;
+}
+
+@media (max-width: 1440px) {
+  .kpi-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .kpi-card {
@@ -1139,7 +1157,7 @@ td {
   }
 
   .kpi-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .control-strip label {
