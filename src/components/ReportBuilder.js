@@ -282,9 +282,278 @@ export default function ReportBuilder({
     a.click(); URL.revokeObjectURL(url);
   };
 
-  // Export PDF via print
+  // Export PDF — abre janela nova com HTML limpo em tema claro
   const handleExportPdf = () => {
-    window.print();
+    const brlFmt  = (v) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v || 0);
+    const brl2Fmt = (v) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0);
+    const numFmt  = (v) => new Intl.NumberFormat("pt-BR").format(Math.round(v || 0));
+    const pctFmt  = (v) => `${((v || 0) * 100).toFixed(2).replace(".", ",")}%`;
+
+    const fmtKpi = (key, val) => {
+      if (["investimento","cpc","cpm","cpa","cpl"].includes(key)) return key === "investimento" ? brlFmt(val) : brl2Fmt(val);
+      if (key === "ctr") return pctFmt(val);
+      return numFmt(val);
+    };
+
+    // Cabeçalho sumário KPIs
+    const kpiCardsHtml = summaryKpis.map(key => {
+      const def = KPI_DEFS.find(d => d.key === key);
+      if (!def) return "";
+      const val = totals[key] ?? totalRow[key] ?? 0;
+      return `
+        <div class="kpi-card">
+          <div class="kpi-icon">${def.icon}</div>
+          <div class="kpi-label">${def.label}</div>
+          <div class="kpi-value">${fmtKpi(key, val)}</div>
+        </div>`;
+    }).join("");
+
+    // Thead da tabela
+    const theadHtml = `
+      <tr>
+        <th class="th-mes">Mês</th>
+        ${orderedKpis.map(k => `<th>${k.label}</th>`).join("")}
+      </tr>`;
+
+    // Tbody
+    const tbodyHtml = tableRows.map((row, idx) => {
+      const isBest = highlight && idx === bestRowIdx;
+      return `
+        <tr class="${isBest ? "row-best" : idx % 2 === 1 ? "row-alt" : ""}">
+          <td class="td-mes">${isBest ? "★ " : ""}${row.mes}</td>
+          ${orderedKpis.map(k => `<td class="td-num">${fmtKpi(k.key, row[k.key] ?? 0)}</td>`).join("")}
+        </tr>`;
+    }).join("");
+
+    // Tfoot total
+    const tfootHtml = `
+      <tr class="row-total">
+        <td class="td-mes">TOTAL</td>
+        ${orderedKpis.map(k => `<td class="td-num">${fmtKpi(k.key, totalRow[k.key] ?? 0)}</td>`).join("")}
+      </tr>`;
+
+    // Insights
+    const insightsHtml = insights.length > 0 ? `
+      <div class="section">
+        <div class="section-title">⚡ Insights Automáticos</div>
+        <div class="insights-grid">
+          ${insights.map(ins => `<div class="insight-chip">${ins.icon} <span>${ins.text}</span></div>`).join("")}
+        </div>
+      </div>` : "";
+
+    // Plataformas
+    let platformHtml = "";
+    if (timeline && timeline.some(r => r.google > 0 || r.meta > 0)) {
+      const totalG   = timeline.reduce((s, r) => s + (r.google || 0), 0);
+      const totalM   = timeline.reduce((s, r) => s + (r.meta   || 0), 0);
+      const totalAll = totalG + totalM;
+      const pG = totalAll > 0 ? (totalG / totalAll * 100).toFixed(1).replace(".", ",") : "0,0";
+      const pM = totalAll > 0 ? (totalM / totalAll * 100).toFixed(1).replace(".", ",") : "0,0";
+      platformHtml = `
+        <div class="section">
+          <div class="section-title">🔀 Distribuição por Plataforma</div>
+          <div class="platform-grid">
+            <div class="platform-card" style="border-left: 4px solid #3b82f6">
+              <div class="plat-label" style="color:#3b82f6">Google Ads</div>
+              <div class="plat-value">${brlFmt(totalG)}</div>
+              <div class="plat-pct">${pG}% do investimento</div>
+            </div>
+            <div class="platform-card" style="border-left: 4px solid #10b981">
+              <div class="plat-label" style="color:#10b981">Meta Ads</div>
+              <div class="plat-value">${brlFmt(totalM)}</div>
+              <div class="plat-pct">${pM}% do investimento</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Relatório Executivo — ${clientName || "Orbit BI"}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #fff;
+      color: #0f172a;
+      font-size: 10pt;
+      line-height: 1.5;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .page { max-width: 297mm; margin: 0 auto; padding: 10mm 14mm; }
+
+    /* Cabeçalho */
+    .header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-bottom: 5mm; border-bottom: 2px solid #0f172a;
+      margin-bottom: 7mm;
+    }
+    .brand-row { display: flex; align-items: center; gap: 10px; }
+    .brand-logo {
+      width: 38px; height: 38px; border-radius: 8px;
+      background: linear-gradient(135deg, #3b82f6, #10b981);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; color: #fff; font-size: 18px;
+    }
+    .brand-name { font-size: 16pt; font-weight: 800; color: #0f172a; }
+    .brand-sub  { font-size: 8pt; color: #64748b; }
+    .header-right { text-align: right; }
+    .client-name  { font-size: 12pt; font-weight: 800; color: #0f172a; }
+    .header-meta  { font-size: 8pt; color: #64748b; margin-top: 2px; }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 8px; margin-bottom: 7mm;
+    }
+    .kpi-card {
+      border: 1px solid #e2e8f0; border-radius: 8px;
+      padding: 10px 12px; background: #f8fafc;
+      border-top: 3px solid #3b82f6;
+    }
+    .kpi-icon  { font-size: 14px; margin-bottom: 3px; }
+    .kpi-label { font-size: 7pt; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+    .kpi-value { font-size: 11pt; font-weight: 800; color: #0f172a; }
+
+    /* Seções */
+    .section { margin-bottom: 7mm; }
+    .section-title {
+      font-size: 8pt; font-weight: 700; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      margin-bottom: 4mm; padding-bottom: 2mm;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    /* Tabela */
+    table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+    th {
+      padding: 7px 10px; text-align: right;
+      background: #0f172a; color: #fff;
+      font-size: 7.5pt; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+    th.th-mes { text-align: left; }
+    td {
+      padding: 7px 10px; text-align: right;
+      border-bottom: 1px solid #f1f5f9;
+      color: #1e293b; white-space: nowrap;
+    }
+    td.td-mes { text-align: left; font-weight: 600; color: #0f172a; }
+    td.td-num { font-variant-numeric: tabular-nums; }
+    .row-alt { background: #f8fafc; }
+    .row-best td { background: #fef9c3 !important; color: #78350f !important; font-weight: 600; }
+    .row-best td.td-mes { color: #92400e !important; }
+    .row-total td {
+      background: #eff6ff !important;
+      border-top: 2px solid #93c5fd;
+      border-bottom: none;
+      font-weight: 800 !important;
+      color: #1e3a8a !important;
+    }
+
+    /* Insights */
+    .insights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .insight-chip {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 8px 10px; border: 1px solid #e2e8f0;
+      border-radius: 6px; font-size: 8pt; color: #475569;
+      background: #f8fafc; line-height: 1.5;
+    }
+    .insight-chip strong { color: #0f172a; }
+
+    /* Plataformas */
+    .platform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .platform-card {
+      padding: 10px 14px; border: 1px solid #e2e8f0;
+      border-radius: 8px; background: #f8fafc;
+    }
+    .plat-label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .plat-value { font-size: 13pt; font-weight: 900; color: #0f172a; }
+    .plat-pct   { font-size: 8pt; color: #64748b; margin-top: 3px; }
+
+    /* Rodapé */
+    .footer {
+      margin-top: 8mm; padding-top: 4mm;
+      border-top: 1px solid #e2e8f0;
+      display: flex; justify-content: space-between;
+      font-size: 7.5pt; color: #94a3b8;
+    }
+
+    @page { size: A4 landscape; margin: 10mm 12mm; }
+    @media print {
+      body { background: #fff !important; }
+      .page { padding: 0; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- CABEÇALHO -->
+  <div class="header">
+    <div class="brand-row">
+      <div class="brand-logo">O</div>
+      <div>
+        <div class="brand-name">Orbit BI</div>
+        <div class="brand-sub">Inteligência de mídia paga</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="client-name">${clientName || "Relatório Executivo"}</div>
+      <div class="header-meta">${platformLabel} &nbsp;·&nbsp; ${periodLabel}</div>
+      <div class="header-meta">Gerado em ${today}</div>
+    </div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-grid">${kpiCardsHtml}</div>
+
+  <!-- TABELA -->
+  <div class="section">
+    <div class="section-title">📅 Evolução Mensal — ${tableRows.length} ${tableRows.length === 1 ? "mês" : "meses"}</div>
+    <table>
+      <thead>${theadHtml}</thead>
+      <tbody>${tbodyHtml}</tbody>
+      <tfoot>${tfootHtml}</tfoot>
+    </table>
+  </div>
+
+  <!-- INSIGHTS -->
+  ${insightsHtml}
+
+  <!-- PLATAFORMAS -->
+  ${platformHtml}
+
+  <!-- RODAPÉ -->
+  <div class="footer">
+    <span>Orbit BI — Inteligência de Mídia Paga</span>
+    <span>${clientName || "Relatório Executivo"} &nbsp;·&nbsp; ${periodLabel}</span>
+    <span>Gerado em ${today}</span>
+  </div>
+
+</div>
+<script>
+  window.onload = function() { window.print(); };
+</script>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank", "width=1200,height=800");
+    if (!win) {
+      alert("Permita pop-ups para este site e tente novamente.");
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
   };
 
   const hasData = tableRows.length > 0;
