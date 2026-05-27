@@ -4174,10 +4174,7 @@ html[data-theme="light"] .sidebar-collapse-btn:hover {
   box-shadow: 0 0 0 3px rgba(59,130,246,0.18), 0 2px 12px rgba(15,23,42,0.12);
 }
 
-/* Sidebar precisa de position relative para o botão absoluto funcionar */
-.sidebar {
-  position: relative !important;
-}
+/* O posicionamento original sticky/fixed já garante o contexto para o botão absoluto */
 
 /* Em mobile: esconde botão de colapso e mantém comportamento original */
 @media (max-width: 1024px) {

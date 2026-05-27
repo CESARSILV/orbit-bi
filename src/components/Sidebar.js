@@ -255,22 +255,6 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* ── Status card ──────────────────────────────────────────── */}
-        {!isCollapsed && (
-          <div className="sidebar-card">
-            <span className="status-dot" />
-            <p>IA multimodal pronta para analisar imagens e PDFs no chat, além de estruturar CSV, XLS e XLSX de Google Ads e Meta Ads.</p>
-          </div>
-        )}
-        {isCollapsed && (
-          <div title="IA ativa" style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
-            marginBottom: "8px",
-          }}>
-            <span className="status-dot" />
-          </div>
-        )}
-
       </aside>
     </>
   );
