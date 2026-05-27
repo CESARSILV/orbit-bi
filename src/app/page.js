@@ -943,14 +943,20 @@ export default function Home() {
           google: 0,
           meta: 0,
           leads: 0,
+          cliques: 0,
+          impressoes: 0,
+          alcance: 0,
         };
       }
 
       const spend = s.spend || 0;
-      months[mKey].receita      += s.revenue || 0;
+      months[mKey].receita      += s.revenue      || 0;
       months[mKey].investimento += spend;
-      months[mKey].conversoes   += s.conversions || 0;
-      months[mKey].leads        += s.leads || 0;
+      months[mKey].conversoes   += s.conversions  || 0;
+      months[mKey].leads        += s.leads        || 0;
+      months[mKey].cliques      += s.clicks       || 0;
+      months[mKey].impressoes   += s.impressions  || 0;
+      months[mKey].alcance      += s.reach        || 0;
 
       if (s.platform === "google") months[mKey].google += spend;
       if (s.platform === "meta")   months[mKey].meta   += spend;

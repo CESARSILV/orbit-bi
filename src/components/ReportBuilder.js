@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+
+// ─── Chave de persistência ────────────────────────────────────────────────────
+const PREFS_KEY = "orbit-report-prefs";
+
+function loadPrefs() {
+  if (typeof window === "undefined") return null;
+  try { return JSON.parse(localStorage.getItem(PREFS_KEY)); } catch { return null; }
+}
 
 // ─── Formatadores ─────────────────────────────────────────────────────────────
 const brl  = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -203,13 +211,36 @@ export default function ReportBuilder({
   endDate,
 }) {
   const printRef = useRef(null);
+  const prefs = useMemo(() => loadPrefs(), []);
 
-  // Config state
-  const [selectedKpis, setSelectedKpis]   = useState(DEFAULT_KPIS);
-  const [clientName,   setClientName]      = useState("");
-  const [groupBy,      setGroupBy]         = useState("mes"); // mes | campanha
-  const [showConfig,   setShowConfig]      = useState(true);
-  const [highlight,    setHighlight]       = useState(true); // linha de destaque
+  // Config state — inicializa do localStorage se "Manter como Padrão" estava ativo
+  const [selectedKpis,   setSelectedKpis]   = useState(() => prefs?.selectedKpis   || DEFAULT_KPIS);
+  const [clientName,     setClientName]      = useState(() => prefs?.clientName     || "");
+  const [showConfig,     setShowConfig]      = useState(true);
+  const [highlight,      setHighlight]       = useState(() => prefs?.highlight      ?? true);
+  const [saveAsDefault,  setSaveAsDefault]   = useState(() => prefs?.saveAsDefault  ?? false);
+
+  // Persiste preferências no localStorage sempre que algo mudar (se saveAsDefault estiver ativo)
+  useEffect(() => {
+    if (!saveAsDefault) return;
+    localStorage.setItem(PREFS_KEY, JSON.stringify({
+      selectedKpis, clientName, highlight, saveAsDefault
+    }));
+  }, [selectedKpis, clientName, highlight, saveAsDefault]);
+
+  // Ao ativar saveAsDefault, salva imediatamente
+  const handleSaveAsDefault = useCallback((checked) => {
+    setSaveAsDefault(checked);
+    if (checked) {
+      localStorage.setItem(PREFS_KEY, JSON.stringify({
+        selectedKpis, clientName, highlight, saveAsDefault: true
+      }));
+    } else {
+      // Remove a persistência, mas mantém as seleções da sessão atual
+      localStorage.removeItem(PREFS_KEY);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedKpis, clientName, highlight]);
 
   // Toggle KPI
   const toggleKpi = useCallback((key) => {
@@ -221,18 +252,18 @@ export default function ReportBuilder({
   // Ordenar KPIs na mesma ordem de KPI_DEFS
   const orderedKpis = KPI_DEFS.filter(d => selectedKpis.includes(d.key));
 
-  // Montar linhas da tabela a partir do timeline
+  // Montar linhas da tabela a partir do timeline — usando campos REAIS
   const tableRows = useMemo(() => {
     if (!timeline || timeline.length === 0) return [];
     return timeline.map(row => ({
-      mes:         row.mes || row.reference_month || "—",
+      mes: row.mes || row.reference_month || "—",
       ...calcRowKpis({
         investimento: row.investimento || 0,
-        cliques:      row.google !== undefined ? (row.google + row.meta) : 0,
-        impressoes:   0,
-        leads:        row.leads       || 0,
-        conversoes:   row.conversoes  || 0,
-        alcance:      0,
+        cliques:      row.cliques      || 0,   // ✅ campo real
+        impressoes:   row.impressoes   || 0,   // ✅ campo real
+        leads:        row.leads        || 0,
+        conversoes:   row.conversoes   || 0,
+        alcance:      row.alcance      || 0,   // ✅ campo real
       }),
     }));
   }, [timeline]);
@@ -611,14 +642,41 @@ export default function ReportBuilder({
             </div>
           </div>
 
-          {/* Opções */}
+          {/* Opções Visuais */}
           <div style={{ marginBottom: 24 }}>
             <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "rgba(245,247,251,0.4)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
               Opções Visuais
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.82rem", color: "rgba(245,247,251,0.65)" }}>
+
+            {/* Destacar melhor mês */}
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.82rem", color: "rgba(245,247,251,0.65)", marginBottom: 10 }}>
               <input type="checkbox" checked={highlight} onChange={e => setHighlight(e.target.checked)} />
               Destacar melhor mês
+            </label>
+
+            {/* Manter como padrão */}
+            <label style={{
+              display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer",
+              fontSize: "0.82rem", lineHeight: 1.45,
+              padding: "8px 10px", borderRadius: 8,
+              background: saveAsDefault ? "rgba(52,211,153,0.08)" : "rgba(255,255,255,0.03)",
+              border: `1px solid ${saveAsDefault ? "rgba(52,211,153,0.3)" : "rgba(255,255,255,0.07)"}`,
+              transition: "all 0.18s ease",
+            }}>
+              <input
+                type="checkbox"
+                checked={saveAsDefault}
+                onChange={e => handleSaveAsDefault(e.target.checked)}
+                style={{ marginTop: 2, flexShrink: 0 }}
+              />
+              <span>
+                <span style={{ display: "block", fontWeight: 700, color: saveAsDefault ? "#34d399" : "rgba(245,247,251,0.65)" }}>
+                  Manter opções como Padrão
+                </span>
+                <span style={{ fontSize: "0.72rem", color: "rgba(245,247,251,0.35)" }}>
+                  {saveAsDefault ? "✅ Salvo — será restaurado na próxima visita" : "Salva KPIs, cliente e visual para próximas sessões"}
+                </span>
+              </span>
             </label>
           </div>
 
