@@ -131,13 +131,7 @@ export default function KpiGrid({ totals }) {
       meta: "Custo por Lead capturado",
       accent: "#7bb7ff",
     },
-    {
-      label: "ROAS Médio",
-      value: totals.roas || 0,
-      formatFn: (v) => `${v.toFixed(2).replace(".", ",")}x`,
-      meta: "Retorno do investimento em anúncio",
-      accent: "#7cf7be",
-    },
+
     {
       label: "CAC Médio",
       value: totals.cac || 0,

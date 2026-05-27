@@ -917,30 +917,41 @@ export default function Home() {
   // M-07 FIX: Use reference_month (YYYY-MM stable key) for grouping, not reference_label (string prone to variation)
   const timeline = useMemo(() => {
     const months = {};
+
     marketingDb.fact_marketing_summary.filter(matchesCoreFilters).forEach(s => {
-      // Use the stable reference_month as the grouping key
       const mKey = s.reference_month;
       if (!mKey) return;
+
       if (!months[mKey]) {
         months[mKey] = {
-          mes: s.reference_label || mKey, // display label
+          mes: s.reference_label || mKey,
           reference_month: mKey,
+          // totais consolidados (para compatibilidade)
           receita: 0,
           investimento: 0,
-          conversoes: 0
+          conversoes: 0,
+          // por plataforma
+          google: 0,
+          meta: 0,
+          leads: 0,
         };
       }
-      months[mKey].receita += s.revenue || 0;
-      months[mKey].investimento += s.spend || 0;
-      months[mKey].conversoes += s.conversions || 0;
+
+      const spend = s.spend || 0;
+      const rev   = s.revenue || 0;
+      const conv  = s.conversions || 0;
+      const lead  = s.leads || 0;
+
+      months[mKey].receita      += rev;
+      months[mKey].investimento += spend;
+      months[mKey].conversoes   += conv;
+      months[mKey].leads        += lead;
+
+      if (s.platform === "google") months[mKey].google += spend;
+      if (s.platform === "meta")   months[mKey].meta   += spend;
     });
 
     return Object.values(months)
-      .map(m => {
-        const roas = m.investimento > 0 ? m.receita / m.investimento : 0;
-        const cpa = m.conversoes > 0 ? m.investimento / m.conversoes : 0;
-        return { ...m, roas, cpa };
-      })
       .sort((a, b) => a.reference_month.localeCompare(b.reference_month));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketingDb, platform, period, startDate, endDate, campaign]);
