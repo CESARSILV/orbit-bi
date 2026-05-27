@@ -593,6 +593,26 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketingDb, platform, period, startDate, endDate, campaign]);
 
+  // BUG 3 FIX: allCampaigns — sem filtro de plataforma para o DonutChart
+  const allCampaigns = useMemo(() => {
+    const isValidName = (n) => n && !/^[-–—\s]+$/.test(String(n).trim()) && String(n).trim();
+    return marketingDb.fact_marketing_summary
+      .filter(r => {
+        if (!isValidName(r.campaign_name)) return false;
+        if (period !== "todos" && r.reference_month !== period) return false;
+        if (!isInsideSelectedDateRange(r)) return false;
+        if (campaign !== "todas" && r.campaign_name !== campaign) return false;
+        return true;
+      })
+      .reduce((acc, c) => {
+        const key = `${c.platform}_${c.campaign_name}`;
+        if (!acc[key]) acc[key] = { nome: c.campaign_name, plataforma: c.platform === "google" ? "Google Ads" : "Meta Ads", tipo: c.platform, investimento: 0, status: "Ativa" };
+        acc[key].investimento += c.spend || 0;
+        return acc;
+      }, {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketingDb, period, startDate, endDate, campaign]);
+
   // Calculate Consolidated KPIs from filtered summary
   const getCalculatedTotals = () => {
     const list = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
@@ -915,10 +935,23 @@ export default function Home() {
   const geoData = getRegionalMapData();
 
   // M-07 FIX: Use reference_month (YYYY-MM stable key) for grouping, not reference_label (string prone to variation)
+  // ─── TIMELINE (BUG 2 FIX): usa filtro SEM restrição de plataforma ─────────
+  // Motivo: o gráfico de 3 linhas é um painel COMPARATIVO (Google vs Meta vs Leads).
+  // Se usarmos matchesCoreFilters, quando o filtro de plataforma = "Google",
+  // todos os registros Meta são filtrados → linha Meta = R$0 no gráfico.
+  // Solução: ignorar o filtro de plataforma dentro do timeline (mas manter
+  // período, data e campanha).
+  const matchesTimelineFilters = (r) => {
+    if (period !== "todos" && r.reference_month !== period) return false;
+    if (!isInsideSelectedDateRange(r)) return false;
+    if (campaign !== "todas" && r.campaign_name !== campaign) return false;
+    return true;
+  };
+
   const timeline = useMemo(() => {
     const months = {};
 
-    marketingDb.fact_marketing_summary.filter(matchesCoreFilters).forEach(s => {
+    marketingDb.fact_marketing_summary.filter(matchesTimelineFilters).forEach(s => {
       const mKey = s.reference_month;
       if (!mKey) return;
 
@@ -926,11 +959,9 @@ export default function Home() {
         months[mKey] = {
           mes: s.reference_label || mKey,
           reference_month: mKey,
-          // totais consolidados (para compatibilidade)
           receita: 0,
           investimento: 0,
           conversoes: 0,
-          // por plataforma
           google: 0,
           meta: 0,
           leads: 0,
@@ -938,14 +969,10 @@ export default function Home() {
       }
 
       const spend = s.spend || 0;
-      const rev   = s.revenue || 0;
-      const conv  = s.conversions || 0;
-      const lead  = s.leads || 0;
-
-      months[mKey].receita      += rev;
+      months[mKey].receita      += s.revenue || 0;
       months[mKey].investimento += spend;
-      months[mKey].conversoes   += conv;
-      months[mKey].leads        += lead;
+      months[mKey].conversoes   += s.conversions || 0;
+      months[mKey].leads        += s.leads || 0;
 
       if (s.platform === "google") months[mKey].google += spend;
       if (s.platform === "meta")   months[mKey].meta   += spend;
@@ -954,7 +981,7 @@ export default function Home() {
     return Object.values(months)
       .sort((a, b) => a.reference_month.localeCompare(b.reference_month));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [marketingDb, platform, period, startDate, endDate, campaign]);
+  }, [marketingDb, period, startDate, endDate, campaign]);
 
   // Search keyword data filtered
   const getKeywordsDataFiltered = () => {
@@ -2218,7 +2245,7 @@ export default function Home() {
 
           <section className="analytics-grid">
             <LineChart timeline={timeline} />
-            <DonutChart campaigns={filteredCampaigns} />
+            <DonutChart campaigns={Object.values(allCampaigns)} />
           </section>
 
           <section className="segmentation-grid">

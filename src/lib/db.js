@@ -179,9 +179,20 @@ export function getDatabase() {
     }
 
     if (needsSave) {
-      const cleaned = consolidateSummary(db);
-      saveDatabase(cleaned);
-      return cleaned;
+      db.fact_campaigns = db.fact_campaigns; // already mutated in place above
+      console.warn(`[DB] AUTO-CLEAN removeu registros de fact_campaigns. Recalculando summary...`);
+    }
+
+    // ALWAYS rebuild fact_marketing_summary from raw tables.
+    // This ensures the cached summary is NEVER stale — even if it was persisted
+    // with doubled data from a previous import before the dedup was active.
+    const rebuilt = consolidateSummary(db);
+    const summaryChanged =
+      JSON.stringify(db.fact_marketing_summary) !== JSON.stringify(rebuilt.fact_marketing_summary);
+
+    if (needsSave || summaryChanged) {
+      saveDatabase(rebuilt);
+      return rebuilt;
     }
 
     return db;
