@@ -352,10 +352,19 @@ export function consolidateSummary(db) {
 
   // Gather campaign level items (from fact_campaigns and fact_time_series)
   const addRowToGroups = (r, isCampaignTable = false) => {
-    // Prevent double counting: if we are processing campaign table, but we already have daily breakdown for this platform/month/campaign, ignore it.
-    if (isCampaignTable && r.platform && r.reference_month && r.campaign_name) {
-      if (hasDailyData.has(`${r.platform}_${r.reference_month}_${r.campaign_name}`)) {
-        return;
+    // PRIORIDADE CORRIGIDA: fact_campaigns SEMPRE tem prioridade sobre fact_time_series.
+    //
+    // Bug anterior: quando a série temporal (time series) tinha dados para um mês,
+    // as linhas da tabela de campanhas eram IGNORADAS (hasDailyData check).
+    // Isso fazia a série temporária (dados parciais, ex: R$883/mês) sobrescrever
+    // o relatório mensal completo de campanhas (ex: R$4.503/mês).
+    //
+    // Correção: se está processando fact_time_series (!isCampaignTable) E
+    // já existe dado de campanha para aquele mês/plataforma/campanha,
+    // pula a linha do time_series (evita double-counting e garante dados corretos).
+    if (!isCampaignTable && r.platform && r.reference_month && r.campaign_name) {
+      if (hasCampaignData.has(`${r.platform}_${r.reference_month}_${r.campaign_name}`)) {
+        return; // fact_campaigns é a fonte authoritária — ignora a série temporal
       }
     }
 
@@ -396,6 +405,7 @@ export function consolidateSummary(db) {
   };
 
   // Track which campaign + month + platform has campaign data
+  // (usado pelo addRowToGroups para priorizar fact_campaigns sobre fact_time_series)
   const hasCampaignData = new Set();
   if (db.fact_campaigns && db.fact_campaigns.length > 0) {
     db.fact_campaigns.forEach(r => {
@@ -405,12 +415,12 @@ export function consolidateSummary(db) {
     });
   }
 
-  // If we have fact_campaigns (pass isCampaignTable = true)
+  // 1º: processa fact_campaigns (fonte primária — relatórios mensais/diários de campanhas)
   if (db.fact_campaigns && db.fact_campaigns.length > 0) {
     db.fact_campaigns.forEach(r => addRowToGroups(r, true));
   }
 
-  // If we have fact_time_series (adds daily granularity)
+  // 2º: processa fact_time_series (fonte secundária — só preenche onde não há dado de campanha)
   if (db.fact_time_series && db.fact_time_series.length > 0) {
     db.fact_time_series.forEach(r => addRowToGroups(r, false));
   }
