@@ -45,13 +45,8 @@ export default function Home() {
   const [authBypassed, setAuthBypassed] = useState(false);
   const [authChecking, setAuthChecking] = useState(isSupabaseConfigured);
 
-  // Consolidated Relational Database State (Lazily initialized to avoid setting state in effect)
-  const [marketingDb, setMarketingDb] = useState(() => {
-    if (typeof window !== "undefined") {
-      return getDatabase();
-    }
-    return createInitialDb();
-  });
+  // Consolidated Relational Database State (Starts with empty initial state for SSR/hydration safety)
+  const [marketingDb, setMarketingDb] = useState(createInitialDb());
 
   // Advanced Global Filtering State
   const [platform, setPlatform] = useState("todas");
@@ -205,49 +200,48 @@ export default function Home() {
   // C-08 FIX: Queue for multiple files uploaded at once
   const pendingFilesQueueRef = useRef([]);
 
-  // AUTO-DEDUP + AUTO-CLEAN: roda uma única vez após o mount.
-  // 1. Remove linhas de total/resumo importadas com campaign_name = "--"
-  // 2. Remove registros duplicados (mesma plataforma+mês+campanha+data)
-  // Corrige dados corrompidos no localStorage sem precisar de nenhuma ação do usuário.
+  // Load database from localStorage after initial hydration and run auto-cleanup if necessary
   useEffect(() => {
-    const campaigns = marketingDb.fact_campaigns;
-    if (!campaigns || campaigns.length === 0) return;
+    const loadedDb = getDatabase();
+    const campaigns = loadedDb.fact_campaigns || [];
+    
+    if (campaigns.length > 0) {
+      const isDashOnly = (name) => !name || /^[-–—\s]+$/.test(String(name).trim());
+      const withoutTotals = campaigns.filter(r => !isDashOnly(r.campaign_name));
+      const removedTotals = campaigns.length - withoutTotals.length;
 
-    // Regex para detectar nomes de campanha que são apenas traços/dashes (ex: "--", "---", "–")
-    const isDashOnly = (name) => !name || /^[-–—\s]+$/.test(String(name).trim());
+      const seen = new Set();
+      const deduped = withoutTotals.filter(r => {
+        const key = [
+          r.platform || "",
+          r.reference_month || "",
+          r.campaign_name || "",
+          r.date || r.reference_month || "",
+          r.device || "",
+          r.keyword || "",
+          r.search_term || "",
+          r.gender || "",
+          r.age_range || ""
+        ].join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      const removedDups = withoutTotals.length - deduped.length;
+      const totalRemoved = removedTotals + removedDups;
 
-    // Passo 1: Remove linhas de total/resumo com campaign_name = "--" ou similar
-    const withoutTotals = campaigns.filter(r => !isDashOnly(r.campaign_name));
-    const removedTotals = campaigns.length - withoutTotals.length;
-
-    // Passo 2: Remove duplicatas por chave composite
-    const seen = new Set();
-    const deduped = withoutTotals.filter(r => {
-      const key = [
-        r.platform || "",
-        r.reference_month || "",
-        r.campaign_name || "",
-        r.date || r.reference_month || "",
-        r.device || "",
-        r.keyword || "",
-        r.search_term || "",
-        r.gender || "",
-        r.age_range || ""
-      ].join("|");
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    const removedDups = withoutTotals.length - deduped.length;
-    const totalRemoved = removedTotals + removedDups;
-
-    if (totalRemoved > 0) {
-      console.warn(`[AUTO-CLEAN] Corrigindo: ${removedTotals} linhas de total ("--") + ${removedDups} duplicatas removidas. (${campaigns.length} → ${deduped.length} registros)`);
-      const fixedDb = { ...marketingDb, fact_campaigns: deduped };
-      const consolidated = consolidateSummary(fixedDb);
-      saveDatabase(consolidated);
-      setMarketingDb(consolidated);
-      triggerToast(`✅ Auto-correção: dados normalizados (${totalRemoved} registros inválidos removidos).`);
+      if (totalRemoved > 0) {
+        console.warn(`[AUTO-CLEAN] Corrigindo: ${removedTotals} linhas de total ("--") + ${removedDups} duplicatas removidas. (${campaigns.length} → ${deduped.length} registros)`);
+        const fixedDb = { ...loadedDb, fact_campaigns: deduped };
+        const consolidated = consolidateSummary(fixedDb);
+        saveDatabase(consolidated);
+        setMarketingDb(consolidated);
+        triggerToast(`✅ Auto-correção: dados normalizados (${totalRemoved} registros inválidos removidos).`);
+      } else {
+        setMarketingDb(loadedDb);
+      }
+    } else {
+      setMarketingDb(loadedDb);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // roda APENAS no mount inicial
