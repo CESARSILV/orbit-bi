@@ -16,7 +16,6 @@ import AuthModal from "@/components/AuthModal";
 import DeviceChart from "@/components/DeviceChart";
 import TimeHeatmap from "@/components/TimeHeatmap";
 import RegionalMap from "@/components/RegionalMap";
-import SearchOperations from "@/components/SearchOperations";
 import ReportBuilder from "@/components/ReportBuilder";
 
 // Custom ETL & DB Ingestion Imports
@@ -2273,13 +2272,6 @@ export default function Home() {
             />
           </section>
 
-          <section className="analytics-grid">
-            <SearchOperations
-              key={`search-${dashboardResetKey}`}
-              keywordsData={getKeywordsDataFiltered()}
-              searchTermsData={getSearchTermsDataFiltered()}
-            />
-          </section>
 
           <section className="report-grid" id="relatorios">
             <article>
