@@ -7,7 +7,7 @@ import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import ControlStrip from "@/components/ControlStrip";
 import KpiGrid from "@/components/KpiGrid";
-import LineChart from "@/components/LineChart";
+import HistoricalChart from "@/components/HistoricalChart";
 import DonutChart from "@/components/DonutChart";
 import CampaignTable from "@/components/CampaignTable";
 import ChatAssistant from "@/components/ChatAssistant";
@@ -2244,7 +2244,7 @@ export default function Home() {
           <KpiGrid totals={totals} />
 
           <section className="analytics-grid">
-            <LineChart timeline={timeline} />
+            <HistoricalChart timeline={timeline} />
             <DonutChart campaigns={Object.values(allCampaigns)} />
           </section>
 
