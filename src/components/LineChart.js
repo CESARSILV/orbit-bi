@@ -164,18 +164,30 @@ export default function LineChart({ timeline }) {
     if (!canvas) return;
 
     setReady(false);
-    // desenha imediatamente após um frame (garante que o canvas está montado)
     const raf = requestAnimationFrame(() => {
       draw(canvas, timeline);
       setReady(true);
     });
 
-    const handleResize = () => { draw(canvas, timeline); };
-    window.addEventListener("resize", handleResize);
+    // ResizeObserver: redesenha quando o container muda de tamanho
+    const parent = canvas.parentElement;
+    let observer = null;
+    if (parent && typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(() => { draw(canvas, timeline); });
+      observer.observe(parent);
+    } else {
+      // fallback: window resize
+      const handleResize = () => { draw(canvas, timeline); };
+      window.addEventListener("resize", handleResize);
+      return () => {
+        cancelAnimationFrame(raf);
+        window.removeEventListener("resize", handleResize);
+      };
+    }
 
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener("resize", handleResize);
+      if (observer) observer.disconnect();
     };
   }, [timeline, draw]);
 

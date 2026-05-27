@@ -70,7 +70,7 @@ body::after {
 
 .app-shell {
   display: grid;
-  grid-template-columns: clamp(220px, 14vw, 280px) minmax(0, 1fr);
+  grid-template-columns: clamp(200px, 14vw, 280px) minmax(0, 1fr);
   min-height: 100vh;
   width: 100%;
 }
@@ -79,10 +79,13 @@ body::after {
   position: sticky;
   top: 0;
   height: 100vh;
+  overflow-y: auto;
   padding: 22px;
   border-right: 1px solid var(--line);
   background: rgba(5, 7, 13, 0.64);
   backdrop-filter: blur(24px);
+  z-index: 200;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .brand {
@@ -169,7 +172,8 @@ td,
   width: 100%;
   max-width: none;
   min-width: 0;
-  padding: clamp(18px, 1.45vw, 32px);
+  padding: clamp(14px, 1.45vw, 32px);
+  overflow-x: hidden;
 }
 
 .topbar,
@@ -289,12 +293,13 @@ h2 {
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(22px);
+  overflow-x: auto;
 }
 
 .control-strip label {
   display: grid;
   gap: 6px;
-  min-width: 170px;
+  min-width: clamp(130px, 12vw, 170px);
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -322,11 +327,11 @@ select {
 }
 
 .hero-grid {
-  grid-template-columns: minmax(420px, 1.45fr) minmax(320px, 0.9fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.9fr);
 }
 
 .analytics-grid {
-  grid-template-columns: minmax(420px, 1.45fr) minmax(320px, 0.8fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.8fr);
 }
 
 .report-grid {
@@ -512,7 +517,7 @@ select {
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(clamp(150px, 12vw, 230px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -595,7 +600,7 @@ canvas {
 
 table {
   width: 100%;
-  min-width: 860px;
+  min-width: 640px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -729,16 +734,118 @@ td {
   transform: translateY(0);
 }
 
-@media (max-width: 1180px) {
+/* =============================================
+   HAMBURGER / OVERLAY para sidebar mobile
+   ============================================= */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  background: rgba(5, 7, 13, 0.72);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+.sidebar-overlay.active {
+  display: block;
+}
+
+.sidebar-hamburger {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 300;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(15, 20, 35, 0.92);
+  backdrop-filter: blur(20px);
+  color: var(--text);
+  font-size: 1.2rem;
+  cursor: pointer;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  transition: transform 0.2s ease, background 0.2s ease;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-hamburger:hover {
+  background: rgba(30, 38, 60, 0.95);
+  transform: scale(1.08);
+}
+
+/* =============================================
+   BREAKPOINT EXTRA GRANDE: ≥ 1600px
+   ============================================= */
+@media (min-width: 1600px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.75fr);
+  }
+
+  .analytics-grid {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.8fr);
+  }
+}
+
+/* =============================================
+   BREAKPOINT GRANDE: ≤ 1400px
+   ============================================= */
+@media (max-width: 1400px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  }
+
+  .analytics-grid {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  }
+}
+
+/* =============================================
+   BREAKPOINT MÉDIO-GRANDE: ≤ 1200px
+   ============================================= */
+@media (max-width: 1200px) {
+  .hero-grid,
+  .analytics-grid,
+  .operations-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  }
+
+  .control-strip label {
+    min-width: clamp(120px, 10vw, 150px);
+  }
+}
+
+/* =============================================
+   BREAKPOINT MÉDIO: ≤ 1024px — Sidebar colaps
+   ============================================= */
+@media (max-width: 1024px) {
   .app-shell {
     grid-template-columns: 1fr;
   }
 
   .sidebar {
-    position: static;
-    height: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: clamp(240px, 72vw, 320px);
+    z-index: 210;
+    transform: translateX(-110%);
+    border-right: 1px solid var(--line);
+    border-bottom: none;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    box-shadow: 8px 0 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
   }
 
   .sidebar-card {
@@ -747,89 +854,128 @@ td {
   }
 
   .nav-list {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
-  .kpi-grid {
-    grid-template-columns: repeat(3, minmax(150px, 1fr));
-  }
-}
-
-@media (max-width: 1320px) {
-  .hero-grid,
-  .analytics-grid {
     grid-template-columns: 1fr;
   }
 
-  .operations-grid {
-    grid-template-columns: 1fr;
+  .sidebar-hamburger {
+    display: flex;
+  }
+
+  .workspace {
+    padding: 18px 16px;
   }
 }
 
-@media (min-width: 1600px) {
-  .hero-grid {
-    grid-template-columns: minmax(0, 1.35fr) minmax(420px, 0.75fr);
-  }
-
-  .analytics-grid {
-    grid-template-columns: minmax(0, 1.45fr) minmax(420px, 0.8fr);
-  }
-}
-
+/* =============================================
+   BREAKPOINT TABLET: ≤ 860px
+   ============================================= */
 @media (max-width: 860px) {
   .workspace {
-    padding: 18px;
+    padding: 16px 14px;
   }
 
-  .topbar,
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-actions {
+    justify-content: flex-start;
+  }
+
   .hero-grid,
   .analytics-grid,
   .report-grid {
     grid-template-columns: 1fr;
   }
 
-  .topbar {
-    display: grid;
+  .insight-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  table {
+    min-width: 540px;
+  }
+}
+
+/* =============================================
+   BREAKPOINT MOBILE: ≤ 600px
+   ============================================= */
+@media (max-width: 600px) {
+  h1 {
+    font-size: clamp(1.8rem, 6vw, 2.4rem);
+  }
+
+  .workspace {
+    padding: 14px 12px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .insight-list {
     grid-template-columns: 1fr;
   }
 
-  .kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .control-strip {
+    gap: 8px;
+    padding: 10px;
   }
 
-  .nav-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .control-strip label {
+    min-width: 100%;
+    width: 100%;
+  }
+
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  table {
+    min-width: 460px;
   }
 }
 
-@media (max-width: 560px) {
+/* =============================================
+   BREAKPOINT MOBILE PEQUENO: ≤ 420px
+   ============================================= */
+@media (max-width: 420px) {
   h1 {
-    font-size: 2.2rem;
+    font-size: 1.7rem;
   }
 
-  .workspace,
-  .sidebar {
-    padding: 14px;
+  .workspace {
+    padding: 12px 10px;
   }
 
   .kpi-grid {
     grid-template-columns: 1fr;
   }
 
-  .topbar-actions,
-  .control-strip label,
-  .control-strip button {
-    width: 100%;
+  .kpi-value {
+    font-size: 1.45rem;
+  }
+
+  .topbar-actions button {
+    font-size: 0.8rem;
+    padding: 0 10px;
   }
 
   .primary-btn,
-  .ghost-btn,
-  .icon-btn,
-  .danger-btn {
-    width: 100%;
+  .ghost-btn {
+    min-height: 38px;
+  }
+
+  .sidebar-hamburger {
+    bottom: 16px;
+    left: 16px;
+    width: 44px;
+    height: 44px;
   }
 }
 
@@ -839,15 +985,9 @@ td {
 
 .segmentation-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 20px;
   margin-bottom: 24px;
-}
-
-@media (max-width: 1100px) {
-  .segmentation-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Badge Suporte IA */
@@ -1686,13 +1826,13 @@ td {
 
 .tables-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
   gap: 20px;
 }
 
 .tables-grid-three {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
   gap: 20px;
 }
 
@@ -1882,6 +2022,11 @@ td {
 @keyframes scaleIn {
   from { transform: scale(0.96); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes rise {
@@ -2621,4 +2766,455 @@ td {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   REPORT BUILDER — Seção "Relatórios"
+═══════════════════════════════════════════════════════════════ */
+
+.report-builder-root {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  gap: 0;
+  position: relative;
+}
+
+/* ── Config Panel ─────────────────────────────────────────────── */
+.report-config-panel {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(10, 15, 28, 0.82);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+}
+
+.report-config-panel.open {
+  width: 270px;
+  min-width: 270px;
+}
+
+.report-config-inner {
+  width: 270px;
+  padding: 20px 18px;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.report-config-inner::-webkit-scrollbar {
+  width: 4px;
+}
+.report-config-inner::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+/* ── Preview Area ─────────────────────────────────────────────── */
+.report-preview-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Topbar ───────────────────────────────────────────────────── */
+.report-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(10, 15, 28, 0.6);
+  backdrop-filter: blur(12px);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ── Print Root ───────────────────────────────────────────────── */
+.report-print-root {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.report-print-root::-webkit-scrollbar {
+  width: 5px;
+}
+.report-print-root::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+/* ── Cabeçalho ────────────────────────────────────────────────── */
+.report-header-block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(15, 22, 40, 0.9) 0%, rgba(10, 15, 28, 0.7) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* ── KPI Summary cards ────────────────────────────────────────── */
+.report-kpi-summary {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Section title ────────────────────────────────────────────── */
+.report-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(245, 247, 251, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 14px;
+}
+
+/* ── Tabela ───────────────────────────────────────────────────── */
+.report-table-section {
+  background: rgba(10, 15, 28, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 20px 20px 8px;
+  overflow: hidden;
+}
+
+.report-table-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.report-table-wrap::-webkit-scrollbar {
+  height: 4px;
+}
+.report-table-wrap::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.83rem;
+  min-width: 500px;
+}
+
+.report-th {
+  padding: 9px 14px;
+  text-align: right;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(245, 247, 251, 0.38);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  white-space: nowrap;
+}
+
+.report-th-mes {
+  text-align: left;
+}
+
+.kpi-icon {
+  margin-right: 4px;
+  font-size: 0.82em;
+}
+
+.report-td {
+  padding: 10px 14px;
+  text-align: right;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: rgba(245, 247, 251, 0.82);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.report-td-mes {
+  text-align: left;
+  font-weight: 600;
+  color: rgba(245, 247, 251, 0.7);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.report-td-num {
+  font-weight: 500;
+}
+
+.report-tr-alt {
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.report-tr:hover td {
+  background: rgba(91, 156, 246, 0.04);
+  color: rgba(245, 247, 251, 0.95);
+}
+
+/* Linha de destaque (melhor mês) */
+.report-tr-best td {
+  background: rgba(255, 193, 7, 0.07) !important;
+  color: rgba(255, 220, 100, 0.95) !important;
+}
+.report-tr-best .report-td-mes {
+  color: #ffd166 !important;
+  font-weight: 700 !important;
+}
+
+.best-badge {
+  font-size: 10px;
+  color: #ffd166;
+  flex-shrink: 0;
+}
+
+/* Linha de total */
+.report-tr-total td {
+  background: rgba(91, 156, 246, 0.08);
+  border-top: 2px solid rgba(91, 156, 246, 0.2);
+  border-bottom: none;
+  color: rgba(245, 247, 251, 0.95);
+  font-weight: 800 !important;
+}
+
+/* ── Insights ─────────────────────────────────────────────────── */
+.report-insights-section {
+  background: rgba(10, 15, 28, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.report-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.report-insight-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: rgba(245, 247, 251, 0.65);
+  line-height: 1.55;
+}
+
+.report-insight-chip strong {
+  color: rgba(245, 247, 251, 0.92);
+  font-weight: 700;
+}
+
+.insight-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Plataforma ───────────────────────────────────────────────── */
+.report-platform-section {
+  background: rgba(10, 15, 28, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.report-platform-cards {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.platform-card {
+  flex: 1 1 200px;
+  min-width: 0;
+  border: 1px solid;
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+
+/* ── Rodapé ───────────────────────────────────────────────────── */
+.report-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  font-size: 0.72rem;
+  color: rgba(245, 247, 251, 0.28);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ESTILOS DE IMPRESSÃO — PDF Landscape
+═══════════════════════════════════════════════════════════════ */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm 14mm;
+  }
+
+  /* Esconde tudo exceto a área de impressão */
+  body > * {
+    display: none !important;
+  }
+
+  #report-print-area {
+    display: flex !important;
+    flex-direction: column;
+    gap: 16px;
+    padding: 0;
+    overflow: visible !important;
+    color: #0f172a !important;
+    background: #fff !important;
+    font-family: 'Inter', sans-serif;
+    font-size: 9pt;
+  }
+
+  /* Forçar cores no print */
+  .report-header-block {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+  }
+
+  .report-kpi-summary {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .report-table-section {
+    background: #fff !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  .report-th {
+    color: #64748b !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    font-size: 7pt !important;
+    padding: 6px 10px !important;
+  }
+
+  .report-td {
+    color: #1e293b !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    font-size: 8pt !important;
+    padding: 6px 10px !important;
+  }
+
+  .report-tr-best td {
+    background: rgba(255, 193, 7, 0.12) !important;
+    color: #92400e !important;
+  }
+
+  .report-tr-total td {
+    background: #eff6ff !important;
+    border-top: 2px solid #bfdbfe !important;
+    color: #1e3a8a !important;
+    font-weight: 800 !important;
+  }
+
+  .report-insights-section {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  .report-insight-chip {
+    background: #fff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #475569 !important;
+    font-size: 7.5pt !important;
+    break-inside: avoid;
+  }
+
+  .report-insight-chip strong {
+    color: #0f172a !important;
+  }
+
+  .report-footer {
+    border-top: 1px solid #e2e8f0 !important;
+    color: #94a3b8 !important;
+    background: none !important;
+    border-radius: 0 !important;
+  }
+
+  .report-section-title {
+    color: #64748b !important;
+    font-size: 7pt !important;
+  }
+
+  .platform-card {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  /* Não quebra tabela no meio de uma linha */
+  .report-tr, .report-insight-chip {
+    break-inside: avoid;
+  }
+
+  /* Esconde botões e config na impressão */
+  .report-topbar,
+  .report-config-panel {
+    display: none !important;
+  }
+
+  .report-preview-area {
+    overflow: visible !important;
+  }
+
+  .report-print-root {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVIDADE — Report Builder
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .report-config-panel.open {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 50;
+    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.5);
+  }
+}
+
+@media (max-width: 600px) {
+  .report-print-root {
+    padding: 16px;
+  }
+
+  .report-topbar {
+    padding: 10px 16px;
+  }
 }

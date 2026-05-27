@@ -39,8 +39,7 @@ export default function CampaignTable({ campaigns }) {
               <th>Campanha</th>
               <th>Plataforma</th>
               <th>Investimento</th>
-              <th>Receita</th>
-              <th>ROAS</th>
+              <th>Cliques</th>
               <th>CPA</th>
               <th>Status IA</th>
             </tr>
@@ -48,7 +47,7 @@ export default function CampaignTable({ campaigns }) {
           <tbody>
             {sortedCampaigns.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: "center", padding: "32px", color: "rgba(245, 247, 251, 0.42)", fontStyle: "italic" }}>
+                <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "rgba(245, 247, 251, 0.42)", fontStyle: "italic" }}>
                   Nenhuma campanha cadastrada. Faça upload de um arquivo CSV de campanhas para começar.
                 </td>
               </tr>
@@ -67,8 +66,7 @@ export default function CampaignTable({ campaigns }) {
                   </td>
                   <td>{item.plataforma}</td>
                   <td>{brl.format(item.investimento)}</td>
-                  <td>{brl.format(item.receita)}</td>
-                  <td>{item.roas.toFixed(2).replace(".", ",")}x</td>
+                  <td>{item.nome && item.cliques !== undefined ? new Intl.NumberFormat("pt-BR").format(item.cliques) : "—"}</td>
                   <td>{brl.format(item.cpa)}</td>
                   <td>
                     <span style={{

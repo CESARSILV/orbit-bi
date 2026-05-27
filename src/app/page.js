@@ -17,6 +17,7 @@ import DeviceChart from "@/components/DeviceChart";
 import TimeHeatmap from "@/components/TimeHeatmap";
 import RegionalMap from "@/components/RegionalMap";
 import SearchOperations from "@/components/SearchOperations";
+import ReportBuilder from "@/components/ReportBuilder";
 
 // Custom ETL & DB Ingestion Imports
 import { processUploadFile, parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticValue, parseDate, inferReferenceMonth, isTotalOrMetadata, applyTemporalIntelligence, parseFormattedFloat, sanitizeMojibake, SYNONYMS } from "@/lib/etl";
@@ -35,7 +36,7 @@ const MONTHS_PT = [
 const INITIAL_MESSAGES = [
   {
     type: "ai",
-    text: "Olá. Já analisei o painel atual e posso explicar ROAS, CPA, públicos vencedores, desperdício de verba e próximos passos.",
+    text: "Olá. Já analisei o painel atual e posso explicar CPA, CPL, públicos vencedores, desperdício de verba e próximos passos.",
   },
 ];
 
@@ -68,6 +69,7 @@ export default function Home() {
 
   // UI state
   const [activeSection, setActiveSection] = useState("visao-geral");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   // A-01 FIX: Timer ID stored in useRef instead of useState to avoid unnecessary re-renders
@@ -664,7 +666,7 @@ export default function Home() {
 
     if (list.length === 0) {
       return {
-        investimento: 0, receita: 0, lucro: 0, roas: 0, cpa: 0, ctr: 0, cpc: 0,
+        investimento: 0, receita: 0, lucro: 0, cpa: 0, ctr: 0, cpc: 0,
         conversoes: 0, cliques: 0, impressoes: 0, alcance: 0, roi: 0, ticket: 0,
         leads: 0, cpm: 0, cpl: 0, cac: 0
       };
@@ -683,7 +685,6 @@ export default function Home() {
     const cpm    = impressoes > 0 ? (investimento / impressoes) * 1000 : 0;
     const cpl    = leads > 0 ? investimento / leads : 0;
     const cac    = conversoes > 0 ? investimento / conversoes : 0;
-    const roas   = investimento > 0 ? receita / investimento : 0;
     const profit = receita - investimento;
     const roi    = investimento > 0 ? (profit / investimento) * 100 : 0;
     const ticket = conversoes > 0 ? receita / conversoes : 0;
@@ -692,7 +693,6 @@ export default function Home() {
       investimento,
       receita,
       lucro: profit,
-      roas,
       cpa: cac,
       ctr,
       cpc,
@@ -986,9 +986,8 @@ export default function Home() {
     
     const formattedInvest = brl.format(totalsVal.investimento);
     const formattedConv = number.format(totalsVal.conversoes);
-    const formattedRoas = `${totalsVal.roas.toFixed(2).replace(".", ",")}x`;
     
-    const sorted = [...campaignsList].sort((a, b) => b.roas - a.roas);
+    const sorted = [...campaignsList].sort((a, b) => b.cpa - a.cpa);
     const topCampaign = sorted[0];
     const worstCampaign = sorted[sorted.length - 1];
 
@@ -1005,18 +1004,18 @@ export default function Home() {
       ? `período de ${startDate || "início"} até ${endDate || "hoje"}`
       : period === "todos" ? "histórico completo" : `mês de ${uniqueValues.months.find(m => m.value === period)?.label || period}`;
 
-    let text = `Para o ${selectLabel}, o investimento consolidado em mídia paga foi de ${formattedInvest}, resultando em ${formattedConv} conversões com um ROAS médio de ${formattedRoas}. `;
+    let text = `Para o ${selectLabel}, o investimento consolidado em mídia paga foi de ${formattedInvest}, resultando em ${formattedConv} conversões. `;
     
-    if (topCampaign && topCampaign.roas > 0) {
-      text += `A campanha de maior eficiência foi "${topCampaign.nome}" liderando com ROAS de ${topCampaign.roas.toFixed(2).replace(".", ",")}x. `;
+    if (topCampaign && topCampaign.cpa > 0) {
+      text += `A campanha de maior eficiência foi "${topCampaign.nome}" com CPA de ${brl.format(topCampaign.cpa)}. `;
     }
     
     if (bestDeviceText) {
       text += `A maior concentração de conversões ocorreu via ${bestDeviceText}. `;
     }
     
-    if (worstCampaign && worstCampaign.roas < 1.0 && worstCampaign.investimento > 200) {
-      text += `Recomenda-se realizar otimização de criativos ou realocação de verba na campanha "${worstCampaign.nome}" devido ao retorno de ${worstCampaign.roas.toFixed(2).replace(".", ",")}x.`;
+    if (worstCampaign && worstCampaign.cpa > totalsVal.cpa * 1.5 && worstCampaign.investimento > 200) {
+      text += `Recomenda-se otimização de criativos ou realocação de verba na campanha "${worstCampaign.nome}" devido ao CPA elevado de ${brl.format(worstCampaign.cpa)}.`;
     }
     
     return text;
@@ -1035,15 +1034,15 @@ export default function Home() {
     }
 
     const summary = generateExecutiveSummary(filteredCampaigns, totals);
-    const sorted = [...filteredCampaigns].sort((a, b) => b.roas - a.roas);
-    const best = sorted[0] || { nome: "Nenhuma", roas: 0 };
-    const worst = sorted[sorted.length - 1] || { nome: "Nenhuma", roas: 0 };
+    const sorted = [...filteredCampaigns].sort((a, b) => b.investimento - a.investimento);
+    const best = sorted[0] || { nome: "Nenhuma", cpa: 0 };
+    const worst = sorted[sorted.length - 1] || { nome: "Nenhuma", cpa: 0 };
 
     return {
       summary,
       list: [
-        { title: "Destaque de Conversão", text: `"${best.nome}" lidera o mix com ROAS de ${best.roas.toFixed(2).replace(".", ",")}x.` },
-        { title: "Desperdício Potencial", text: worst.roas < 1.0 && worst.investimento > 0 ? `"${worst.nome}" apresenta ROAS insatisfatório de ${worst.roas.toFixed(2).replace(".", ",")}x.` : "Ajuste lances em horários ociosos do heatmap." },
+        { title: "Destaque de Conversão", text: `"${best.nome}" lidera o mix com maior volume de investimento (${brl.format(best.investimento)}).` },
+        { title: "Oportunidade de Otimização", text: worst.cpa > 0 && worst.investimento > 0 ? `"${worst.nome}" apresenta CPA de ${brl.format(worst.cpa)} — avalie ajuste de segmentação.` : "Ajuste lances em horários ociosos do heatmap." },
         { title: "Ação Estratégica", text: "Consulte o heatmap cronológico e o mapa regional abaixo para calibrar criativos por localização." }
       ]
     };
@@ -1708,13 +1707,13 @@ export default function Home() {
     const subtitle     = reportData?.subtitulo     || "Diagnóstico estratégico consolidado";
     const conclusion   = reportData?.conclusao     || insights?.summary || "Dados consolidados do período analisado.";
     const recs         = reportData?.recomendacoes || [
-      "Analise as campanhas com maior ROAS e considere escalar o investimento gradualmente.",
+      "Analise as campanhas com maior volume de conversões e considere escalar o investimento gradualmente.",
       "Revise criativos e segmentação das campanhas com CPA acima da média.",
       "Monitore as métricas diariamente para identificar oportunidades de otimização.",
     ];
     const steps        = reportData?.proximosPassos || [
       "Validar a qualidade e completude dos dados importados.",
-      "Definir metas de ROAS e CPA para o próximo ciclo.",
+      "Definir metas de CPA e CPL para o próximo ciclo.",
       "Gerar nova leitura após o próximo período de otimização.",
     ];
 
@@ -1729,7 +1728,6 @@ export default function Home() {
         <td class="num">${numFmt(c.cliques)}</td>
         <td class="num">${numFmt(c.conversoes)}</td>
         <td class="num">${brlFmt(c.cpa)}</td>
-        <td class="num">${c.roas.toFixed(2).replace(".", ",")}x</td>
         <td><span class="status ${c.status === "Ativa" ? "ativa" : c.status === "Pausada" ? "pausada" : "encerrada"}">${c.status}</span></td>
       </tr>`).join("");
 
@@ -1889,10 +1887,9 @@ export default function Home() {
       <th class="num">Cliques</th>
       <th class="num">Conversões</th>
       <th class="num">CPA</th>
-      <th class="num">ROAS</th>
       <th>Status</th>
     </tr></thead>
-    <tbody>${campRows || "<tr><td colspan=8 style='text-align:center;color:#94a3b8;padding:4mm'>Nenhuma campanha disponível</td></tr>"}</tbody>
+    <tbody>${campRows || "<tr><td colspan=7 style='text-align:center;color:#94a3b8;padding:4mm'>Nenhuma campanha disponível</td></tr>"}</tbody>
   </table>
 
   <!-- CONCLUSÃO -->
@@ -1949,14 +1946,14 @@ export default function Home() {
       ["RESUMO DE KPIs (FÓRMULAS EXCEL)"],
       ["KPI", "Valor", "Fórmula", "Descrição"],
       ["Investimento Total (R$)", `=SOMA(E15:E${totalRows + 14})`, "=SOMA(E15:E...)", "Soma de todo investimento em mídia paga"],
-      ["Receita Total (R$)", `=SOMA(F15:F${totalRows + 14})`, "=SOMA(F15:F...)", "Soma da receita gerada no período"],
-      ["ROAS Geral", `=SEERRO(B7/B6;0)`, "=Receita/Investimento", "Retorno sobre investimento em anúncios"],
       ["Cliques Totais", `=SOMA(G15:G${totalRows + 14})`, "=SOMA(G15:G...)", "Quantidade total de cliques recebidos"],
       ["Impressões Totais", `=SOMA(H15:H${totalRows + 14})`, "=SOMA(H15:H...)", "Quantidade total de exibições do anúncio"],
-      ["CTR Geral", `=SEERRO(B9/B10;0)`, "=Cliques/Impressões", "Taxa média de cliques"],
-      ["CPC Geral (R$)", `=SEERRO(B6/B9;0)`, "=Investimento/Cliques", "Custo médio por clique"],
+      ["CTR Geral", `=SEERRO(B6/B7;0)`, "=Cliques/Impressões", "Taxa média de cliques"],
+      ["CPC Geral (R$)", `=SEERRO(E6/B6;0)`, "=Investimento/Cliques", "Custo médio por clique"],
+      ["CPL Geral (R$)", `=SEERRO(E6/I6;0)`, "=Investimento/Leads", "Custo por lead"],
+      ["CPA Geral (R$)", `=SEERRO(E6/J6;0)`, "=Investimento/Conversões", "Custo por aquisição"],
       [],
-      ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Receita (R$)", "Cliques Totais", "Impressões", "Conversões", "CTR", "CPC", "CPM", "CPL", "ROAS", "Status"],
+      ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Cliques Totais", "Impressões", "Conversões", "Leads", "CTR", "CPC", "CPM", "CPL", "CPA", "Status"],
       ...listToExport.map((item, index) => {
         const rowNum = index + 15; // starts on row 15
         return [
@@ -1965,15 +1962,15 @@ export default function Home() {
           item.platform === "google" ? "Google Ads" : "Meta Ads",
           item.campaign_name,
           item.spend,
-          item.revenue,
           item.clicks,
           item.impressions,
           item.conversions,
+          item.leads,
           `=SEERRO(G${rowNum}/H${rowNum};0)`,
           `=SEERRO(E${rowNum}/G${rowNum};0)`,
           `=SEERRO((E${rowNum}/H${rowNum})*1000;0)`,
           `=SEERRO(E${rowNum}/I${rowNum};0)`,
-          `=SEERRO(F${rowNum}/E${rowNum};0)`,
+          `=SEERRO(E${rowNum}/J${rowNum};0)`,
           item.status
         ];
       })
@@ -2010,7 +2007,7 @@ export default function Home() {
   };
 
   const handleToggleAutomation = () => {
-    triggerToast("Monitoramento ativado: CPA, ROAS, fadiga criativa e verba desperdiçada serão acompanhados.");
+    triggerToast("Monitoramento ativado: CPA, CPL, fadiga criativa e verba desperdiçada serão acompanhados.");
   };
 
   // AI Chat Assistant simulator queries
@@ -2034,7 +2031,7 @@ export default function Home() {
     if (q.includes("desperd") || q.includes("cortar")) {
       return `Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.nome}". Considere pausar o conjunto e testar novas segmentações de público.`;
     }
-    return `Diagnóstico Consolidado: Investimento de ${brl.format(totals.investimento)} gerando ${brl.format(totals.receita)} em receita (ROAS de ${totals.roas.toFixed(2).replace(".", ",")}x). A maior alavanca no momento está em direcionar verbas adicionais para celulares, onde as conversões registraram melhor CPA.`;
+    return `Diagnóstico Consolidado: Investimento de ${brl.format(totals.investimento)} gerando ${number.format(totals.conversoes)} conversões com CPA médio de ${brl.format(totals.cpa)}. A maior alavanca no momento está em direcionar verbas adicionais para celulares, onde as conversões registraram melhor CPA.`;
   };
 
   const handleSendMessage = async (text) => {
@@ -2110,6 +2107,8 @@ export default function Home() {
           onSectionChange={setActiveSection} 
           user={user}
           onSignOut={handleSignOut}
+          isOpen={isSidebarOpen}
+          onToggle={() => setIsSidebarOpen(prev => !prev)}
         />
 
         <main className="workspace">
@@ -2165,7 +2164,26 @@ export default function Home() {
             onExport={handleExportSpreadsheet}
           />
 
-          <section className="hero-grid" id="visao-geral">
+          {/* ── SEÇÃO RELATÓRIOS ─────────────────────────────── */}
+          {activeSection === "relatorios" && (
+            <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <ReportBuilder
+                timeline={timeline}
+                totals={totals}
+                filteredCampaigns={filteredCampaigns}
+                platform={platform}
+                period={period}
+                startDate={startDate}
+                endDate={endDate}
+              />
+            </div>
+          )}
+
+          {/* ── CONTEÚDO PRINCIPAL (visível quando não é relatórios) ─── */}
+          {activeSection !== "relatorios" && (
+          <>
+
+            <section className="hero-grid" id="visao-geral">
             <article className={`intelligence-panel ${isIntelligenceUpdating ? "is-updating" : ""}`}>
               <div className="panel-heading">
                 <div>
@@ -2275,12 +2293,17 @@ export default function Home() {
             <article id="automacoes">
               <p className="eyebrow">Automações inteligentes</p>
               <h2>Alertas de performance</h2>
-              <p>Monitore queda de ROAS, aumento de CPA, fadiga criativa, desperdício de verba e oportunidades de escala antes que virem problema.</p>
+              <p>Monitore aumento de CPA, fadiga criativa, desperdício de verba e oportunidades de escala antes que virem problema.</p>
               <button className="ghost-btn" id="btnAutomation" onClick={handleToggleAutomation}>
                 Ativar monitoramento
               </button>
             </article>
           </section>
+
+          {/* ── FIM do bloco condicional (não-relatórios) ──── */}
+          </>
+          )}
+
         </main>
       </div>
 

@@ -16,10 +16,10 @@ ${JSON.stringify(campaigns, null, 2)}
 
 Resumo dos totais atuais:
 - Investimento Total: ${brlFormat(totals.investimento)}
-- Receita Total: ${brlFormat(totals.receita)}
-- ROAS Médio: ${totals.roas.toFixed(2)}x
 - CPA Médio: ${brlFormat(totals.cpa)}
-- Lucro Estimado: ${brlFormat(totals.lucro)}
+- Total de Conversões: ${(totals.conversoes || 0).toLocaleString('pt-BR')}
+- CPL Médio: ${brlFormat(totals.cpl || 0)}
+- CTR Médio: ${((totals.ctr || 0) * 100).toFixed(2).replace('.', ',')}%
 
 Sua resposta deve ser estritamente um objeto JSON válido (com aspas duplas, sem formatação markdown, sem \`\`\`json, apenas o JSON puro) seguindo a estrutura abaixo:
 {

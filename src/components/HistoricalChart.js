@@ -14,9 +14,9 @@ const num = new Intl.NumberFormat("pt-BR");
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
 const C = {
-  google:  "#5B9CF6",   // azul neon suave
-  meta:    "#34D399",   // verde ciano
-  leads:   "#FBBF24",   // amarelo dourado
+  google:  "#5B9CF6",
+  meta:    "#34D399",
+  leads:   "#FBBF24",
   bg:      "#0A0F1E",
   surface: "#0f1629",
   border:  "rgba(255,255,255,0.07)",
@@ -25,13 +25,13 @@ const C = {
 };
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
-function KpiMini({ label, value, accent, sub, icon }) {
+function KpiMini({ label, value, accent, sub }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => { const t = setTimeout(() => setVisible(true), 80); return () => clearTimeout(t); }, []);
   return (
     <div style={{
-      flex: 1,
-      minWidth: 130,
+      flex: "1 1 120px",
+      minWidth: 0,
       background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)",
       border: `1px solid rgba(255,255,255,0.07)`,
       borderRadius: 14,
@@ -45,7 +45,6 @@ function KpiMini({ label, value, accent, sub, icon }) {
       position: "relative",
       overflow: "hidden",
     }}>
-      {/* glow no canto superior */}
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0, height: 1,
         background: `linear-gradient(90deg, transparent, ${accent}55, transparent)`,
@@ -68,35 +67,26 @@ function KpiMini({ label, value, accent, sub, icon }) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function HistoricalChart({ timeline }) {
   const chartRef = useRef(null);
+  const containerRef = useRef(null);
 
-  // ── dados reais apenas — sem fallback fictício ────────────────────────────
-  // IMPORTANTE: NÃO usar dados de demonstração aqui.
-  // Quando timeline está vazio (após limpar ou antes de importar), o componente
-  // deve mostrar um estado vazio, não dados falsos que enganam o usuário.
   const data = useMemo(() => {
     if (timeline && timeline.length >= 1) return timeline;
-    return []; // sem dados = estado vazio real
+    return [];
   }, [timeline]);
 
-  // ── métricas derivadas ────────────────────────────────────────────────────
   const kpis = useMemo(() => {
     if (!data.length) return null;
     const totalInvest = data.reduce((s, d) => s + (d.google || 0) + (d.meta || 0), 0);
     const totalLeads  = data.reduce((s, d) => s + (d.leads || 0), 0);
     const cplMedio    = totalLeads > 0 ? totalInvest / totalLeads : 0;
-
     const byTotal = data.map(d => ({ mes: d.mes, total: (d.google || 0) + (d.meta || 0), leads: d.leads || 0 }));
     const bestMonth = byTotal.reduce((best, d) => d.leads > best.leads ? d : best, byTotal[0]);
-
-    // crescimento acumulado: primeiro mês → último mês (investimento total)
     const first = (data[0].google || 0) + (data[0].meta || 0);
     const last  = (data[data.length - 1].google || 0) + (data[data.length - 1].meta || 0);
     const growth = first > 0 ? ((last - first) / first) * 100 : 0;
-
     return { totalInvest, totalLeads, cplMedio, bestMonth, growth };
   }, [data]);
 
-  // ── cálculo de crescimento por mês ───────────────────────────────────────
   const growthByMonth = useMemo(() => {
     return data.map((d, i) => {
       if (i === 0) return 0;
@@ -106,19 +96,13 @@ export default function HistoricalChart({ timeline }) {
     });
   }, [data]);
 
-  // ── opção do ECharts ──────────────────────────────────────────────────────
   const option = useMemo(() => {
     const months  = data.map(d => d.mes);
     const googleV = data.map(d => d.google || 0);
     const metaV   = data.map(d => d.meta   || 0);
     const leadsV  = data.map(d => d.leads  || 0);
-    const cplV    = data.map((d, i) => {
-      const total = (d.google || 0) + (d.meta || 0);
-      return (d.leads || 0) > 0 ? total / (d.leads || 0) : 0;
-    });
-
-    const maxInvest = Math.max(...googleV.map((g, i) => g + metaV[i])) * 1.35;
-    const maxLeads  = Math.max(...leadsV) * 1.35;
+    const maxInvest = Math.max(...googleV.map((g, i) => g + metaV[i]), 1) * 1.35;
+    const maxLeads  = Math.max(...leadsV, 1) * 1.35;
 
     return {
       backgroundColor: "transparent",
@@ -126,7 +110,6 @@ export default function HistoricalChart({ timeline }) {
       animationDuration: 900,
       animationEasing: "cubicOut",
       animationDelay: (idx) => idx * 60,
-
       tooltip: {
         trigger: "axis",
         axisPointer: {
@@ -153,216 +136,77 @@ export default function HistoricalChart({ timeline }) {
           const grow  = growthByMonth[idx];
           const growColor = grow >= 0 ? "#34D399" : "#F87171";
           const growIcon  = grow >= 0 ? "▲" : "▼";
-
-          return `
-            <div style="font-family:Inter,sans-serif;min-width:210px">
-              <div style="font-weight:700;font-size:13px;color:rgba(245,247,251,0.95);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08)">
-                ${month}
-              </div>
-              <div style="display:flex;flex-direction:column;gap:5px;">
-                <div style="display:flex;justify-content:space-between;align-items:center">
-                  <span style="color:#5B9CF6;font-size:12px">● Google Ads</span>
-                  <span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl.format(gVal)}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;align-items:center">
-                  <span style="color:#34D399;font-size:12px">● Meta Ads</span>
-                  <span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl.format(mVal)}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.07)">
-                  <span style="color:rgba(245,247,251,0.55);font-size:12px">Total Investido</span>
-                  <span style="font-weight:700;color:rgba(245,247,251,0.95)">${brl.format(total)}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;align-items:center">
-                  <span style="color:#FBBF24;font-size:12px">◆ Leads</span>
-                  <span style="font-weight:600;color:rgba(245,247,251,0.9)">${num.format(lVal)}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;align-items:center">
-                  <span style="color:rgba(245,247,251,0.55);font-size:12px">CPL</span>
-                  <span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl2.format(cpl)}</span>
-                </div>
-                ${idx > 0 ? `
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.07)">
-                  <span style="color:rgba(245,247,251,0.55);font-size:12px">Crescimento</span>
-                  <span style="font-weight:700;color:${growColor}">${growIcon} ${Math.abs(grow).toFixed(1).replace(".",",")}%</span>
-                </div>` : ""}
-              </div>
-            </div>`;
+          return `<div style="font-family:Inter,sans-serif;min-width:210px">
+            <div style="font-weight:700;font-size:13px;color:rgba(245,247,251,0.95);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08)">${month}</div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#5B9CF6;font-size:12px">● Google Ads</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl.format(gVal)}</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#34D399;font-size:12px">● Meta Ads</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl.format(mVal)}</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.07)"><span style="color:rgba(245,247,251,0.55);font-size:12px">Total</span><span style="font-weight:700;color:rgba(245,247,251,0.95)">${brl.format(total)}</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#FBBF24;font-size:12px">◆ Leads</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${num.format(lVal)}</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:rgba(245,247,251,0.55);font-size:12px">CPL</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl2.format(cpl)}</span></div>
+              ${idx > 0 ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.07)"><span style="color:rgba(245,247,251,0.55);font-size:12px">Crescimento</span><span style="font-weight:700;color:${growColor}">${growIcon} ${Math.abs(grow).toFixed(1).replace(".",",")}%</span></div>` : ""}
+            </div></div>`;
         },
       },
-
       legend: { show: false },
-
-      grid: {
-        left: 72,
-        right: 66,
-        top: 24,
-        bottom: 48,
-        containLabel: false,
-      },
-
+      grid: { left: 72, right: 66, top: 24, bottom: 48, containLabel: false },
       xAxis: {
         type: "category",
         data: months,
         axisLine:  { lineStyle: { color: "rgba(255,255,255,0.06)" } },
         axisTick:  { show: false },
-        axisLabel: {
-          color: C.muted,
-          fontFamily: "Inter, sans-serif",
-          fontSize: 10.5,
-          margin: 14,
-          rotate: months.length > 5 ? 0 : 0,
-          interval: 0,
-        },
+        axisLabel: { color: C.muted, fontFamily: "Inter, sans-serif", fontSize: 10.5, margin: 14, interval: 0 },
         splitLine: { show: false },
       },
-
       yAxis: [
         {
-          // Eixo esquerdo — Investimento R$
-          type: "value",
-          name: "",
-          max: maxInvest,
-          min: 0,
-          splitNumber: 4,
-          axisLine:  { show: false },
-          axisTick:  { show: false },
+          type: "value", name: "", max: maxInvest, min: 0, splitNumber: 4,
+          axisLine: { show: false }, axisTick: { show: false },
           splitLine: { lineStyle: { color: "rgba(255,255,255,0.05)", type: "dashed" } },
-          axisLabel: {
-            color: C.muted,
-            fontFamily: "Inter, sans-serif",
-            fontSize: 10.5,
-            formatter: (v) => brl.format(v),
-          },
+          axisLabel: { color: C.muted, fontFamily: "Inter, sans-serif", fontSize: 10.5, formatter: (v) => brl.format(v) },
         },
         {
-          // Eixo direito — Leads
-          type: "value",
-          name: "",
-          max: maxLeads,
-          min: 0,
-          splitNumber: 4,
-          axisLine:  { show: false },
-          axisTick:  { show: false },
-          splitLine: { show: false },
-          axisLabel: {
-            color: "rgba(251,191,36,0.6)",
-            fontFamily: "Inter, sans-serif",
-            fontSize: 10.5,
-            formatter: (v) => num.format(Math.round(v)),
-          },
+          type: "value", name: "", max: maxLeads, min: 0, splitNumber: 4,
+          axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
+          axisLabel: { color: "rgba(251,191,36,0.6)", fontFamily: "Inter, sans-serif", fontSize: 10.5, formatter: (v) => num.format(Math.round(v)) },
         },
       ],
-
       series: [
-        // ── Barra Google Ads ─────────────────────────────────────────────
         {
-          name: "Google Ads",
-          type: "bar",
-          yAxisIndex: 0,
-          data: googleV,
-          barWidth: "22%",
-          barGap: "8%",
-          itemStyle: {
-            color: {
-              type: "linear", x: 0, y: 0, x2: 0, y2: 1,
-              colorStops: [
-                { offset: 0, color: "#5B9CF6" },
-                { offset: 1, color: "rgba(91,156,246,0.25)" },
-              ],
-            },
-            borderRadius: [5, 5, 0, 0],
-          },
-          emphasis: {
-            itemStyle: {
-              color: {
-                type: "linear", x: 0, y: 0, x2: 0, y2: 1,
-                colorStops: [
-                  { offset: 0, color: "#7BB7FF" },
-                  { offset: 1, color: "rgba(123,183,255,0.4)" },
-                ],
-              },
-              shadowBlur: 12,
-              shadowColor: "rgba(91,156,246,0.5)",
-            },
-          },
+          name: "Google Ads", type: "bar", yAxisIndex: 0, data: googleV, barWidth: "22%", barGap: "8%",
+          itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#5B9CF6" }, { offset: 1, color: "rgba(91,156,246,0.25)" }] }, borderRadius: [5, 5, 0, 0] },
+          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#7BB7FF" }, { offset: 1, color: "rgba(123,183,255,0.4)" }] }, shadowBlur: 12, shadowColor: "rgba(91,156,246,0.5)" } },
         },
-
-        // ── Barra Meta Ads ───────────────────────────────────────────────
         {
-          name: "Meta Ads",
-          type: "bar",
-          yAxisIndex: 0,
-          data: metaV,
-          barWidth: "22%",
-          itemStyle: {
-            color: {
-              type: "linear", x: 0, y: 0, x2: 0, y2: 1,
-              colorStops: [
-                { offset: 0, color: "#34D399" },
-                { offset: 1, color: "rgba(52,211,153,0.2)" },
-              ],
-            },
-            borderRadius: [5, 5, 0, 0],
-          },
-          emphasis: {
-            itemStyle: {
-              color: {
-                type: "linear", x: 0, y: 0, x2: 0, y2: 1,
-                colorStops: [
-                  { offset: 0, color: "#6EEEC7" },
-                  { offset: 1, color: "rgba(110,238,199,0.4)" },
-                ],
-              },
-              shadowBlur: 12,
-              shadowColor: "rgba(52,211,153,0.5)",
-            },
-          },
+          name: "Meta Ads", type: "bar", yAxisIndex: 0, data: metaV, barWidth: "22%",
+          itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#34D399" }, { offset: 1, color: "rgba(52,211,153,0.2)" }] }, borderRadius: [5, 5, 0, 0] },
+          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#6EEEC7" }, { offset: 1, color: "rgba(110,238,199,0.4)" }] }, shadowBlur: 12, shadowColor: "rgba(52,211,153,0.5)" } },
         },
-
-        // ── Linha Leads ──────────────────────────────────────────────────
         {
-          name: "Leads",
-          type: "line",
-          yAxisIndex: 1,
-          data: leadsV,
-          smooth: 0.55,
-          symbol: "circle",
-          symbolSize: 7,
-          lineStyle: {
-            color: C.leads,
-            width: 2.5,
-            shadowBlur: 10,
-            shadowColor: "rgba(251,191,36,0.45)",
-          },
-          itemStyle: {
-            color: C.leads,
-            borderColor: "#0A0F1E",
-            borderWidth: 2,
-          },
-          emphasis: {
-            scale: true,
-            itemStyle: {
-              shadowBlur: 16,
-              shadowColor: "rgba(251,191,36,0.7)",
-            },
-          },
-          areaStyle: {
-            color: {
-              type: "linear", x: 0, y: 0, x2: 0, y2: 1,
-              colorStops: [
-                { offset: 0, color: "rgba(251,191,36,0.15)" },
-                { offset: 1, color: "rgba(251,191,36,0.01)" },
-              ],
-            },
-          },
+          name: "Leads", type: "line", yAxisIndex: 1, data: leadsV, smooth: 0.55, symbol: "circle", symbolSize: 7,
+          lineStyle: { color: C.leads, width: 2.5, shadowBlur: 10, shadowColor: "rgba(251,191,36,0.45)" },
+          itemStyle: { color: C.leads, borderColor: "#0A0F1E", borderWidth: 2 },
+          emphasis: { scale: true, itemStyle: { shadowBlur: 16, shadowColor: "rgba(251,191,36,0.7)" } },
+          areaStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "rgba(251,191,36,0.15)" }, { offset: 1, color: "rgba(251,191,36,0.01)" }] } },
         },
       ],
     };
   }, [data, growthByMonth]);
 
+  // ── ResizeObserver: redesenha ECharts ao redimensionar o container ───────
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver(() => {
+      const instance = chartRef.current?.getEchartsInstance?.();
+      if (instance && !instance.isDisposed()) {
+        instance.resize();
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   // ── Dispose ECharts na desmontagem ───────────────────────────────────────
-  // Garante que a instância do ECharts seja destruída ao desmontar o componente.
-  // Isso evita vazamento de memória e dados fantasmas após limpeza.
   useEffect(() => {
     return () => {
       const instance = chartRef.current?.getEchartsInstance?.();
@@ -372,7 +216,6 @@ export default function HistoricalChart({ timeline }) {
     };
   }, []);
 
-  // ── Empty state: sem dados reais importados ───────────────────────────────
   if (!data || data.length === 0) {
     return (
       <article
@@ -390,7 +233,6 @@ export default function HistoricalChart({ timeline }) {
 
   if (!kpis) return null;
 
-
   const growthColor = kpis.growth >= 0 ? C.meta : "#F87171";
   const growthLabel = kpis.growth >= 0 ? `▲ ${pctFmt(kpis.growth)}` : `▼ ${pctFmt(kpis.growth)}`;
 
@@ -398,7 +240,8 @@ export default function HistoricalChart({ timeline }) {
     <article
       className="chart-panel wide"
       id="comparacao"
-      style={{ display: "flex", flexDirection: "column", gap: "1.25rem", padding: "1.5rem 1.6rem" }}
+      ref={containerRef}
+      style={{ display: "flex", flexDirection: "column", gap: "1.25rem", padding: "1.5rem 1.6rem", minWidth: 0, overflow: "hidden" }}
     >
       {/* ── Cabeçalho ────────────────────────────────────────────────────── */}
       <div className="panel-heading" style={{ marginBottom: 0 }}>
@@ -406,7 +249,6 @@ export default function HistoricalChart({ timeline }) {
           <p className="eyebrow">Evolução Histórica</p>
           <h2 style={{ margin: 0 }}>Investimento &amp; Leads por Período</h2>
         </div>
-        {/* Legenda */}
         <div style={{ display: "flex", gap: "1.4rem", alignItems: "center", flexWrap: "wrap" }}>
           {[
             { color: C.google, label: "Google Ads",  shape: "rect"  },
@@ -426,40 +268,15 @@ export default function HistoricalChart({ timeline }) {
 
       {/* ── KPI Cards ────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-        <KpiMini
-          label="Total Investido"
-          value={brl.format(kpis.totalInvest)}
-          accent={C.google}
-          sub={`${data.length} meses`}
-        />
-        <KpiMini
-          label="Leads Totais"
-          value={num.format(kpis.totalLeads)}
-          accent={C.leads}
-          sub="Todos os canais"
-        />
-        <KpiMini
-          label="CPL Médio"
-          value={brl2.format(kpis.cplMedio)}
-          accent={C.meta}
-          sub="Custo por lead"
-        />
-        <KpiMini
-          label="Melhor Mês"
-          value={kpis.bestMonth?.mes?.split("/")[0] ?? "—"}
-          accent={C.leads}
-          sub={`${num.format(kpis.bestMonth?.leads || 0)} leads`}
-        />
-        <KpiMini
-          label="Crescimento"
-          value={growthLabel}
-          accent={growthColor}
-          sub="Primeiro vs último mês"
-        />
+        <KpiMini label="Total Investido" value={brl.format(kpis.totalInvest)} accent={C.google} sub={`${data.length} meses`} />
+        <KpiMini label="Leads Totais"    value={num.format(kpis.totalLeads)}  accent={C.leads}  sub="Todos os canais" />
+        <KpiMini label="CPL Médio"       value={brl2.format(kpis.cplMedio)}   accent={C.meta}   sub="Custo por lead" />
+        <KpiMini label="Melhor Mês"      value={kpis.bestMonth?.mes?.split("/")[0] ?? "—"} accent={C.leads} sub={`${num.format(kpis.bestMonth?.leads || 0)} leads`} />
+        <KpiMini label="Crescimento"     value={growthLabel}                  accent={growthColor} sub="Primeiro vs último mês" />
       </div>
 
       {/* ── Gráfico ECharts ───────────────────────────────────────────────── */}
-      <div style={{ flex: 1, minHeight: 280 }}>
+      <div style={{ flex: 1, minHeight: 280, minWidth: 0, width: "100%" }}>
         <ReactECharts
           ref={chartRef}
           option={option}

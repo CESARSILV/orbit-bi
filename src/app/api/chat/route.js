@@ -3,7 +3,10 @@ import { generateProviderText } from "@/lib/ai-providers";
 
 export async function POST(request) {
   try {
-    const { messages, campaigns, uploadedFiles } = await request.json();
+    const { messages, campaigns, totals, uploadedFiles } = await request.json();
+
+    // Helper for currency
+    const brlFormat = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
     // Latest user message
     const latestUserMsg = [...messages].reverse().find(m => m.type === "user")?.text || "";
@@ -12,14 +15,21 @@ export async function POST(request) {
     const systemPrompt = `Você é o Orbit AI, um analista executivo sênior de mídia paga e especialista em performance de Google Ads e Meta Ads.
 Você analisa dados de marketing digital de forma ultra-estratégica, direta e profissional.
 
+Resumo dos totais atuais:
+- Investimento Total: ${brlFormat(totals.investimento)}
+- CPA Médio: ${brlFormat(totals.cpa)}
+- Total de Conversões: ${(totals.conversoes || 0).toLocaleString('pt-BR')}
+- CPL Médio: ${brlFormat(totals.cpl || 0)}
+- CTR Médio: ${((totals.ctr || 0) * 100).toFixed(2).replace('.', ',')}%
+
 Aqui estão os dados reais do painel atual do usuário (campanhas ativas):
 ${JSON.stringify(campaigns, null, 2)}
 
 Instruções importantes:
 1. Responda em português brasileiro (PT-BR) de forma objetiva e executiva.
-2. Baseie suas análises, ROAS, CPA e lucros estritamente nos dados fornecidos acima.
+2. Baseie suas análises em CPA, CPL, CTR, CPC e CPM estritamente nos dados fornecidos acima.
 3. Se houver imagens ou planilhas enviadas, incorpore-as na análise.
-4. Sugira ações práticas de otimização de orçamento (ex: transferir verba de campanhas de baixo ROAS para alto ROAS).`;
+4. Sugira ações práticas de otimização de orçamento baseadas em CPA e volume de conversões.`;
 
     const result = await generateProviderText({
       systemPrompt,

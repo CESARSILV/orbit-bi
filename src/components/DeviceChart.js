@@ -343,7 +343,9 @@ function DeviceCard({ deviceKey, data, totalInvest, allData, rank, isDominant })
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        flex: 1, minWidth: 240,
+        flex: "1 1 240px",
+        minWidth: 0,
+        maxWidth: "100%",
         position: "relative",
         borderRadius: 16,
         border: `1px solid ${isDominant ? `rgba(${cfg.rgb},0.35)` : "rgba(255,255,255,0.08)"}`,
@@ -362,6 +364,7 @@ function DeviceCard({ deviceKey, data, totalInvest, allData, rank, isDominant })
           : hovered
             ? `0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(${cfg.rgb},0.2)`
             : "0 4px 16px rgba(0,0,0,0.2)",
+        boxSizing: "border-box",
       }}
     >
       {/* Glow de fundo para o dominante */}
@@ -646,6 +649,9 @@ export default function DeviceChart({ deviceData }) {
       padding: "24px",
       position: "relative",
       overflow: "hidden",
+      minWidth: 0,
+      width: "100%",
+      boxSizing: "border-box",
     }}>
       {/* Glow ambiental de fundo */}
       <div style={{
@@ -718,8 +724,12 @@ export default function DeviceChart({ deviceData }) {
         <>
           {/* Cards dos dispositivos */}
           <div style={{
-            display: "flex", gap: 12, flexWrap: "wrap",
+            display: "flex",
+            gap: 12,
+            flexWrap: "wrap",
             marginBottom: 18,
+            minWidth: 0,
+            width: "100%",
           }}>
             {deviceKeys.map((key, i) => (
               <DeviceCard
