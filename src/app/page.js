@@ -1646,7 +1646,24 @@ export default function Home() {
       console.error(err);
       updateFileStatus(file.name, "erro", "Erro ao resolver duplicado");
     } finally {
-      set
+      setPendingUpload(null);
+      setDuplicateFileInfo(null);
+      setShowDeduplicationModal(false);
+    }
+  };
+
+  // Helper download blob
+  const downloadBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1200);
+  };
+
   // ─── GERAÇÃO DO RELATÓRIO EXECUTIVO (HTML → Print → PDF) ────────────────────
   // Substitui a geração raw-PDF que causava caracteres corrompidos (ÿ, ãØ, etc.)
   // por uma janela HTML estilizada com UTF-8 + Google Fonts → o browser converte em PDF limpo.
