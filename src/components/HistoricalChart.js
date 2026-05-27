@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { useTheme } from "@/lib/ThemeContext";
 
 // ECharts carregado no lado do cliente (evita SSR issues)
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
@@ -12,17 +13,25 @@ const brl2 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL"
 const pctFmt = (v) => (v >= 0 ? "+" : "") + v.toFixed(1).replace(".", ",") + "%";
 const num = new Intl.NumberFormat("pt-BR");
 
-// ─── Paleta ───────────────────────────────────────────────────────────────────
-const C = {
-  google:  "#5B9CF6",
-  meta:    "#34D399",
-  leads:   "#FBBF24",
-  bg:      "#0A0F1E",
-  surface: "#0f1629",
-  border:  "rgba(255,255,255,0.07)",
-  text:    "rgba(245,247,251,0.85)",
-  muted:   "rgba(245,247,251,0.42)",
-};
+// ─── Paleta (gerada dinamicamente pelo hook) ─────────────────────────────────
+function usePalette() {
+  const { theme } = useTheme();
+  const dark = theme !== "light";
+  return {
+    google:  "#5B9CF6",
+    meta:    "#34D399",
+    leads:   "#FBBF24",
+    bg:      dark ? "#0A0F1E"                       : "#ffffff",
+    surface: dark ? "#0f1629"                       : "#f8fafc",
+    border:  dark ? "rgba(255,255,255,0.07)"        : "rgba(15,23,42,0.08)",
+    text:    dark ? "rgba(245,247,251,0.85)"        : "#1e293b",
+    muted:   dark ? "rgba(245,247,251,0.42)"        : "#64748b",
+    gridCol: dark ? "rgba(255,255,255,0.05)"        : "rgba(15,23,42,0.06)",
+    tooltipBg: dark ? "rgba(10,15,30,0.96)"        : "rgba(255,255,255,0.98)",
+    tooltipBorder: dark ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.12)",
+    isDark: dark,
+  };
+}
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 function KpiMini({ label, value, accent, sub }) {
@@ -66,6 +75,7 @@ function KpiMini({ label, value, accent, sub }) {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function HistoricalChart({ timeline }) {
+  const C = usePalette();
   const chartRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -114,12 +124,12 @@ export default function HistoricalChart({ timeline }) {
         trigger: "axis",
         axisPointer: {
           type: "cross",
-          crossStyle: { color: "rgba(255,255,255,0.15)", width: 1 },
-          lineStyle: { color: "rgba(255,255,255,0.08)", width: 1 },
+          crossStyle: { color: C.border, width: 1 },
+          lineStyle: { color: C.gridCol, width: 1 },
           label: { show: false },
         },
-        backgroundColor: "rgba(8,12,28,0.96)",
-        borderColor: "rgba(255,255,255,0.10)",
+        backgroundColor: C.tooltipBg,
+        borderColor: C.tooltipBorder,
         borderRadius: 12,
         borderWidth: 1,
         padding: [14, 18],
@@ -162,7 +172,7 @@ export default function HistoricalChart({ timeline }) {
         {
           type: "value", name: "", max: maxInvest, min: 0, splitNumber: 4,
           axisLine: { show: false }, axisTick: { show: false },
-          splitLine: { lineStyle: { color: "rgba(255,255,255,0.05)", type: "dashed" } },
+          splitLine: { lineStyle: { color: C.gridCol, type: "dashed" } },
           axisLabel: { color: C.muted, fontFamily: "Inter, sans-serif", fontSize: 10.5, formatter: (v) => brl.format(v) },
         },
         {
@@ -185,13 +195,13 @@ export default function HistoricalChart({ timeline }) {
         {
           name: "Leads", type: "line", yAxisIndex: 1, data: leadsV, smooth: 0.55, symbol: "circle", symbolSize: 7,
           lineStyle: { color: C.leads, width: 2.5, shadowBlur: 10, shadowColor: "rgba(251,191,36,0.45)" },
-          itemStyle: { color: C.leads, borderColor: "#0A0F1E", borderWidth: 2 },
+          itemStyle: { color: C.leads, borderColor: C.bg, borderWidth: 2 },
           emphasis: { scale: true, itemStyle: { shadowBlur: 16, shadowColor: "rgba(251,191,36,0.7)" } },
           areaStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "rgba(251,191,36,0.15)" }, { offset: 1, color: "rgba(251,191,36,0.01)" }] } },
         },
       ],
     };
-  }, [data, growthByMonth]);
+  }, [data, growthByMonth, C]);
 
   // ── ResizeObserver: redesenha ECharts ao redimensionar o container ───────
   useEffect(() => {
