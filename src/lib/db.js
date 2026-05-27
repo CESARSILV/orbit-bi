@@ -76,17 +76,17 @@ export function getDatabase() {
     // ----------------------------------------------------------------
     // AUTO-DEDUPLICATION & AUTO-CLEAN — roda em cada carregamento.
     // Corrige duplicatas causadas por múltiplas importações do mesmo arquivo.
+    //
+    // ⚠️  REGRA DE SEGURANÇA: só remove se tiver CERTEZA ABSOLUTA de duplicata.
+    //     Falso positivo aqui destrói dados reais do usuário.
     // ----------------------------------------------------------------
 
     // Função auxiliar: normaliza a data para o mês de referência
-    // "2025-10-01" → "2025-10" (remove o dia, mantém só ano-mês)
-    // Isso evita falsos positivos de chave única quando o CSV usa datas completas
-    // mas importações diferentes geram formatos levemente distintos.
     const normalizeToMonth = (date, refMonth) => {
       if (!date) return refMonth || "";
       const d = String(date).trim();
-      if (/^\d{4}-\d{2}$/.test(d)) return d; // já é YYYY-MM
-      if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 7); // YYYY-MM-DD → YYYY-MM
+      if (/^\d{4}-\d{2}$/.test(d)) return d;
+      if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 7);
       return refMonth || d;
     };
 
@@ -110,39 +110,57 @@ export function getDatabase() {
         return true;
       });
 
-      // PASSO 3: Dedup inteligente de double-import para relatórios mensais agregados.
+      // PASSO 3: Dedup de double-import — VERSÃO SEGURA
       //
-      // Problema: Google Ads exporta 1 linha por mês por campanha. Se o usuário
-      // importou 2 vezes, as duas linhas podem ter datas levemente diferentes
-      // (ex: "2025-10-01" vs "2025-10") → escapam do PASSO 2.
+      // Problema: usuário importa o mesmo arquivo 2x.
+      // Ambas as linhas passam pelo PASSO 2 porque têm datas levemente
+      // diferentes (ex: "2025-10-01" vs "2025-10"), escapando da dedup estrita.
       //
-      // Solução: Para linhas SEM segmentação, agrupa por (platform + mês + campanha).
-      // Se o grupo tem EXATAMENTE 2 linhas E o spend das duas é idêntico (±R$0.01),
-      // é assinatura de double-import → remove a segunda.
+      // Solução SEGURA: agrupa por (platform + mês + campanha + adset + ad).
+      // Remove duplicata SOMENTE se:
+      //   - O grupo tem EXATAMENTE 2 linhas (par suspeito)
+      //   - O spend das duas é IDÊNTICO (±R$0.01)
+      //   - Os clicks das duas são IDÊNTICOS (±1 click)
+      //   - As impressões das duas são IDÊNTICAS (±10 impressões)
       //
-      // ⚠️ NÃO aplica se o grupo tem 3+ linhas: isso indica dados diários legítimos
-      // (Meta Ads com 30 linhas/mês por campanha). Nesses casos, não tocamos nada.
-      const monthGroups = {};
-      db.fact_campaigns.forEach((r, idx) => {
+      // Isso exige 3 métricas coincidentes — extremamente improvável em dados legítimos.
+      // ⚠️ NUNCA aplica se grupo tem 3+ linhas (dados diários Meta/Google com muitas linhas/mês)
+      //
+      // IMPORTANTE: usa referências de objeto (não índices numéricos) para evitar
+      // o bug de índice stale que corrompia dados no PASSO 3 anterior.
+      const monthGroups = new Map();
+      db.fact_campaigns.forEach(r => {
         const isSegmented = r.device || r.keyword || r.search_term || r.gender || r.age_range || r.hour;
         if (isSegmented) return; // segmentadas: não participam do grupo
-        const key = `${r.platform || ""}|${normalizeToMonth(r.date, r.reference_month)}|${r.campaign_name || ""}`;
-        if (!monthGroups[key]) monthGroups[key] = [];
-        monthGroups[key].push({ idx, spend: r.spend || 0 });
+        const key = [
+          r.platform || "",
+          normalizeToMonth(r.date, r.reference_month),
+          r.campaign_name || "",
+          r.adset_name   || "",
+          r.ad_name      || "",
+        ].join("|");
+        if (!monthGroups.has(key)) monthGroups.set(key, []);
+        monthGroups.get(key).push(r);
       });
 
-      const idxToRemove = new Set();
-      Object.values(monthGroups).forEach(group => {
+      // Usa Set de referências de objeto para remoção segura (sem dependência de índice)
+      const rowsToRemove = new Set();
+      monthGroups.forEach(group => {
         if (group.length !== 2) return; // só trata pares — 3+ linhas = dados diários, não toca
         const [a, b] = group;
-        if (Math.abs(a.spend - b.spend) < 0.02) { // spend idêntico (tolerância R$0.02)
-          idxToRemove.add(b.idx); // remove a segunda entrada (mantém a primeira)
-          console.warn(`[DB] Dedup double-import: par idêntico removido (spend=${a.spend})`);
+        const spendMatch  = Math.abs((a.spend  || 0) - (b.spend  || 0)) < 0.02;
+        const clicksMatch = Math.abs((a.clicks || 0) - (b.clicks || 0)) <= 1;
+        const imprMatch   = Math.abs((a.impressions || 0) - (b.impressions || 0)) <= 10;
+
+        // Exige as 3 métricas coincidentes para ter certeza que é double-import
+        if (spendMatch && clicksMatch && imprMatch) {
+          rowsToRemove.add(b); // remove a segunda (mantém a primeira)
+          console.warn(`[DB] Dedup double-import: par idêntico removido (spend=${a.spend}, clicks=${a.clicks})`);
         }
       });
 
-      if (idxToRemove.size > 0) {
-        db.fact_campaigns = db.fact_campaigns.filter((_, idx) => !idxToRemove.has(idx));
+      if (rowsToRemove.size > 0) {
+        db.fact_campaigns = db.fact_campaigns.filter(r => !rowsToRemove.has(r));
       }
 
       const after = db.fact_campaigns.length;
@@ -169,29 +187,26 @@ export function getDatabase() {
       }
     }
 
-    if (needsSave) {
-      db.fact_campaigns = db.fact_campaigns; // already mutated in place above
-      console.warn(`[DB] AUTO-CLEAN removeu registros de fact_campaigns. Recalculando summary...`);
-    }
-
-    // ALWAYS rebuild fact_marketing_summary from raw tables.
-    // This ensures the cached summary is NEVER stale — even if it was persisted
-    // with doubled data from a previous import before the dedup was active.
+    // SEMPRE reconstrói fact_marketing_summary a partir das tabelas raw.
+    // Isso garante que o summary nunca fique desatualizado após dedup.
     const rebuilt = consolidateSummary(db);
-    const summaryChanged =
-      JSON.stringify(db.fact_marketing_summary) !== JSON.stringify(rebuilt.fact_marketing_summary);
 
-    if (needsSave || summaryChanged) {
+    // Só grava de volta se houve dedup real (não apenas mudança de summary).
+    // Isso evita o "repair loop" onde cada reload salvava e alterava os dados.
+    if (needsSave) {
       saveDatabase(rebuilt);
       return rebuilt;
     }
 
-    return db;
+    // Se o summary mudou mas não houve dedup, devolve sem gravar
+    // (evita sobrescrever o localStorage a cada leitura)
+    return rebuilt;
   } catch (err) {
     console.error("Failed to load local database, resetting:", err);
     return createInitialDb();
   }
 }
+
 
 export function saveDatabase(db) {
   if (typeof window === "undefined") return;
