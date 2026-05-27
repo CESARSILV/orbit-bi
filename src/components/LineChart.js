@@ -2,65 +2,40 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 
-// ─── formatadores ────────────────────────────────────────────────────────────
-const brl = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-  maximumFractionDigits: 0,
-});
+// ─── formatadores ─────────────────────────────────────────────────────────────
+const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const num = new Intl.NumberFormat("pt-BR");
 
-// ─── paleta de cores por série ───────────────────────────────────────────────
+// ─── série visual ─────────────────────────────────────────────────────────────
 const SERIES = [
-  { key: "google", label: "Google Ads",  color: "#7bb7ff", glow: "rgba(123,183,255,0.35)" },
-  { key: "meta",   label: "Meta Ads",    color: "#7cf7be", glow: "rgba(124,247,190,0.35)" },
-  { key: "leads",  label: "Total Leads", color: "#ffd166", glow: "rgba(255,209,102,0.35)" },
+  { key: "google", label: "Google Ads",  color: "#7bb7ff" },
+  { key: "meta",   label: "Meta Ads",    color: "#7cf7be" },
+  { key: "leads",  label: "Total Leads", color: "#ffd166" },
 ];
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
-const lerp = (a, b, t) => a + (b - a) * t;
-const easeInOut = (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+// ─── parse hex → "r,g,b" ──────────────────────────────────────────────────────
+const hexRgb = (hex) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `${r},${g},${b}`;
+};
 
-function formatVal(key, v) {
-  if (key === "leads") return num.format(Math.round(v));
-  return brl.format(v);
-}
-
-// ─── componente principal ─────────────────────────────────────────────────────
+// ─── componente ───────────────────────────────────────────────────────────────
 export default function LineChart({ timeline }) {
-  const canvasRef      = useRef(null);
-  const animRef        = useRef(null);
-  const prevTimeline   = useRef(null);
-  const [tooltip, setTooltip] = useState(null);   // { x, y, month, values }
-  const [isUpdating, setIsUpdating] = useState(false);
+  const canvasRef  = useRef(null);
+  const [tooltip, setTooltip] = useState(null);
+  const [ready,   setReady]   = useState(false); // controla fade-in CSS
 
-  // anima as linhas de 0 → 1 com easing ao mudar dados
-  const animateDraw = useCallback((canvas, data, fromProgress = 0) => {
-    const startTime = performance.now();
-    const duration  = 700; // ms
-
-    const frame = (now) => {
-      const raw = (now - startTime) / duration;
-      const progress = Math.min(easeInOut(Math.min(raw, 1)), 1);
-      drawChart(canvas, data, lerp(fromProgress, 1, progress));
-      if (progress < 1) {
-        animRef.current = requestAnimationFrame(frame);
-      }
-    };
-
-    cancelAnimationFrame(animRef.current);
-    animRef.current = requestAnimationFrame(frame);
-  }, []);
-
-  // desenha todas as 3 linhas no canvas até `progress` (0..1)
-  const drawChart = (canvas, data, progress = 1) => {
-    if (!canvas) return;
+  // ─── desenha o gráfico completo (sem animação progressiva) ────────────────
+  const draw = useCallback((canvas, data) => {
+    if (!canvas || !data) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const dpr    = window.devicePixelRatio || 1;
-    const W      = canvas.parentElement?.clientWidth || 700;
-    const H      = 280;
+    const dpr = window.devicePixelRatio || 1;
+    const W   = canvas.parentElement?.clientWidth  || 800;
+    const H   = 290;
 
     canvas.width        = W * dpr;
     canvas.height       = H * dpr;
@@ -69,170 +44,162 @@ export default function LineChart({ timeline }) {
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, W, H);
 
+    // ── sem dados ────────────────────────────────────────────────────────────
     if (!data || data.length === 0) {
-      ctx.fillStyle = "rgba(245,247,251,0.35)";
-      ctx.font      = "13px Inter, sans-serif";
-      ctx.textAlign = "center";
+      ctx.fillStyle   = "rgba(245,247,251,0.3)";
+      ctx.font        = "13px Inter, sans-serif";
+      ctx.textAlign   = "center";
+      ctx.textBaseline = "middle";
       ctx.fillText("Nenhum dado histórico disponível", W / 2, H / 2);
       return;
     }
 
-    const padL = 58, padR = 20, padT = 24, padB = 48;
-    const chartW = W - padL - padR;
-    const chartH = H - padT - padB;
+    const padL = 72, padR = 52, padT = 20, padB = 44;
+    const cW   = W - padL - padR;
+    const cH   = H - padT - padB;
+    const n    = data.length;
 
-    // calcula visíveis até progress
-    const visibleCount = Math.max(1, Math.ceil(data.length * progress));
-    const visibleData  = data.slice(0, visibleCount);
-
-    // ─── escala eixo Y ──────────────────────────────────────────────────
-    // Investimento (google + meta) em eixo principal; leads em eixo secundário
-    const maxInvest = Math.max(...data.map(d => Math.max(d.google || 0, d.meta || 0)), 1);
+    // ── escalas ──────────────────────────────────────────────────────────────
+    const maxInvest = Math.max(...data.flatMap(d => [d.google || 0, d.meta || 0]), 1);
     const maxLeads  = Math.max(...data.map(d => d.leads || 0), 1);
 
-    const yInvest = (v) => padT + chartH - (v / (maxInvest * 1.15)) * chartH;
-    const yLeads  = (v) => padT + chartH - (v / (maxLeads  * 1.15)) * chartH;
-    const xPos    = (i) => padL + (chartW / (data.length - 1 || 1)) * i;
+    const yI = (v) => padT + cH - (v / (maxInvest * 1.18)) * cH;
+    const yL = (v) => padT + cH - (v / (maxLeads  * 1.18)) * cH;
+    const xP = (i) => padL + (n > 1 ? (cW / (n - 1)) * i : cW / 2);
 
-    // ─── grade de fundo ─────────────────────────────────────────────────
-    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    // ── grade ─────────────────────────────────────────────────────────────────
+    ctx.strokeStyle = "rgba(255,255,255,0.055)";
     ctx.lineWidth   = 1;
-    for (let i = 0; i < 5; i++) {
-      const y = padT + (chartH / 4) * i;
-      ctx.beginPath();
-      ctx.moveTo(padL, y);
-      ctx.lineTo(padL + chartW, y);
-      ctx.stroke();
-    }
-
-    // ─── rótulos eixo Y esquerdo (Investimento) ──────────────────────────
-    ctx.fillStyle = "rgba(245,247,251,0.4)";
-    ctx.font      = "10px Inter, sans-serif";
-    ctx.textAlign = "right";
     for (let i = 0; i <= 4; i++) {
-      const v = (maxInvest * 1.15 / 4) * (4 - i);
-      ctx.fillText(brl.format(v), padL - 6, padT + (chartH / 4) * i + 4);
+      const y = padT + (cH / 4) * i;
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + cW, y); ctx.stroke();
     }
 
-    // ─── rótulos eixo Y direito (Leads) ──────────────────────────────────
+    // ── eixo Y esquerdo (Investimento R$) ─────────────────────────────────────
+    ctx.fillStyle  = "rgba(245,247,251,0.38)";
+    ctx.font       = "10px Inter, sans-serif";
+    ctx.textAlign  = "right";
+    ctx.textBaseline = "middle";
+    for (let i = 0; i <= 4; i++) {
+      const v = (maxInvest * 1.18 / 4) * (4 - i);
+      ctx.fillText(brl.format(v), padL - 7, padT + (cH / 4) * i);
+    }
+
+    // ── eixo Y direito (Leads) ────────────────────────────────────────────────
     if (maxLeads > 0) {
-      ctx.fillStyle = "rgba(255,209,102,0.55)";
-      ctx.textAlign = "left";
+      ctx.fillStyle  = "rgba(255,209,102,0.50)";
+      ctx.textAlign  = "left";
       for (let i = 0; i <= 4; i++) {
-        const v = Math.round((maxLeads * 1.15 / 4) * (4 - i));
-        ctx.fillText(num.format(v), W - padR + 4, padT + (chartH / 4) * i + 4);
+        const v = Math.round((maxLeads * 1.18 / 4) * (4 - i));
+        ctx.fillText(num.format(v), W - padR + 6, padT + (cH / 4) * i);
       }
     }
 
-    // ─── rótulos eixo X (meses) ──────────────────────────────────────────
-    ctx.fillStyle = "rgba(245,247,251,0.55)";
-    ctx.font      = "10px Inter, sans-serif";
-    ctx.textAlign = "center";
+    // ── rótulos eixo X ────────────────────────────────────────────────────────
+    ctx.fillStyle    = "rgba(245,247,251,0.52)";
+    ctx.font         = "10px Inter, sans-serif";
+    ctx.textAlign    = "center";
+    ctx.textBaseline = "top";
+
+    // limita labels para não sobrepor: mostra no máximo 7
+    const step = Math.ceil(n / 7);
     data.forEach((d, i) => {
-      if (i < visibleCount) {
-        ctx.fillText(d.mes, xPos(i), padT + chartH + 26);
+      if (i % step === 0 || i === n - 1) {
+        ctx.fillText(d.mes, xP(i), padT + cH + 8);
       }
     });
 
-    // ─── desenha cada série ───────────────────────────────────────────────
-    SERIES.forEach(({ key, color, glow }) => {
-      const yFn = key === "leads" ? yLeads : yInvest;
-      const pts  = visibleData.map((d, i) => ({
-        x: xPos(i),
-        y: yFn(d[key] || 0),
-        v: d[key] || 0,
-      }));
+    // ── desenha cada série ────────────────────────────────────────────────────
+    SERIES.forEach(({ key, color }) => {
+      const yFn  = key === "leads" ? yL : yI;
+      const pts   = data.map((d, i) => ({ x: xP(i), y: yFn(d[key] || 0), v: d[key] || 0 }));
+      const hasVal = pts.some(p => p.v > 0);
+      if (!hasVal) return;
 
-      if (pts.length < 2) return;
-
-      // sombra luminosa
-      ctx.shadowColor  = glow;
-      ctx.shadowBlur   = 8;
-      ctx.strokeStyle  = color;
-      ctx.lineWidth    = 2.5;
-      ctx.lineJoin     = "round";
-      ctx.lineCap      = "round";
-      ctx.beginPath();
-      pts.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // área preenchida (somente para investimento)
+      // área preenchida (só invest)
       if (key !== "leads") {
-        const fill = ctx.createLinearGradient(0, padT, 0, padT + chartH);
-        fill.addColorStop(0, color.replace("#", "rgba(").replace(/(..)(..)(..)/, (_, r, g, b) =>
-          `${parseInt(r,16)},${parseInt(g,16)},${parseInt(b,16)}`) + ",0.14)");
-        fill.addColorStop(1, color.replace("#", "rgba(").replace(/(..)(..)(..)/, (_, r, g, b) =>
-          `${parseInt(r,16)},${parseInt(g,16)},${parseInt(b,16)}`) + ",0)");
-
+        const fill = ctx.createLinearGradient(0, padT, 0, padT + cH);
+        const rgb  = hexRgb(color);
+        fill.addColorStop(0, `rgba(${rgb},0.12)`);
+        fill.addColorStop(1, `rgba(${rgb},0)`);
         ctx.fillStyle = fill;
         ctx.beginPath();
-        ctx.moveTo(pts[0].x, padT + chartH);
+        ctx.moveTo(pts[0].x, padT + cH);
         pts.forEach(p => ctx.lineTo(p.x, p.y));
-        ctx.lineTo(pts[pts.length - 1].x, padT + chartH);
+        ctx.lineTo(pts[pts.length - 1].x, padT + cH);
         ctx.closePath();
         ctx.fill();
       }
+
+      // linha
+      ctx.shadowColor  = color;
+      ctx.shadowBlur   = 6;
+      ctx.strokeStyle  = color;
+      ctx.lineWidth    = key === "leads" ? 2 : 2.5;
+      ctx.lineJoin     = "round";
+      ctx.lineCap      = "round";
+      ctx.setLineDash(key === "leads" ? [4, 4] : []);
+      ctx.beginPath();
+      pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+      ctx.stroke();
+      ctx.shadowBlur   = 0;
+      ctx.setLineDash([]);
 
       // pontos
       pts.forEach(p => {
         ctx.beginPath();
         ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
-        ctx.fillStyle = color;
+        ctx.fillStyle   = color;
         ctx.fill();
-        ctx.strokeStyle = "#0d1117";
+        ctx.strokeStyle = "rgba(10,14,22,0.8)";
         ctx.lineWidth   = 1.5;
         ctx.stroke();
       });
     });
-  };
+  }, []);
 
-  // efeito principal — redesenha e anima quando timeline muda
+  // ─── efeito principal: redesenha quando timeline muda ─────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const hadData = prevTimeline.current && prevTimeline.current.length > 0;
-    prevTimeline.current = timeline;
+    setReady(false);
+    // desenha imediatamente após um frame (garante que o canvas está montado)
+    const raf = requestAnimationFrame(() => {
+      draw(canvas, timeline);
+      setReady(true);
+    });
 
-    setIsUpdating(true);
-    setTimeout(() => setIsUpdating(false), 300);
-
-    if (!timeline || timeline.length === 0) {
-      drawChart(canvas, [], 1);
-      return;
-    }
-
-    // anima de 0 se é a primeira vez; de ~0.3 se já havia dados (atualização)
-    animateDraw(canvas, timeline, hadData ? 0.2 : 0);
-
-    const handleResize = () => animateDraw(canvas, timeline, 1);
+    const handleResize = () => { draw(canvas, timeline); };
     window.addEventListener("resize", handleResize);
+
     return () => {
+      cancelAnimationFrame(raf);
       window.removeEventListener("resize", handleResize);
-      cancelAnimationFrame(animRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeline]);
+  }, [timeline, draw]);
 
   // ─── tooltip via mouse ────────────────────────────────────────────────────
   const handleMouseMove = (e) => {
     if (!timeline || timeline.length === 0) return;
     const canvas = canvasRef.current;
-    const rect   = canvas.getBoundingClientRect();
-    const mx     = e.clientX - rect.left;
-    const W      = rect.width;
-    const padL   = 58, padR = 20;
-    const chartW = W - padL - padR;
-    const step   = chartW / (timeline.length - 1 || 1);
-    const idx    = Math.round((mx - padL) / step);
-    const clamped = Math.max(0, Math.min(timeline.length - 1, idx));
-    const d      = timeline[clamped];
-    setTooltip({ x: padL + step * clamped, mes: d.mes, google: d.google, meta: d.meta, leads: d.leads });
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx   = e.clientX - rect.left;
+    const W    = rect.width;
+    const padL = 72, padR = 52;
+    const cW   = W - padL - padR;
+    const n    = timeline.length;
+    const step = n > 1 ? cW / (n - 1) : cW;
+    const idx  = Math.round((mx - padL) / step);
+    const i    = Math.max(0, Math.min(n - 1, idx));
+    const d    = timeline[i];
+    const tipX = padL + (n > 1 ? (cW / (n - 1)) * i : cW / 2);
+    setTooltip({ x: tipX, mes: d.mes, google: d.google, meta: d.meta, leads: d.leads });
   };
 
   return (
-    <article className={`chart-panel wide ${isUpdating ? "is-updating" : ""}`} id="comparacao">
+    <article className="chart-panel wide" id="comparacao">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">Evolução Histórica</p>
@@ -242,45 +209,67 @@ export default function LineChart({ timeline }) {
         {/* Legenda */}
         <div style={{ display: "flex", gap: "1.1rem", alignItems: "center" }}>
           {SERIES.map(s => (
-            <span key={s.key} style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.78rem", color: "rgba(245,247,251,0.72)", fontWeight: 500 }}>
-              <span style={{ display: "inline-block", width: 28, height: 2.5, borderRadius: 2, background: s.color, boxShadow: `0 0 6px ${s.color}` }} />
+            <span key={s.key} style={{
+              display: "flex", alignItems: "center", gap: "0.35rem",
+              fontSize: "0.78rem", color: "rgba(245,247,251,0.72)", fontWeight: 500
+            }}>
+              <span style={{
+                display: "inline-block", width: s.key === "leads" ? 20 : 28,
+                height: s.key === "leads" ? 0 : 2.5,
+                borderTop: s.key === "leads" ? `2px dashed ${s.color}` : "none",
+                background: s.key === "leads" ? "none" : s.color,
+                borderRadius: 2,
+                boxShadow: `0 0 5px ${s.color}`
+              }} />
               {s.label}
             </span>
           ))}
         </div>
       </div>
 
-      {/* canvas */}
-      <div style={{ position: "relative" }}
+      {/* canvas wrapper */}
+      <div
+        style={{
+          position: "relative",
+          opacity: ready ? 1 : 0,
+          transition: "opacity 0.35s ease",
+        }}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setTooltip(null)}
       >
         <canvas ref={canvasRef} />
 
         {/* tooltip */}
-        {tooltip && (
-          <div style={{
-            position: "absolute",
-            left: Math.min(tooltip.x, canvasRef.current?.clientWidth - 160 || 999),
-            top: 8,
-            transform: "translateX(-50%)",
-            background: "rgba(13,17,23,0.92)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 8,
-            padding: "0.55rem 0.8rem",
-            fontSize: "0.78rem",
-            lineHeight: 1.7,
-            pointerEvents: "none",
-            zIndex: 10,
-            backdropFilter: "blur(8px)",
-            minWidth: 160,
-          }}>
-            <div style={{ fontWeight: 700, marginBottom: "0.3rem", color: "rgba(245,247,251,0.9)" }}>{tooltip.mes}</div>
-            <div style={{ color: "#7bb7ff" }}>● Google Ads: {brl.format(tooltip.google || 0)}</div>
-            <div style={{ color: "#7cf7be" }}>● Meta Ads: {brl.format(tooltip.meta || 0)}</div>
-            <div style={{ color: "#ffd166" }}>● Total Leads: {num.format(Math.round(tooltip.leads || 0))}</div>
-          </div>
-        )}
+        {tooltip && (() => {
+          const canvas = canvasRef.current;
+          const maxX   = canvas ? canvas.clientWidth - 175 : 9999;
+          const leftPx = Math.min(tooltip.x, maxX);
+          return (
+            <div style={{
+              position: "absolute",
+              left: leftPx,
+              top: 8,
+              transform: "translateX(-50%)",
+              background: "rgba(10,14,22,0.92)",
+              border: "1px solid rgba(255,255,255,0.10)",
+              borderRadius: 8,
+              padding: "0.55rem 0.85rem",
+              fontSize: "0.78rem",
+              lineHeight: 1.75,
+              pointerEvents: "none",
+              zIndex: 20,
+              backdropFilter: "blur(10px)",
+              minWidth: 168,
+            }}>
+              <div style={{ fontWeight: 700, marginBottom: "0.25rem", color: "rgba(245,247,251,0.9)" }}>
+                {tooltip.mes}
+              </div>
+              <div style={{ color: "#7bb7ff" }}>● Google Ads: {brl.format(tooltip.google || 0)}</div>
+              <div style={{ color: "#7cf7be" }}>● Meta Ads: {brl.format(tooltip.meta   || 0)}</div>
+              <div style={{ color: "#ffd166" }}>● Total Leads: {num.format(Math.round(tooltip.leads || 0))}</div>
+            </div>
+          );
+        })()}
       </div>
     </article>
   );
