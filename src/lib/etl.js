@@ -996,6 +996,20 @@ export async function processUploadFile(file) {
     .filter(row => {
       // Filter out total sum rows and metadata headers
       const campName = getSemanticValue(row, "campaign_name");
+      
+      // Se a coluna de campanha está presente no cabeçalho mas seu valor está vazio nesta linha,
+      // consideramos uma linha de total ou rodapé do relatório (e.g. Meta Ads) e a descartamos.
+      const hasCampHeader = Object.keys(row).some(k => {
+        const syns = SYNONYMS.campaign_name || [];
+        const normalize = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const normK = normalize(k);
+        return syns.some(syn => normalize(syn) === normK);
+      });
+      
+      if (hasCampHeader && (campName === undefined || campName === null || String(campName).trim() === "")) {
+        return false;
+      }
+
       const deviceName = getSemanticValue(row, "device");
       const dayName = getSemanticValue(row, "date");
       const searchName = getSemanticValue(row, "search_term");

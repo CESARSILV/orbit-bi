@@ -59,6 +59,107 @@ const DATASET_TABLE_MAP = {
   daily_time_series: "fact_time_series"
 };
 
+const MONTHS_PT = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+];
+
+const MONTH_MAP_PT = {
+  jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5,
+  jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11,
+  janeiro: 0, fevereiro: 1, marco: 2, março: 2, abril: 3, maio: 4, junho: 5,
+  julho: 6, agosto: 7, setembro: 8, outubro: 9, novembro: 10, dezembro: 11
+};
+
+export function getRowReferenceMonth(r) {
+  if (!r) return "";
+  
+  const parseLegacyRef = (ref) => {
+    const s = String(ref).trim().toLowerCase();
+    if (/^\d{4}-\d{2}$/.test(s)) return s;
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 7);
+    if (s.includes("/")) {
+      const parts = s.split("/");
+      if (parts.length === 2) {
+        const p0 = parts[0].trim();
+        const p1 = parts[1].trim();
+        if (p1.length === 4) {
+          const year = p1;
+          let month = "";
+          if (/^\d+$/.test(p0)) {
+            month = p0.padStart(2, "0");
+          } else {
+            const mIdx = MONTH_MAP_PT[p0];
+            if (mIdx !== undefined) month = String(mIdx + 1).padStart(2, "0");
+          }
+          if (month) return `${year}-${month}`;
+        }
+      }
+    }
+    for (const [key, val] of Object.entries(MONTH_MAP_PT)) {
+      if (s.includes(key)) {
+        const yearMatch = s.match(/\d{4}/);
+        const year = yearMatch ? yearMatch[0] : new Date().getFullYear();
+        return `${year}-${String(val + 1).padStart(2, "0")}`;
+      }
+    }
+    return "";
+  };
+
+  if (r.reference_month) {
+    const parsed = parseLegacyRef(r.reference_month);
+    if (parsed) return parsed;
+  }
+  
+  if (r.date) {
+    if (r.date instanceof Date) {
+      const y = r.date.getFullYear();
+      const m = String(r.date.getMonth() + 1).padStart(2, "0");
+      return `${y}-${m}`;
+    }
+    const d = String(r.date).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 7);
+    if (/^\d{4}-\d{2}$/.test(d)) return d;
+    // Handle DD/MM/YYYY or DD-MM-YYYY
+    const brMatch = d.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (brMatch) {
+      const monthPad = String(brMatch[2]).padStart(2, "0");
+      return `${brMatch[3]}-${monthPad}`;
+    }
+    const parsed = parseLegacyRef(d);
+    if (parsed) return parsed;
+  }
+  return "";
+}
+
+export function getRowDatasetType(r, tableName) {
+  if (r.dataset_type) return r.dataset_type;
+  
+  if (tableName === "fact_campaigns") {
+    if (r.platform === "google") return "campaign_performance";
+    if (r.platform === "meta") {
+      if (r.ad_name || r.ad_id) return "meta_ad_performance";
+      if (r.adset_name || r.adset_id) return "meta_adset_performance";
+      return "meta_campaign_performance";
+    }
+    return "campaign_performance";
+  }
+  
+  const invMap = {
+    fact_devices: "device_performance",
+    fact_hourly: "hourly_performance",
+    fact_weekday: "weekday_performance",
+    fact_weekday_hour: "weekday_hour_performance",
+    fact_keywords: "search_keywords",
+    fact_search_terms: "search_terms",
+    fact_networks: "network_performance",
+    fact_demographics: "demographics_gender_age",
+    fact_time_series: "daily_time_series"
+  };
+  
+  return invMap[tableName] || "campaign_performance";
+}
+
 // ----------------------------------------------------
 // Core Database CRUD Functions
 // ----------------------------------------------------
@@ -81,18 +182,24 @@ export function getDatabase() {
     //     Falso positivo aqui destrói dados reais do usuário.
     // ----------------------------------------------------------------
 
-    // Função auxiliar: normaliza a data para o mês de referência
-    const normalizeToMonth = (date, refMonth) => {
-      if (!date) return refMonth || "";
-      const d = String(date).trim();
-      if (/^\d{4}-\d{2}$/.test(d)) return d;
-      if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 7);
-      return refMonth || d;
+    let needsSave = false;
+
+    // Normalização preventiva de dados históricos / legado (corrige "Outubro/2025" -> "2025-10" nos registros locais)
+    const normalizeLegacyRows = (table) => {
+      if (!db[table] || !Array.isArray(db[table])) return;
+      db[table].forEach(r => {
+        const standardMonth = getRowReferenceMonth(r);
+        if (standardMonth && r.reference_month !== standardMonth) {
+          r.reference_month = standardMonth;
+          needsSave = true;
+        }
+      });
     };
+    
+    // Rodar normalização preventiva para as tabelas principais
+    ["fact_campaigns", "fact_time_series", "fact_devices", "fact_keywords", "fact_search_terms", "fact_networks", "fact_demographics"].forEach(normalizeLegacyRows);
 
     const isDashOnly = (name) => !name || /^[-–—\s]+$/.test(String(name).trim());
-
-    let needsSave = false;
 
     if (db.fact_campaigns && db.fact_campaigns.length > 0) {
       const before = db.fact_campaigns.length;
@@ -116,7 +223,7 @@ export function getDatabase() {
       // Ambas as linhas passam pelo PASSO 2 porque têm datas levemente
       // diferentes (ex: "2025-10-01" vs "2025-10"), escapando da dedup estrita.
       //
-      // Solução SEGURA: agrupa por (platform + mês + campanha + adset + ad).
+      // Solução SEGURA: agrupa por (platform + tipo + mês + campanha + adset + ad).
       // Remove duplicata SOMENTE se:
       //   - O grupo tem EXATAMENTE 2 linhas (par suspeito)
       //   - O spend das duas é IDÊNTICO (±R$0.01)
@@ -134,7 +241,8 @@ export function getDatabase() {
         if (isSegmented) return; // segmentadas: não participam do grupo
         const key = [
           r.platform || "",
-          normalizeToMonth(r.date, r.reference_month),
+          getRowDatasetType(r, "fact_campaigns"),
+          getRowReferenceMonth(r),
           r.campaign_name || "",
           r.adset_name   || "",
           r.ad_name      || "",
@@ -257,38 +365,34 @@ export async function insertDataset(db, fileMeta, rows, action = "replace") {
   const dataset_type = fileMeta.dataset_type;
   const reference_month = fileMeta.reference_month;
 
-  // PLATFORM-LEVEL REPLACE INCONDICIONAL para relatórios de campanha:
-  // Independente da ação (merge/replace), ao importar um relatório de campanhas,
-  // SEMPRE remove todos os dados existentes da mesma plataforma primeiro.
-  // Isso torna o import IDEMPOTENTE: N importações = mesmo resultado que 1 importação.
-  const isCampaignReport = [
-    "campaign_performance",
-    "meta_campaign_performance",
-    "meta_adset_performance",
-    "meta_ad_performance"
-  ].includes(fileMeta.dataset_type);
-
-  if (isCampaignReport && platform && action !== "ignore") {
-    console.log(`[DB] PLATFORM-LEVEL CLEAR: removendo TODOS os dados de '${platform}' (${newDb.fact_campaigns?.filter(r => r.platform === platform).length || 0} rows) antes de inserir novo arquivo.`);
-    newDb.fact_marketing_summary = (newDb.fact_marketing_summary || []).filter(r => r.platform !== platform);
-    newDb.fact_campaigns        = (newDb.fact_campaigns || []).filter(r => r.platform !== platform);
-    newDb.fact_time_series      = (newDb.fact_time_series || []).filter(r => r.platform !== platform);
-    newDb.fact_devices          = (newDb.fact_devices || []).filter(r => r.platform !== platform);
-    newDb.fact_keywords         = (newDb.fact_keywords || []).filter(r => r.platform !== platform);
-    newDb.fact_search_terms     = (newDb.fact_search_terms || []).filter(r => r.platform !== platform);
-    newDb.fact_networks         = (newDb.fact_networks || []).filter(r => r.platform !== platform);
-    newDb.fact_demographics     = (newDb.fact_demographics || []).filter(r => r.platform !== platform);
-    newDb.uploaded_files        = (newDb.uploaded_files || []).filter(f => f.platform !== platform);
-  }
-
-  // 1. Ações legadas para datasets não-campanha (devices, keywords, etc.)
-  if (!isCampaignReport) {
-    if (action === "replace") {
-      newDb[targetTable] = newDb[targetTable].filter(r => r.raw_file_name !== fileMeta.raw_file_name);
-      newDb.uploaded_files = newDb.uploaded_files.filter(f => f.raw_file_name !== fileMeta.raw_file_name);
-    } else if (action === "ignore") {
-      return newDb;
+  // MONTH-LEVEL & DATASET-TYPE CLEAR:
+  // Em vez de apagar todos os dados históricos de uma plataforma inteira,
+  // limpamos apenas os registros existentes para o mesmo mês de referência,
+  // plataforma e tipo de dado. Isso garante idempotência e mantém o histórico de outros meses.
+  if (platform && action === "replace") {
+    // Detecta todos os meses de referência presentes nos dados importados para limpar apenas os meses afetados
+    const monthsInRows = new Set(rows.map(r => getRowReferenceMonth(r)).filter(Boolean));
+    if (monthsInRows.size === 0 && reference_month) {
+      monthsInRows.add(reference_month);
     }
+
+    console.log(`[DB] MONTH-LEVEL CLEAR: removendo dados de '${platform}' (${targetTable}) para os meses [${Array.from(monthsInRows).join(", ")}] e tipo '${dataset_type}' antes de inserir novo arquivo.`);
+    
+    newDb[targetTable] = (newDb[targetTable] || []).filter(
+      r => !(
+        r.platform === platform &&
+        getRowDatasetType(r, targetTable) === dataset_type &&
+        monthsInRows.has(getRowReferenceMonth(r))
+      )
+    );
+    
+    newDb.uploaded_files = (newDb.uploaded_files || []).filter(
+      f => !(
+        f.platform === platform &&
+        f.dataset_type === dataset_type &&
+        monthsInRows.has(getRowReferenceMonth(f))
+      )
+    );
   } else if (action === "ignore") {
     return newDb;
   }
@@ -351,49 +455,116 @@ export function consolidateSummary(db) {
   // Group by campaign name, date, platform
   const groups = {};
 
+  // 1. Group fact_campaigns by platform and reference_month to determine the best dataset_type for each
+  const platformMonthDatasets = {}; // platform_month -> Set of dataset_types
+  if (db.fact_campaigns && db.fact_campaigns.length > 0) {
+    db.fact_campaigns.forEach(r => {
+      const pmKey = `${r.platform || ""}_${getRowReferenceMonth(r)}`;
+      if (!platformMonthDatasets[pmKey]) {
+        platformMonthDatasets[pmKey] = new Set();
+      }
+      const type = getRowDatasetType(r, "fact_campaigns");
+      if (type) {
+        platformMonthDatasets[pmKey].add(type);
+      }
+    });
+  }
+
+  // 2. Determine the authoritative dataset_type for each platform_month
+  const authoritativeDataset = {}; // platform_month -> dataset_type
+  for (const [pmKey, datasetTypes] of Object.entries(platformMonthDatasets)) {
+    const isMeta = pmKey.startsWith("meta_");
+    const typesArray = Array.from(datasetTypes);
+    
+    let chosen = typesArray[0] || "";
+    if (isMeta) {
+      // Preference: meta_campaign_performance > meta_adset_performance > meta_ad_performance > campaign_performance
+      if (datasetTypes.has("meta_campaign_performance")) {
+        chosen = "meta_campaign_performance";
+      } else if (datasetTypes.has("meta_adset_performance")) {
+        chosen = "meta_adset_performance";
+      } else if (datasetTypes.has("meta_ad_performance")) {
+        chosen = "meta_ad_performance";
+      } else if (datasetTypes.has("campaign_performance")) {
+        chosen = "campaign_performance";
+      }
+    } else {
+      // Google preference: campaign_performance > others
+      if (datasetTypes.has("campaign_performance")) {
+        chosen = "campaign_performance";
+      }
+    }
+    authoritativeDataset[pmKey] = chosen;
+  }
+
   // Track which campaign + month + platform has daily time series data
   const hasDailyData = new Set();
   if (db.fact_time_series && db.fact_time_series.length > 0) {
     db.fact_time_series.forEach(r => {
-      if (r.platform && r.reference_month && r.campaign_name) {
-        hasDailyData.add(`${r.platform}_${r.reference_month}_${r.campaign_name}`);
+      const refMonth = getRowReferenceMonth(r);
+      if (r.platform && refMonth && r.campaign_name) {
+        hasDailyData.add(`${r.platform}_${refMonth}_${r.campaign_name}`);
+      }
+    });
+  }
+
+  // Track which campaign + month + platform has campaign data
+  // (usado pelo addRowToGroups para priorizar fact_campaigns sobre fact_time_series)
+  const hasCampaignData = new Set();
+  if (db.fact_campaigns && db.fact_campaigns.length > 0) {
+    db.fact_campaigns.forEach(r => {
+      const refMonth = getRowReferenceMonth(r);
+      const pmKey = `${r.platform || ""}_${refMonth}`;
+      const type = getRowDatasetType(r, "fact_campaigns");
+      
+      // Only track campaign data if it matches the authoritative dataset type
+      const authType = authoritativeDataset[pmKey];
+      if (authType && type !== authType) {
+        return; // Skip non-authoritative types
+      }
+      
+      if (r.platform && refMonth && r.campaign_name) {
+        hasCampaignData.add(`${r.platform}_${refMonth}_${r.campaign_name}`);
       }
     });
   }
 
   // Gather campaign level items (from fact_campaigns and fact_time_series)
   const addRowToGroups = (r, isCampaignTable = false) => {
+    const refMonth = getRowReferenceMonth(r);
+    const pmKey = `${r.platform || ""}_${refMonth}`;
+
+    // For campaign table rows, only include the authoritative dataset_type for that platform and month
+    if (isCampaignTable) {
+      const type = getRowDatasetType(r, "fact_campaigns");
+      const authType = authoritativeDataset[pmKey];
+      if (authType && type !== authType) {
+        return; // skip non-authoritative level (e.g. skip adsets if campaigns exist, avoiding double counting)
+      }
+    }
+
     // PRIORIDADE CORRIGIDA: fact_campaigns SEMPRE tem prioridade sobre fact_time_series.
-    //
-    // Bug anterior: quando a série temporal (time series) tinha dados para um mês,
-    // as linhas da tabela de campanhas eram IGNORADAS (hasDailyData check).
-    // Isso fazia a série temporária (dados parciais, ex: R$883/mês) sobrescrever
-    // o relatório mensal completo de campanhas (ex: R$4.503/mês).
-    //
-    // Correção: se está processando fact_time_series (!isCampaignTable) E
-    // já existe dado de campanha para aquele mês/plataforma/campanha,
-    // pula a linha do time_series (evita double-counting e garante dados corretos).
-    if (!isCampaignTable && r.platform && r.reference_month && r.campaign_name) {
-      if (hasCampaignData.has(`${r.platform}_${r.reference_month}_${r.campaign_name}`)) {
+    if (!isCampaignTable && r.platform && refMonth && r.campaign_name) {
+      if (hasCampaignData.has(`${r.platform}_${refMonth}_${r.campaign_name}`)) {
         return; // fact_campaigns é a fonte authoritária — ignora a série temporal
       }
     }
 
-    const key = `${r.platform}_${r.reference_month}_${r.campaign_name}_${r.date || r.reference_month}`;
+    const key = `${r.platform}_${refMonth}_${r.campaign_name}_${r.date || refMonth}`;
     if (!groups[key]) {
       groups[key] = {
         platform: r.platform,
         campaign_name: r.campaign_name,
-        date: r.date || `${r.reference_month}-01`,
+        date: r.date || `${refMonth}-01`,
         day: r.day || 1,
         week: r.week || 1,
-        month: r.month,
-        month_name: r.month_name,
-        quarter: r.quarter,
-        year: r.year,
-        year_month: r.year_month,
-        reference_month: r.reference_month,
-        reference_label: r.reference_label,
+        month: r.month || (refMonth ? parseInt(refMonth.split("-")[1], 10) : 1),
+        month_name: r.month_name || (refMonth ? MONTHS_PT[parseInt(refMonth.split("-")[1], 10) - 1] : ""),
+        quarter: r.quarter || (refMonth ? `Q${Math.ceil(parseInt(refMonth.split("-")[1], 10) / 3)}` : "Q1"),
+        year: r.year || (refMonth ? parseInt(refMonth.split("-")[0], 10) : new Date().getFullYear()),
+        year_month: r.year_month || refMonth,
+        reference_month: refMonth,
+        reference_label: r.reference_label || (refMonth ? `${MONTHS_PT[parseInt(refMonth.split("-")[1], 10) - 1]}/${refMonth.split("-")[0]}` : ""),
         spend: 0,
         clicks: 0,
         impressions: 0,
@@ -415,17 +586,6 @@ export function consolidateSummary(db) {
     g.revenue += r.revenue || 0;
   };
 
-  // Track which campaign + month + platform has campaign data
-  // (usado pelo addRowToGroups para priorizar fact_campaigns sobre fact_time_series)
-  const hasCampaignData = new Set();
-  if (db.fact_campaigns && db.fact_campaigns.length > 0) {
-    db.fact_campaigns.forEach(r => {
-      if (r.platform && r.reference_month && r.campaign_name) {
-        hasCampaignData.add(`${r.platform}_${r.reference_month}_${r.campaign_name}`);
-      }
-    });
-  }
-
   // 1º: processa fact_campaigns (fonte primária — relatórios mensais/diários de campanhas)
   if (db.fact_campaigns && db.fact_campaigns.length > 0) {
     db.fact_campaigns.forEach(r => addRowToGroups(r, true));
@@ -435,7 +595,6 @@ export function consolidateSummary(db) {
   if (db.fact_time_series && db.fact_time_series.length > 0) {
     db.fact_time_series.forEach(r => addRowToGroups(r, false));
   }
-
 
   // ATENÇÃO: fact_devices, fact_networks e fact_demographics NÃO contribuem para
   // fact_marketing_summary. Eles são sub-cortes do mesmo investimento e só alimentam
@@ -463,15 +622,16 @@ export function consolidateSummary(db) {
     if (deviceRows.length > 0) {
       const devGroups = {};
       deviceRows.forEach(r => {
-        const key = `${r.platform}_${r.reference_month}_${r.campaign_name}_${r.device}`;
+        const refMonth = getRowReferenceMonth(r);
+        const key = `${r.platform}_${refMonth}_${r.campaign_name}_${r.device}`;
         if (!devGroups[key]) {
           devGroups[key] = {
             platform: r.platform,
-            reference_month: r.reference_month,
-            reference_label: r.reference_label,
+            reference_month: refMonth,
+            reference_label: r.reference_label || (refMonth ? `${MONTHS_PT[parseInt(refMonth.split("-")[1], 10) - 1]}/${refMonth.split("-")[0]}` : ""),
             campaign_name: r.campaign_name,
             device: r.device,
-            date: r.date || `${r.reference_month}-01`,
+            date: r.date || `${refMonth}-01`,
             spend: 0, clicks: 0, impressions: 0, conversions: 0, leads: 0, reach: 0, revenue: 0
           };
         }
