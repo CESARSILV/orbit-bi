@@ -731,7 +731,7 @@ export default function Home() {
       conversoes,
       cliques,
       impressoes,
-      alcance: reach || Math.round(impressoes * 0.68),
+      alcance: reach,
       roi,
       ticket,
       leads,
@@ -1423,7 +1423,7 @@ export default function Home() {
             networkVal = row[wizardMapping.placement] || null;
           }
 
-          const reachVal = wizardMapping.reach ? Math.round(parseFormattedFloat(row[wizardMapping.reach])) : impressions;
+          const reachVal = wizardMapping.reach ? Math.round(parseFormattedFloat(row[wizardMapping.reach])) : 0;
           const freqVal = wizardMapping.frequency ? parseFormattedFloat(row[wizardMapping.frequency]) : 1.0;
           const hourVal = wizardMapping.hour ? parseInt(row[wizardMapping.hour], 10) : null;
 

@@ -582,7 +582,7 @@ export function consolidateSummary(db) {
     g.impressions += r.impressions || 0;
     g.conversions += r.conversions || 0;
     g.leads += r.leads || 0;
-    g.reach += r.reach || Math.round((r.impressions || 0) * 0.68);
+    g.reach += r.reach || 0;
     g.revenue += r.revenue || 0;
   };
 
@@ -641,7 +641,7 @@ export function consolidateSummary(db) {
         g.impressions += r.impressions || 0;
         g.conversions += r.conversions || 0;
         g.leads       += r.leads       || 0;
-        g.reach       += r.reach       || Math.round((r.impressions || 0) * 0.68);
+        g.reach       += r.reach       || 0;
         g.revenue     += r.revenue     || 0;
       });
       derivedDevices = Object.values(devGroups);
