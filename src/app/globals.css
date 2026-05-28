@@ -7,7 +7,7 @@ body {
   padding: 0;
   width: 100%;
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: clip;
   background-color: var(--bg);
 }
 
@@ -4351,7 +4351,7 @@ html[data-theme="light"] .filter-chip-label:hover .fchip-name svg {
 .filter-shell {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 150; /* Garantir sobreposição sobre os gráficos e tabelas */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
