@@ -89,8 +89,8 @@ function KpiMini({ label, value, accent, sub }) {
     <div style={{
       flex: "1 1 120px",
       minWidth: 0,
-      background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)",
-      border: `1px solid rgba(255,255,255,0.07)`,
+      background: "var(--hover-bg)",
+      border: "1px solid var(--border-soft)",
       borderRadius: 14,
       padding: "1.1rem 1.25rem",
       display: "flex",
@@ -210,7 +210,7 @@ export default function HistoricalChart({ timeline }) {
       xAxis: {
         type: "category",
         data: months,
-        axisLine:  { lineStyle: { color: "rgba(255,255,255,0.06)" } },
+        axisLine:  { lineStyle: { color: C.border } },
         axisTick:  { show: false },
         axisLabel: { color: C.muted, fontFamily: "Inter, sans-serif", fontSize: 10.5, margin: 14, interval: 0 },
         splitLine: { show: false },
@@ -258,7 +258,7 @@ export default function HistoricalChart({ timeline }) {
         style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem", padding: "2.5rem", minHeight: 280, opacity: 0.5 }}
       >
         <div style={{ fontSize: 32, opacity: 0.4 }}>📊</div>
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.88rem", margin: 0, textAlign: "center" }}>
+        <p style={{ color: C.muted, fontSize: "0.88rem", margin: 0, textAlign: "center" }}>
           Nenhum dado importado ainda.<br />Importe um relatório para visualizar o histórico de investimento.
         </p>
       </article>

@@ -131,7 +131,7 @@ function RadialRing({ percent, hex, rgb, size = 80, stroke = 6 }) {
     <svg width={size} height={size} style={{ transform: "rotate(-90deg)", flexShrink: 0 }}>
       {/* trilha */}
       <circle cx={size/2} cy={size/2} r={r} fill="none"
-        stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
+        stroke="var(--border-soft)" strokeWidth={stroke} />
       {/* progresso */}
       <circle cx={size/2} cy={size/2} r={r} fill="none"
         stroke={`url(#ring-grad-${hex.replace("#","")})`}
@@ -194,7 +194,7 @@ function ScoreBadge({ score, hex, rgb }) {
       <span style={{ fontSize: 18, fontWeight: 900, color: hex, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
         {displayed}
       </span>
-      <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+      <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
         Score
       </span>
       <span style={{ fontSize: 9, fontWeight: 700, color: tierColor }}>
@@ -240,7 +240,7 @@ function AnimatedBar({ percent, hex, rgb, gradient, isDominant }) {
   return (
     <div style={{
       position: "relative", height: 8, borderRadius: 999,
-      background: "rgba(255,255,255,0.06)",
+      background: "var(--hover-bg)",
       overflow: "visible",
     }}>
       {/* Barra principal */}
@@ -281,19 +281,19 @@ function MetricPill({ label, value, hex, rgb, highlight }) {
       display: "flex", flexDirection: "column", gap: 2,
       padding: "8px 10px",
       borderRadius: 8,
-      background: highlight ? `rgba(${rgb},0.1)` : "rgba(255,255,255,0.04)",
-      border: `1px solid ${highlight ? `rgba(${rgb},0.25)` : "rgba(255,255,255,0.07)"}`,
+      background: highlight ? `rgba(${rgb},0.1)` : "var(--hover-bg)",
+      border: `1px solid ${highlight ? `rgba(${rgb},0.25)` : "var(--border-soft)"}`,
       transition: "all 0.3s ease",
     }}>
       <span style={{
-        fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.38)",
+        fontSize: 10, fontWeight: 700, color: "var(--text-muted)",
         letterSpacing: "0.06em", textTransform: "uppercase",
       }}>
         {label}
       </span>
       <span style={{
         fontSize: 13, fontWeight: 800,
-        color: highlight ? hex : "rgba(245,247,251,0.88)",
+        color: highlight ? hex : "var(--text-secondary)",
         lineHeight: 1.1,
       }}>
         {value}
@@ -362,10 +362,10 @@ function DeviceCard({ deviceKey, data, totalInvest, allData, rank, isDominant })
         maxWidth: "100%",
         position: "relative",
         borderRadius: 16,
-        border: `1px solid ${isDominant ? `rgba(${cfg.rgb},0.35)` : "rgba(255,255,255,0.08)"}`,
+        border: `1px solid ${isDominant ? `rgba(${cfg.rgb},0.35)` : "var(--border-soft)"}`,
         background: isDominant
           ? `linear-gradient(145deg, rgba(${cfg.rgb},0.08) 0%, rgba(${cfg.rgb},0.03) 100%)`
-          : "rgba(255,255,255,0.025)",
+          : "var(--bg-card)",
         padding: "20px",
         cursor: "default",
         transition: "all 0.35s cubic-bezier(0.34,1.2,0.64,1)",
@@ -376,8 +376,8 @@ function DeviceCard({ deviceKey, data, totalInvest, allData, rank, isDominant })
         boxShadow: isDominant
           ? `0 0 0 1px rgba(${cfg.rgb},0.15), 0 8px 40px rgba(${cfg.rgb},0.15), inset 0 1px 0 rgba(255,255,255,0.07)`
           : hovered
-            ? `0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(${cfg.rgb},0.2)`
-            : "0 4px 16px rgba(0,0,0,0.2)",
+            ? "var(--shadow-medium)"
+            : "var(--shadow-soft)",
         boxSizing: "border-box",
       }}
     >
@@ -406,7 +406,7 @@ function DeviceCard({ deviceKey, data, totalInvest, allData, rank, isDominant })
           </div>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 15, fontWeight: 800, color: "rgba(245,247,251,0.95)" }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: "var(--text-primary)" }}>
                 {cfg.label}
               </span>
               {isDominant && (
@@ -422,7 +422,7 @@ function DeviceCard({ deviceKey, data, totalInvest, allData, rank, isDominant })
                 </span>
               )}
             </div>
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 500 }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>
               {cfg.sublabel}
             </span>
           </div>
@@ -447,20 +447,20 @@ function DeviceCard({ deviceKey, data, totalInvest, allData, rank, isDominant })
             alignItems: "center", justifyContent: "center",
             gap: 1,
           }}>
-            <span style={{ fontSize: 15, fontWeight: 900, color: "rgba(245,247,251,0.95)", lineHeight: 1 }}>
+            <span style={{ fontSize: 15, fontWeight: 900, color: "var(--text-primary)", lineHeight: 1 }}>
               {(data.percent || 0).toFixed(0)}%
             </span>
-            <span style={{ fontSize: 8, color: "rgba(255,255,255,0.35)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            <span style={{ fontSize: 8, color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
               share
             </span>
           </div>
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 22, fontWeight: 900, color: "rgba(245,247,251,0.95)", lineHeight: 1, marginBottom: 2 }}>
+          <div style={{ fontSize: 22, fontWeight: 900, color: "var(--text-primary)", lineHeight: 1, marginBottom: 2 }}>
             {brl.format(data.invest || 0)}
           </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>
             Investimento total
           </div>
           {/* Barra de progresso premium */}
@@ -494,13 +494,13 @@ function DeviceCard({ deviceKey, data, totalInvest, allData, rank, isDominant })
         display: "flex", alignItems: "center", gap: 6,
         padding: "7px 10px",
         borderRadius: 8,
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.06)",
+        background: "var(--hover-bg)",
+        border: "1px solid var(--border-soft)",
       }}>
         <span style={{ fontSize: 11, color: cfg.hex, fontWeight: 700 }}>
           {rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉"} #{rank} em volume
         </span>
-        <span style={{ marginLeft: "auto", fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>
+        <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-muted)", fontWeight: 600 }}>
           {shareLabel} do investimento
         </span>
       </div>
@@ -515,10 +515,10 @@ function InsightChip({ icon, text, accent }) {
       display: "flex", alignItems: "flex-start", gap: 8,
       padding: "9px 12px",
       borderRadius: 9,
-      background: "rgba(255,255,255,0.035)",
-      border: "1px solid rgba(255,255,255,0.07)",
+      background: "var(--hover-bg)",
+      border: "1px solid var(--border-soft)",
       fontSize: 12,
-      color: "rgba(245,247,251,0.7)",
+      color: "var(--text-secondary)",
       lineHeight: 1.4,
       transition: "background 0.2s ease",
     }}>
@@ -659,8 +659,8 @@ export default function DeviceChart({ deviceData }) {
   return (
     <article style={{
       borderRadius: 16,
-      border: "1px solid rgba(255,255,255,0.08)",
-      background: "rgba(10,15,30,0.72)",
+      border: "1px solid var(--border-soft)",
+      background: "var(--bg-card)",
       backdropFilter: "blur(24px)",
       padding: "24px",
       position: "relative",
@@ -682,11 +682,11 @@ export default function DeviceChart({ deviceData }) {
         <div>
           <p style={{
             margin: "0 0 4px", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em",
-            textTransform: "uppercase", color: "rgba(255,255,255,0.4)",
+            textTransform: "uppercase", color: "var(--text-muted)",
           }}>
             Centro de Inteligência
           </p>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "rgba(245,247,251,0.95)", letterSpacing: "-0.3px" }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.3px" }}>
             Desempenho por Dispositivo
           </h2>
         </div>
@@ -707,9 +707,9 @@ export default function DeviceChart({ deviceData }) {
             <span style={{
               fontSize: 11, fontWeight: 700,
               padding: "4px 10px", borderRadius: 99,
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.12)",
-              color: "rgba(255,255,255,0.4)",
+              background: "var(--hover-bg)",
+              border: "1px solid var(--border-soft)",
+              color: "var(--text-muted)",
             }}>
               Sem dados
             </span>
@@ -727,11 +727,11 @@ export default function DeviceChart({ deviceData }) {
         }}>
           <div style={{ fontSize: 44, opacity: 0.25 }}>📱</div>
           <div>
-            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "rgba(245,247,251,0.6)" }}>
+            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
               Relatório de Dispositivos necessário
             </p>
-            <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.35)", lineHeight: 1.6, maxWidth: 380 }}>
-              No Google Ads: <strong style={{ color: "rgba(255,255,255,0.6)" }}>Relatórios → Segmentação → Dispositivo</strong><br />
+            <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, maxWidth: 380 }}>
+              No Google Ads: <strong style={{ color: "var(--text-secondary)" }}>Relatórios → Segmentação → Dispositivo</strong><br />
               Exporte e importe o CSV para visualizar dados analíticos por dispositivo.
             </p>
           </div>
@@ -765,7 +765,7 @@ export default function DeviceChart({ deviceData }) {
             <div>
               <p style={{
                 margin: "0 0 10px", fontSize: 11, fontWeight: 700,
-                color: "rgba(255,255,255,0.38)", letterSpacing: "0.08em",
+                color: "var(--text-muted)", letterSpacing: "0.08em",
                 textTransform: "uppercase",
               }}>
                 ⚡ Insights automáticos

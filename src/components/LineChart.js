@@ -1,17 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useTheme } from "@/lib/ThemeContext";
 
 // ─── formatadores ─────────────────────────────────────────────────────────────
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const num = new Intl.NumberFormat("pt-BR");
-
-// ─── série visual ─────────────────────────────────────────────────────────────
-const SERIES = [
-  { key: "google", label: "Google Ads",  color: "#7bb7ff" },
-  { key: "meta",   label: "Meta Ads",    color: "#7cf7be" },
-  { key: "leads",  label: "Total Leads", color: "#ffd166" },
-];
 
 // ─── parse hex → "r,g,b" ──────────────────────────────────────────────────────
 const hexRgb = (hex) => {
@@ -26,8 +20,16 @@ export default function LineChart({ timeline }) {
   const canvasRef  = useRef(null);
   const [tooltip, setTooltip] = useState(null);
   const [ready,   setReady]   = useState(false); // controla fade-in CSS
+  const { theme } = useTheme();
 
-  // ─── desenha o gráfico completo (sem animação progressiva) ────────────────
+  // ─── série visual adaptada por tema ──────────────────────────────────────────
+  const SERIES = [
+    { key: "google", label: "Google Ads",  color: theme === "light" ? "#3b82f6" : "#7bb7ff" },
+    { key: "meta",   label: "Meta Ads",    color: theme === "light" ? "#10b981" : "#7cf7be" },
+    { key: "leads",  label: "Total Leads", color: theme === "light" ? "#d97706" : "#ffd166" },
+  ];
+
+  // ─── desenha o gráfico completo ───────────────────────────────────────────
   const draw = useCallback((canvas, data) => {
     if (!canvas || !data) return;
     const ctx = canvas.getContext("2d");
@@ -44,9 +46,20 @@ export default function LineChart({ timeline }) {
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, W, H);
 
+    // Pegar cores semânticas ativas
+    const getCssVar = (name, fallback) => {
+      if (typeof window === "undefined") return fallback;
+      return window.getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+    };
+
+    const textMuted = getCssVar("--text-muted", "rgba(245,247,251,0.38)");
+    const gridColor = getCssVar("--chart-grid", "rgba(255,255,255,0.055)");
+    const axisColor = getCssVar("--chart-axis", "rgba(245,247,251,0.38)");
+    const labelColor = getCssVar("--chart-label", "rgba(245,247,251,0.52)");
+
     // ── sem dados ────────────────────────────────────────────────────────────
     if (!data || data.length === 0) {
-      ctx.fillStyle   = "rgba(245,247,251,0.3)";
+      ctx.fillStyle   = textMuted;
       ctx.font        = "13px Inter, sans-serif";
       ctx.textAlign   = "center";
       ctx.textBaseline = "middle";
@@ -68,7 +81,7 @@ export default function LineChart({ timeline }) {
     const xP = (i) => padL + (n > 1 ? (cW / (n - 1)) * i : cW / 2);
 
     // ── grade ─────────────────────────────────────────────────────────────────
-    ctx.strokeStyle = "rgba(255,255,255,0.055)";
+    ctx.strokeStyle = gridColor;
     ctx.lineWidth   = 1;
     for (let i = 0; i <= 4; i++) {
       const y = padT + (cH / 4) * i;
@@ -76,7 +89,7 @@ export default function LineChart({ timeline }) {
     }
 
     // ── eixo Y esquerdo (Investimento R$) ─────────────────────────────────────
-    ctx.fillStyle  = "rgba(245,247,251,0.38)";
+    ctx.fillStyle  = axisColor;
     ctx.font       = "10px Inter, sans-serif";
     ctx.textAlign  = "right";
     ctx.textBaseline = "middle";
@@ -87,7 +100,7 @@ export default function LineChart({ timeline }) {
 
     // ── eixo Y direito (Leads) ────────────────────────────────────────────────
     if (maxLeads > 0) {
-      ctx.fillStyle  = "rgba(255,209,102,0.50)";
+      ctx.fillStyle  = theme === "light" ? "#d97706" : "rgba(255,209,102,0.65)";
       ctx.textAlign  = "left";
       for (let i = 0; i <= 4; i++) {
         const v = Math.round((maxLeads * 1.18 / 4) * (4 - i));
@@ -96,7 +109,7 @@ export default function LineChart({ timeline }) {
     }
 
     // ── rótulos eixo X ────────────────────────────────────────────────────────
-    ctx.fillStyle    = "rgba(245,247,251,0.52)";
+    ctx.fillStyle    = labelColor;
     ctx.font         = "10px Inter, sans-serif";
     ctx.textAlign    = "center";
     ctx.textBaseline = "top";
@@ -133,7 +146,7 @@ export default function LineChart({ timeline }) {
 
       // linha
       ctx.shadowColor  = color;
-      ctx.shadowBlur   = 6;
+      ctx.shadowBlur   = theme === "light" ? 2 : 6;
       ctx.strokeStyle  = color;
       ctx.lineWidth    = key === "leads" ? 2 : 2.5;
       ctx.lineJoin     = "round";
@@ -151,14 +164,14 @@ export default function LineChart({ timeline }) {
         ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
         ctx.fillStyle   = color;
         ctx.fill();
-        ctx.strokeStyle = "rgba(10,14,22,0.8)";
+        ctx.strokeStyle = theme === "light" ? "#ffffff" : "rgba(10,14,22,0.8)";
         ctx.lineWidth   = 1.5;
         ctx.stroke();
       });
     });
-  }, []);
+  }, [theme]);
 
-  // ─── efeito principal: redesenha quando timeline muda ─────────────────────
+  // ─── efeito principal: redesenha quando timeline ou tema muda ───────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -189,7 +202,7 @@ export default function LineChart({ timeline }) {
       cancelAnimationFrame(raf);
       if (observer) observer.disconnect();
     };
-  }, [timeline, draw]);
+  }, [timeline, theme, draw]);
 
   // ─── tooltip via mouse ────────────────────────────────────────────────────
   const handleMouseMove = (e) => {
@@ -227,7 +240,7 @@ export default function LineChart({ timeline }) {
           {SERIES.map(s => (
             <span key={s.key} style={{
               display: "flex", alignItems: "center", gap: "0.35rem",
-              fontSize: "0.78rem", color: "rgba(245,247,251,0.72)", fontWeight: 500
+              fontSize: "0.78rem", color: "var(--text-secondary)", fontWeight: 500
             }}>
               <span style={{
                 display: "inline-block", width: s.key === "leads" ? 20 : 28,
@@ -235,7 +248,7 @@ export default function LineChart({ timeline }) {
                 borderTop: s.key === "leads" ? `2px dashed ${s.color}` : "none",
                 background: s.key === "leads" ? "none" : s.color,
                 borderRadius: 2,
-                boxShadow: `0 0 5px ${s.color}`
+                boxShadow: theme === "light" ? "none" : `0 0 5px ${s.color}`
               }} />
               {s.label}
             </span>
@@ -262,8 +275,9 @@ export default function LineChart({ timeline }) {
             left: tooltip.x,
             top: 8,
             transform: "translateX(-50%)",
-            background: "rgba(10,14,22,0.92)",
-            border: "1px solid rgba(255,255,255,0.10)",
+            background: "var(--chart-tooltip)",
+            border: "1px solid var(--border-soft)",
+            boxShadow: "var(--shadow-medium)",
             borderRadius: 8,
             padding: "0.55rem 0.85rem",
             fontSize: "0.78rem",
@@ -273,12 +287,12 @@ export default function LineChart({ timeline }) {
             backdropFilter: "blur(10px)",
             minWidth: 168,
           }}>
-            <div style={{ fontWeight: 700, marginBottom: "0.25rem", color: "rgba(245,247,251,0.9)" }}>
+            <div style={{ fontWeight: 700, marginBottom: "0.25rem", color: "var(--text-primary)" }}>
               {tooltip.mes}
             </div>
-            <div style={{ color: "#7bb7ff" }}>● Google Ads: {brl.format(tooltip.google || 0)}</div>
-            <div style={{ color: "#7cf7be" }}>● Meta Ads: {brl.format(tooltip.meta   || 0)}</div>
-            <div style={{ color: "#ffd166" }}>● Total Leads: {num.format(Math.round(tooltip.leads || 0))}</div>
+            <div style={{ color: SERIES[0].color }}>● Google Ads: {brl.format(tooltip.google || 0)}</div>
+            <div style={{ color: SERIES[1].color }}>● Meta Ads: {brl.format(tooltip.meta   || 0)}</div>
+            <div style={{ color: SERIES[2].color }}>● Total Leads: {num.format(Math.round(tooltip.leads || 0))}</div>
           </div>
         )}
       </div>

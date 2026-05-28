@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTheme } from "@/lib/ThemeContext";
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const INITIAL_VISIBLE = 5;
@@ -8,6 +9,8 @@ const INITIAL_VISIBLE = 5;
 export default function CampaignTable({ campaigns }) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const { theme } = useTheme();
+  const isLight = theme === "light";
 
   useEffect(() => {
     const timerStart = setTimeout(() => setIsUpdating(true), 0);
@@ -18,10 +21,22 @@ export default function CampaignTable({ campaigns }) {
     };
   }, [campaigns]);
 
-  // Sort campaigns by spend descending (maior investimento primeiro)
+  // Sort campaigns by spend descending
   const sortedCampaigns = [...campaigns].sort((a, b) => b.investimento - a.investimento);
   const visibleCampaigns = expanded ? sortedCampaigns : sortedCampaigns.slice(0, INITIAL_VISIBLE);
   const hiddenCount = sortedCampaigns.length - INITIAL_VISIBLE;
+
+  const getBadgeStyle = (status) => {
+    if (isLight) {
+      if (status === "Ativa") return { bg: "rgba(16, 185, 129, 0.12)", color: "#047857", border: "rgba(16, 185, 129, 0.25)" };
+      if (status === "Pausada") return { bg: "rgba(245, 158, 11, 0.12)", color: "#b45309", border: "rgba(245, 158, 11, 0.25)" };
+      return { bg: "var(--hover-bg)", color: "var(--text-muted)", border: "var(--border-soft)" };
+    } else {
+      if (status === "Ativa") return { bg: "rgba(124,247,190,0.15)", color: "#7cf7be", border: "rgba(124,247,190,0.3)" };
+      if (status === "Pausada") return { bg: "rgba(255,209,102,0.15)", color: "#ffd166", border: "rgba(255,209,102,0.3)" };
+      return { bg: "var(--hover-bg)", color: "var(--text-muted)", border: "var(--border-soft)" };
+    }
+  };
 
   return (
     <article className={`table-panel ${isUpdating ? "is-updating" : ""}`} id="criativos">
@@ -47,58 +62,47 @@ export default function CampaignTable({ campaigns }) {
           <tbody>
             {sortedCampaigns.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "rgba(245, 247, 251, 0.42)", fontStyle: "italic" }}>
+                <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "var(--text-muted)", fontStyle: "italic" }}>
                   Nenhuma campanha cadastrada. Faça upload de um arquivo CSV de campanhas para começar.
                 </td>
               </tr>
             ) : (
-              visibleCampaigns.map((item, idx) => (
-                <tr
-                  key={`${item.tipo}_${item.nome}_${idx}`}
-                  style={{
-                    animation: expanded && idx >= INITIAL_VISIBLE ? "fadeInRow 0.25s ease forwards" : "none",
-                    opacity: expanded && idx >= INITIAL_VISIBLE ? 0 : 1,
-                    animationDelay: expanded && idx >= INITIAL_VISIBLE ? `${(idx - INITIAL_VISIBLE) * 40}ms` : "0ms",
-                  }}
-                >
-                  <td>
-                    <strong>{item.nome}</strong>
-                  </td>
-                  <td>{item.plataforma}</td>
-                  <td>{brl.format(item.investimento)}</td>
-                  <td>{item.nome && item.cliques !== undefined ? new Intl.NumberFormat("pt-BR").format(item.cliques) : "—"}</td>
-                  <td>{brl.format(item.cpa)}</td>
-                  <td>
-                    <span style={{
-                      display: "inline-block",
-                      padding: "0.2rem 0.55rem",
-                      borderRadius: 99,
-                      fontSize: "0.72rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.03em",
-                      background: item.status === "Ativa"
-                        ? "rgba(124,247,190,0.15)"
-                        : item.status === "Pausada"
-                        ? "rgba(255,209,102,0.15)"
-                        : "rgba(255,255,255,0.07)",
-                      color: item.status === "Ativa"
-                        ? "#7cf7be"
-                        : item.status === "Pausada"
-                        ? "#ffd166"
-                        : "rgba(245,247,251,0.42)",
-                      border: `1px solid ${
-                        item.status === "Ativa"
-                          ? "rgba(124,247,190,0.3)"
-                          : item.status === "Pausada"
-                          ? "rgba(255,209,102,0.3)"
-                          : "rgba(255,255,255,0.1)"
-                      }`,
-                    }}>
-                      {item.status === "Ativa" ? "● Ativa" : item.status === "Pausada" ? "◌ Pausada" : "○ Encerrada"}
-                    </span>
-                  </td>
-                </tr>
-              ))
+              visibleCampaigns.map((item, idx) => {
+                const badge = getBadgeStyle(item.status);
+                return (
+                  <tr
+                    key={`${item.tipo}_${item.nome}_${idx}`}
+                    style={{
+                      animation: expanded && idx >= INITIAL_VISIBLE ? "fadeInRow 0.25s ease forwards" : "none",
+                      opacity: expanded && idx >= INITIAL_VISIBLE ? 0 : 1,
+                      animationDelay: expanded && idx >= INITIAL_VISIBLE ? `${(idx - INITIAL_VISIBLE) * 40}ms` : "0ms",
+                    }}
+                  >
+                    <td>
+                      <strong>{item.nome}</strong>
+                    </td>
+                    <td>{item.plataforma}</td>
+                    <td>{brl.format(item.investimento)}</td>
+                    <td>{item.nome && item.cliques !== undefined ? new Intl.NumberFormat("pt-BR").format(item.cliques) : "—"}</td>
+                    <td>{brl.format(item.cpa)}</td>
+                    <td>
+                      <span style={{
+                        display: "inline-block",
+                        padding: "0.2rem 0.55rem",
+                        borderRadius: 99,
+                        fontSize: "0.72rem",
+                        fontWeight: 700,
+                        letterSpacing: "0.03em",
+                        background: badge.bg,
+                        color: badge.color,
+                        border: `1px solid ${badge.border}`,
+                      }}>
+                        {item.status === "Ativa" ? "● Ativa" : item.status === "Pausada" ? "◌ Pausada" : "○ Encerrada"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -113,10 +117,10 @@ export default function CampaignTable({ campaigns }) {
             alignItems: "center",
             gap: "0.4rem",
             width: "100%",
-            background: "rgba(255,255,255,0.03)",
+            background: "var(--hover-bg)",
             border: "none",
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-            color: "rgba(245, 247, 251, 0.55)",
+            borderTop: "1px solid var(--border-soft)",
+            color: "var(--text-muted)",
             fontSize: "0.8rem",
             fontWeight: 600,
             padding: "0.75rem 1.25rem",
@@ -125,8 +129,8 @@ export default function CampaignTable({ campaigns }) {
             letterSpacing: "0.02em",
             justifyContent: "center",
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "rgba(245,247,251,0.85)"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.color = "rgba(245,247,251,0.55)"; }}
+          onMouseEnter={e => { e.currentTarget.style.background = "var(--border-soft)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "var(--hover-bg)"; e.currentTarget.style.color = "var(--text-muted)"; }}
         >
           <span
             style={{

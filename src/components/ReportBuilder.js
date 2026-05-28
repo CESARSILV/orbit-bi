@@ -80,8 +80,8 @@ function KpiToggle({ kpi, checked, onChange }) {
     <label style={{
       display: "flex", alignItems: "center", gap: 8,
       padding: "8px 10px", borderRadius: 8, cursor: "pointer",
-      background: checked ? "rgba(91,156,246,0.12)" : "rgba(255,255,255,0.03)",
-      border: `1px solid ${checked ? "rgba(91,156,246,0.35)" : "rgba(255,255,255,0.07)"}`,
+      background: checked ? "rgba(91,156,246,0.12)" : "var(--hover-bg)",
+      border: checked ? "1px solid rgba(91,156,246,0.35)" : "1px solid var(--border-soft)",
       transition: "all 0.18s ease",
       userSelect: "none",
     }}>
@@ -90,12 +90,12 @@ function KpiToggle({ kpi, checked, onChange }) {
       <span style={{ fontSize: 14 }}>{kpi.icon}</span>
       <span style={{
         fontSize: "0.78rem", fontWeight: 600,
-        color: checked ? "#7bb7ff" : "rgba(245,247,251,0.55)",
+        color: checked ? "var(--blue)" : "var(--text-secondary)",
       }}>{kpi.label}</span>
       <span style={{
         marginLeft: "auto", width: 14, height: 14, borderRadius: 4,
-        background: checked ? "#5b9cf6" : "rgba(255,255,255,0.08)",
-        border: `2px solid ${checked ? "#5b9cf6" : "rgba(255,255,255,0.15)"}`,
+        background: checked ? "var(--blue)" : "var(--input-bg)",
+        border: checked ? "2px solid var(--blue)" : "2px solid var(--input-border)",
         display: "flex", alignItems: "center", justifyContent: "center",
         flexShrink: 0, transition: "all 0.18s ease",
       }}>
@@ -116,8 +116,8 @@ function SummaryCard({ kpi, value, prevValue }) {
   return (
     <div style={{
       flex: "1 1 140px", minWidth: 0,
-      background: "linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
-      border: "1px solid rgba(255,255,255,0.08)",
+      background: "var(--hover-bg)",
+      border: "1px solid var(--border-soft)",
       borderRadius: 12, padding: "14px 16px",
       position: "relative", overflow: "hidden",
     }}>
@@ -127,10 +127,10 @@ function SummaryCard({ kpi, value, prevValue }) {
         borderRadius: "12px 12px 0 0",
       }} />
       <div style={{ fontSize: 18, marginBottom: 4 }}>{def.icon}</div>
-      <div style={{ fontSize: "0.68rem", fontWeight: 600, color: "rgba(245,247,251,0.38)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>
+      <div style={{ fontSize: "0.68rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>
         {def.label}
       </div>
-      <div style={{ fontSize: "1.15rem", fontWeight: 800, color: "rgba(245,247,251,0.95)", lineHeight: 1.1 }}>
+      <div style={{ fontSize: "1.15rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.1 }}>
         {formatted}
       </div>
       {delta !== null && (
@@ -139,7 +139,7 @@ function SummaryCard({ kpi, value, prevValue }) {
           fontSize: "0.68rem", fontWeight: 700,
           color: isPositive ? "#34d399" : "#f87171",
           background: isPositive ? "rgba(52,211,153,0.1)" : "rgba(248,113,113,0.1)",
-          border: `1px solid ${isPositive ? "rgba(52,211,153,0.2)" : "rgba(248,113,113,0.2)"}`,
+          border: isPositive ? "1px solid rgba(52,211,153,0.2)" : "1px solid rgba(248,113,113,0.2)",
           borderRadius: 99, padding: "2px 6px",
         }}>
           {isPositive ? "▲" : "▼"} {Math.abs(delta).toFixed(1).replace(".", ",")}%
@@ -501,18 +501,18 @@ export default function ReportBuilder({
       <aside className={`report-config-panel ${showConfig ? "open" : ""}`}>
         <div className="report-config-inner">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-            <h3 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "rgba(245,247,251,0.9)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            <h3 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
               ⚙️ Configurar
             </h3>
             <button onClick={() => setShowConfig(false)} style={{
-              background: "none", border: "none", color: "rgba(255,255,255,0.3)",
+              background: "none", border: "none", color: "var(--text-muted)",
               cursor: "pointer", fontSize: 16, padding: 4,
             }}>✕</button>
           </div>
 
           {/* Nome do cliente */}
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "rgba(245,247,251,0.4)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>
+            <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>
               Nome do Cliente
             </label>
             <input
@@ -522,10 +522,10 @@ export default function ReportBuilder({
               onChange={e => setClientName(e.target.value)}
               style={{
                 width: "100%", boxSizing: "border-box",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.12)",
+                background: "var(--input-bg)",
+                border: "1px solid var(--input-border)",
                 borderRadius: 8, padding: "8px 10px",
-                color: "rgba(245,247,251,0.9)", fontSize: "0.85rem",
+                color: "var(--text-primary)", fontSize: "0.85rem",
                 outline: "none",
               }}
             />
@@ -533,7 +533,7 @@ export default function ReportBuilder({
 
           {/* KPIs */}
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "rgba(245,247,251,0.4)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
+            <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
               KPIs do Relatório
             </label>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -550,12 +550,12 @@ export default function ReportBuilder({
 
           {/* Opções Visuais */}
           <div style={{ marginBottom: 24 }}>
-            <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "rgba(245,247,251,0.4)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
+            <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
               Opções Visuais
             </label>
 
             {/* Destacar melhor mês */}
-            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.82rem", color: "rgba(245,247,251,0.65)", marginBottom: 10 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.82rem", color: "var(--text-secondary)", marginBottom: 10 }}>
               <input type="checkbox" checked={highlight} onChange={e => setHighlight(e.target.checked)} />
               Destacar melhor mês
             </label>
@@ -565,8 +565,8 @@ export default function ReportBuilder({
               display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer",
               fontSize: "0.82rem", lineHeight: 1.45,
               padding: "8px 10px", borderRadius: 8,
-              background: saveAsDefault ? "rgba(52,211,153,0.08)" : "rgba(255,255,255,0.03)",
-              border: `1px solid ${saveAsDefault ? "rgba(52,211,153,0.3)" : "rgba(255,255,255,0.07)"}`,
+              background: saveAsDefault ? "rgba(52,211,153,0.08)" : "var(--hover-bg)",
+              border: saveAsDefault ? "1px solid rgba(52,211,153,0.3)" : "1px solid var(--border-soft)",
               transition: "all 0.18s ease",
             }}>
               <input
@@ -576,10 +576,10 @@ export default function ReportBuilder({
                 style={{ marginTop: 2, flexShrink: 0 }}
               />
               <span>
-                <span style={{ display: "block", fontWeight: 700, color: saveAsDefault ? "#34d399" : "rgba(245,247,251,0.65)" }}>
+                <span style={{ display: "block", fontWeight: 700, color: saveAsDefault ? "#34d399" : "var(--text-secondary)" }}>
                   Manter opções como Padrão
                 </span>
-                <span style={{ fontSize: "0.72rem", color: "rgba(245,247,251,0.35)" }}>
+                <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
                   {saveAsDefault ? "✅ Salvo — será restaurado na próxima visita" : "Salva KPIs, cliente e visual para próximas sessões"}
                 </span>
               </span>
@@ -618,29 +618,29 @@ export default function ReportBuilder({
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {!showConfig && (
               <button onClick={() => setShowConfig(true)} style={{
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.1)",
+                background: "var(--hover-bg)",
+                border: "1px solid var(--border-soft)",
                 borderRadius: 8, padding: "7px 12px",
-                color: "rgba(245,247,251,0.7)",
+                color: "var(--text-secondary)",
                 fontSize: "0.8rem", fontWeight: 600, cursor: "pointer",
               }}>
                 ⚙️ Configurar
               </button>
             )}
             <div>
-              <p style={{ margin: 0, fontSize: "0.68rem", color: "rgba(245,247,251,0.38)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>
+              <p style={{ margin: 0, fontSize: "0.68rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>
                 Orbit BI — Report Builder
               </p>
-              <h1 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 800, color: "rgba(245,247,251,0.95)" }}>
+              <h1 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 800, color: "var(--text-primary)" }}>
                 Relatório Executivo
               </h1>
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: "0.75rem", color: "rgba(245,247,251,0.4)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "4px 10px" }}>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", background: "var(--hover-bg)", border: "1px solid var(--border-soft)", borderRadius: 6, padding: "4px 10px" }}>
               {platformLabel}
             </span>
-            <span style={{ fontSize: "0.75rem", color: "rgba(245,247,251,0.4)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "4px 10px" }}>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", background: "var(--hover-bg)", border: "1px solid var(--border-soft)", borderRadius: 6, padding: "4px 10px" }}>
               {periodLabel}
             </span>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#34d399", boxShadow: "0 0 6px #34d399" }} />
@@ -661,22 +661,22 @@ export default function ReportBuilder({
                 fontSize: 18, fontWeight: 900, color: "#fff", flexShrink: 0,
               }}>O</div>
               <div>
-                <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "rgba(245,247,251,0.95)", lineHeight: 1 }}>
+                <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>
                   Orbit BI
                 </div>
-                <div style={{ fontSize: "0.72rem", color: "rgba(245,247,251,0.38)", fontWeight: 500 }}>
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 500 }}>
                   Inteligência de mídia paga
                 </div>
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: "1rem", fontWeight: 800, color: "rgba(245,247,251,0.95)" }}>
+              <div style={{ fontSize: "1rem", fontWeight: 800, color: "var(--text-primary)" }}>
                 {clientName || "Relatório Executivo"}
               </div>
-              <div style={{ fontSize: "0.75rem", color: "rgba(245,247,251,0.45)", marginTop: 2 }}>
+              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 2 }}>
                 {platformLabel} · {periodLabel}
               </div>
-              <div style={{ fontSize: "0.68rem", color: "rgba(245,247,251,0.3)", marginTop: 2 }}>
+              <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: 2 }}>
                 Gerado em {today}
               </div>
             </div>
@@ -690,10 +690,10 @@ export default function ReportBuilder({
               textAlign: "center",
             }}>
               <div style={{ fontSize: 48, opacity: 0.25 }}>📋</div>
-              <div style={{ fontSize: "1rem", fontWeight: 700, color: "rgba(245,247,251,0.5)" }}>
+              <div style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)" }}>
                 Nenhum dado disponível
               </div>
-              <div style={{ fontSize: "0.85rem", color: "rgba(245,247,251,0.3)", maxWidth: 400, lineHeight: 1.6 }}>
+              <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", maxWidth: 400, lineHeight: 1.6 }}>
                 Importe relatórios do Google Ads ou Meta Ads para visualizar e exportar o relatório executivo.
               </div>
             </div>
@@ -734,7 +734,7 @@ export default function ReportBuilder({
                       {tableRows.map((row, idx) => {
                         const isBest = highlight && idx === bestRowIdx;
                         return (
-                          <tr key={row.mes} className={`report-tr ${isBest ? "report-tr-best" : ""} ${idx % 2 === 1 ? "report-tr-alt" : ""}`}>
+                          <tr key={row.mes} className={"report-tr" + (isBest ? " report-tr-best" : "") + (idx % 2 === 1 ? " report-tr-alt" : "")}>
                             <td className="report-td report-td-mes">
                               {isBest && <span className="best-badge">★</span>}
                               {row.mes}
@@ -796,15 +796,15 @@ export default function ReportBuilder({
                         { label: "Google Ads", color: "#FBBC05", rgb: "251,188,5", value: totalG, pct: pctG },
                         { label: "Meta Ads",   color: "#0866FF", rgb: "8,102,255", value: totalM, pct: pctM },
                       ].map(p => (
-                        <div key={p.label} className="platform-card" style={{ borderColor: `rgba(${p.rgb},0.25)`, background: `rgba(${p.rgb},0.06)` }}>
+                        <div key={p.label} className="platform-card" style={{ borderColor: "rgba(" + p.rgb + ",0.25)", background: "rgba(" + p.rgb + ",0.06)" }}>
                           <div style={{ fontSize: "0.72rem", fontWeight: 700, color: p.color, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
                             {p.label}
                           </div>
-                          <div style={{ fontSize: "1.4rem", fontWeight: 900, color: "rgba(245,247,251,0.95)" }}>
+                          <div style={{ fontSize: "1.4rem", fontWeight: 900, color: "var(--text-primary)" }}>
                             {brl.format(p.value)}
                           </div>
-                          <div style={{ marginTop: 8, height: 5, background: "rgba(255,255,255,0.06)", borderRadius: 99, overflow: "hidden" }}>
-                            <div style={{ width: `${p.pct}%`, height: "100%", background: p.color, borderRadius: 99, boxShadow: `0 0 8px rgba(${p.rgb},0.5)`, transition: "width 0.8s ease" }} />
+                          <div style={{ marginTop: 8, height: 5, background: "var(--border-soft)", borderRadius: 99, overflow: "hidden" }}>
+                            <div style={{ width: p.pct + "%", height: "100%", background: p.color, borderRadius: 99, boxShadow: "0 0 8px rgba(" + p.rgb + ",0.5)", transition: "width 0.8s ease" }} />
                           </div>
                           <div style={{ fontSize: "0.72rem", color: p.color, fontWeight: 700, marginTop: 4 }}>
                             {p.pct.toFixed(1).replace(".", ",")}% do investimento

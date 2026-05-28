@@ -449,3 +449,12 @@ Focus on:
 6. AI-powered insights
 
 Only after the import pipeline is stable should advanced AI OCR and screenshot analysis be implemented.
+
+====================================================
+REPOSITORY CONTROL & COMMITS (MANDATORY RULE)
+====================================================
+
+- SEMPRE fazer o commit e push ao final de quaisquer alterações no sistema.
+- A mensagem do commit deve ser descritiva e em português (PT-BR).
+- Nunca encerre uma interação de modificação de código sem rodar os comandos de versionamento correspondentes.
+

@@ -66,7 +66,7 @@ function Ring({ pct: targetPct, color, size = 72, stroke = 6 }) {
     <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
       {/* trilha */}
       <circle cx={size / 2} cy={size / 2} r={r}
-        fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
+        fill="none" stroke="var(--border-soft)" strokeWidth={stroke} />
       {/* progresso */}
       <circle cx={size / 2} cy={size / 2} r={r}
         fill="none"
@@ -160,7 +160,7 @@ function PlatformCard({ platform, value, percent, total, activeCampaigns, totalC
           display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
         }}>
-          <span style={{ fontSize: "0.95rem", fontWeight: 800, color: "#f5f7fb", lineHeight: 1 }}>
+          <span style={{ fontSize: "0.95rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>
             {rolledPct}%
           </span>
         </div>
@@ -168,7 +168,7 @@ function PlatformCard({ platform, value, percent, total, activeCampaigns, totalC
 
       {/* ── Valor principal ─────────────────────────────────────────── */}
       <div style={{ textAlign: "center", marginBottom: "1rem" }}>
-        <div style={{ fontSize: "1.15rem", fontWeight: 800, color: "#f5f7fb", lineHeight: 1.1 }}>
+        <div style={{ fontSize: "1.15rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.1 }}>
           {brl.format(rolledVal)}
         </div>
 
@@ -195,7 +195,7 @@ function PlatformCard({ platform, value, percent, total, activeCampaigns, totalC
         display: "flex",
         alignItems: "flex-end",
         justifyContent: "center",
-        background: "rgba(255,255,255,0.025)",
+        background: "var(--hover-bg)",
         borderRadius: "10px 10px 0 0",
         position: "relative",
         overflow: "hidden",
@@ -204,7 +204,7 @@ function PlatformCard({ platform, value, percent, total, activeCampaigns, totalC
         {[25, 50, 75].map(p => (
           <div key={p} style={{
             position: "absolute", bottom: `${p}%`, left: 0, right: 0,
-            height: 1, background: "rgba(255,255,255,0.04)",
+            height: 1, background: "var(--border-soft)",
           }} />
         ))}
 
@@ -216,8 +216,8 @@ function PlatformCard({ platform, value, percent, total, activeCampaigns, totalC
           borderRadius: "7px 7px 0 0",
           transition: "height 0.85s cubic-bezier(0.34,1.15,0.64,1), width 0.5s ease",
           boxShadow: isDominant
-            ? `0 -8px 30px rgba(${rgb},0.5), 0 0 50px rgba(${rgb},0.18), inset 0 1px 0 rgba(255,255,255,0.12)`
-            : `0 -4px 16px rgba(${rgb},0.28), inset 0 1px 0 rgba(255,255,255,0.06)`,
+            ? `0 -8px 30px rgba(${rgb},0.5), 0 0 50px rgba(${rgb},0.18), inset 0 1px 0 var(--border-soft)`
+            : `0 -4px 16px rgba(${rgb},0.28), inset 0 1px 0 var(--border-soft)`,
           position: "relative",
         }}>
           {/* reflexo interno */}
@@ -258,7 +258,7 @@ function PlatformCard({ platform, value, percent, total, activeCampaigns, totalC
           {label}
         </div>
         <div style={{
-          color: "rgba(245,247,251,0.38)", fontSize: "0.64rem", marginTop: "0.2rem",
+          color: "var(--text-muted)", fontSize: "0.64rem", marginTop: "0.2rem",
         }}>
           {totalCampaigns > 0
             ? activeCampaigns === totalCampaigns
@@ -291,7 +291,7 @@ function DominanceBar({ googlePct, metaPct }) {
       <div style={{
         display: "flex", justifyContent: "space-between",
         fontSize: "0.65rem", fontWeight: 600,
-        color: "rgba(245,247,251,0.38)",
+        color: "var(--text-muted)",
         marginBottom: "0.35rem", letterSpacing: "0.04em",
       }}>
         <span style={{ color: GOOGLE.hex }}>Google {gPct.toFixed(0)}%</span>
@@ -365,7 +365,7 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
         gap: "1rem", minHeight: 200, opacity: 0.5,
       }}>
         <div style={{ fontSize: 28, opacity: 0.4 }}>🍩</div>
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.85rem", margin: 0, textAlign: "center" }}>
+        <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0, textAlign: "center" }}>
           Nenhum dado de plataforma.<br />Importe relatórios para ver a distribuição.
         </p>
       </article>
@@ -383,10 +383,10 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
           <h2 style={{ margin: 0 }}>Investimento por Plataforma</h2>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ color: "#f5f7fb", fontSize: "1.3rem", fontWeight: 800, lineHeight: 1.1 }}>
+          <div style={{ color: "var(--text-primary)", fontSize: "1.3rem", fontWeight: 800, lineHeight: 1.1 }}>
             {brl.format(rolledTotal)}
           </div>
-          <div style={{ color: "rgba(245,247,251,0.38)", fontSize: "0.68rem", fontWeight: 500 }}>
+          <div style={{ color: "var(--text-muted)", fontSize: "0.68rem", fontWeight: 500 }}>
             total geral
           </div>
         </div>
@@ -427,15 +427,15 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
       <div style={{
         marginTop: "0.85rem",
         padding: "0.55rem 0.8rem",
-        background: "rgba(255,255,255,0.025)",
+        background: "var(--hover-bg)",
         borderRadius: 10,
-        border: "1px solid rgba(255,255,255,0.06)",
+        border: "1px solid var(--border-soft)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         gap: "0.4rem",
         fontSize: "0.7rem",
-        color: "rgba(245,247,251,0.5)",
+        color: "var(--text-muted)",
       }}>
         <span style={{
           width: 8, height: 8, borderRadius: "50%",
@@ -444,7 +444,7 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
           display: "inline-block",
         }} />
         <span>
-          <strong style={{ color: "rgba(245,247,251,0.8)", fontWeight: 700 }}>
+          <strong style={{ color: "var(--text-primary)", fontWeight: 700 }}>
             {isDominantGoogle ? "Google Ads" : "Meta Ads"}
           </strong>
           {" lidera o período com "}

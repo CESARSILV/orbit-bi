@@ -165,16 +165,16 @@ export default function Sidebar({
             marginBottom: "14px",
             padding: "10px 12px",
             borderRadius: "12px",
-            background: isLight ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.04)",
-            border: `1px solid ${isLight ? "rgba(15,23,42,0.10)" : "rgba(255,255,255,0.08)"}`,
+            background: "var(--hover-bg)",
+            border: "1px solid var(--border-soft)",
           }}>
             <p style={{
-              fontSize: "0.62rem", fontWeight: 700, color: "var(--muted)",
+              fontSize: "0.62rem", fontWeight: 700, color: "var(--text-muted)",
               textTransform: "uppercase", letterSpacing: "0.09em", margin: "0 0 8px 0",
             }}>Aparência</p>
             <div style={{
               display: "flex",
-              background: isLight ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.06)",
+              background: "var(--border-soft)",
               borderRadius: "9px", padding: "3px", gap: "2px",
             }}>
               <button
@@ -185,7 +185,7 @@ export default function Sidebar({
                   fontSize: "0.74rem", fontWeight: 700,
                   cursor: isLight ? "pointer" : "default",
                   background: !isLight ? "linear-gradient(135deg,rgba(123,183,255,0.18),rgba(91,156,246,0.12))" : "transparent",
-                  color: !isLight ? "var(--blue)" : "var(--muted)",
+                  color: !isLight ? "var(--blue)" : "var(--text-muted)",
                   boxShadow: !isLight ? "0 1px 6px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.08)" : "none",
                   transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)",
                 }} title="Modo Escuro">
@@ -200,7 +200,7 @@ export default function Sidebar({
                   fontSize: "0.74rem", fontWeight: 700,
                   cursor: !isLight ? "pointer" : "default",
                   background: isLight ? "linear-gradient(135deg,rgba(245,158,11,0.15),rgba(251,191,36,0.10))" : "transparent",
-                  color: isLight ? "#b45309" : "var(--muted)",
+                  color: isLight ? "#b45309" : "var(--text-muted)",
                   boxShadow: isLight ? "0 1px 6px rgba(0,0,0,0.10),inset 0 1px 0 rgba(255,255,255,0.7)" : "none",
                   transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)",
                 }} title="Modo Claro">
