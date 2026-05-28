@@ -275,10 +275,68 @@ html[data-theme="light"] .chat-input-wrap input {
 /* ─── Modais ─────────────────────────────────────────────────── */
 html[data-theme="light"] .dedup-modal-box,
 html[data-theme="light"] .clear-modal-box,
-html[data-theme="light"] .wizard-modal {
+html[data-theme="light"] .wizard-modal-box {
   background: #ffffff !important;
   border-color: rgba(15, 23, 42, 0.12) !important;
   box-shadow: 0 20px 60px rgba(15, 23, 42, 0.15) !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .wizard-header {
+  border-bottom-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme="light"] .wizard-steps-indicator {
+  background: rgba(15, 23, 42, 0.02) !important;
+  border-color: rgba(15, 23, 42, 0.06) !important;
+}
+
+html[data-theme="light"] .wizard-step-indicator-item {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .wizard-step-indicator-item.active {
+  color: var(--blue) !important;
+}
+
+html[data-theme="light"] .wizard-step-indicator-item.done {
+  color: var(--green) !important;
+}
+
+html[data-theme="light"] .wizard-step-indicator-item .circle {
+  background: rgba(15, 23, 42, 0.04) !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .wizard-preview-table-container {
+  background: rgba(15, 23, 42, 0.02) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme="light"] .wizard-preview-table th {
+  background: rgba(15, 23, 42, 0.04) !important;
+  border-bottom-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme="light"] .wizard-preview-table td {
+  border-bottom-color: rgba(15, 23, 42, 0.06) !important;
+}
+
+html[data-theme="light"] .wizard-mapping-item,
+html[data-theme="light"] .wizard-template-box {
+  background: rgba(15, 23, 42, 0.02) !important;
+  border-color: rgba(15, 23, 42, 0.06) !important;
+}
+
+html[data-theme="light"] .wizard-mapping-item:hover {
+  background: rgba(15, 23, 42, 0.04) !important;
+}
+
+html[data-theme="light"] .wizard-mapping-select,
+html[data-theme="light"] .wizard-text-input {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.15) !important;
   color: #0f172a !important;
 }
 
