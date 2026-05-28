@@ -79,9 +79,9 @@ export default function Home() {
     const handleScroll = () => {
       const currentScroll = window.scrollY;
       setIsScrolled(prev => {
-        if (currentScroll > 120) {
+        if (currentScroll > 50) {
           return true;
-        } else if (currentScroll < 30) {
+        } else if (currentScroll < 15) {
           return false;
         }
         return prev;

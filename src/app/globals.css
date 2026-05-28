@@ -3874,7 +3874,7 @@ html[data-theme="light"] .action-btn--ghost:hover {
   border: 1px solid var(--line);
   background: var(--panel);
   backdrop-filter: blur(20px);
-  overflow: hidden;
+  overflow: visible;
 }
 html[data-theme="light"] .filter-shell {
   background: rgba(255,255,255,0.88) !important;
@@ -4251,7 +4251,7 @@ html[data-theme="light"] .sidebar-collapse-btn:hover {
 .workspace {
   transition: padding 0.35s cubic-bezier(0.4,0,0.2,1) !important;
   min-width: 0;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* Tooltip para itens collapsed */
@@ -4352,30 +4352,67 @@ html[data-theme="light"] .filter-chip-label:hover .fchip-name svg {
   position: sticky;
   top: 0;
   z-index: 150; /* Garantir sobreposição sobre os gráficos e tabelas */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible; /* Garante que dropdowns nunca sejam cortados */
 }
 
-/* --- FILTROS COMPACTOS (ControlStrip) --- */
+/* Transições suaves para os containers internos e labels */
+.filter-primary-row,
+.filter-advanced-row {
+  transition: padding 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              gap 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filter-chip-label {
+  transition: flex-direction 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              align-items 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              border-radius 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              flex 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filter-chip-label select,
+.filter-chip-label input {
+  transition: background-color 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              font-size 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- FILTROS COMPACTOS FLUTUANTES (ControlStrip) --- */
 .filter-shell.filter-shell--compact {
-  top: 8px; /* Efeito flutuante (floating card) no topo */
+  top: 10px; /* Efeito flutuante (floating card) no topo com margem elegante */
   margin-bottom: 0;
   border-radius: 12px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  background: rgba(15, 20, 32, 0.85) !important;
-  backdrop-filter: blur(20px) !important;
+  /* Glassmorphism Dark Theme Premium */
+  background: rgba(10, 15, 30, 0.75) !important;
+  backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
 html[data-theme="light"] .filter-shell.filter-shell--compact {
-  background: rgba(255, 255, 255, 0.90) !important;
-  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+  /* Glassmorphism Light Theme Premium */
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
 }
 
-/* Oculta o cabeçalho de filtros original no modo compacto */
+/* Oculta o cabeçalho de filtros original no modo compacto para economizar espaço vertical */
 .filter-shell--compact .filter-toprow {
   display: none !important;
 }
 
-/* Transforma a linha de filtros primária em chips horizontais elegantes */
+/* Transforma a linha de filtros primária em chips horizontais compactos */
 .filter-shell--compact .filter-primary-row {
   padding: 8px 16px;
   align-items: center;
@@ -4390,7 +4427,6 @@ html[data-theme="light"] .filter-shell.filter-shell--compact {
   border: 1px solid rgba(255, 255, 255, 0.06);
   padding: 4px 10px;
   border-radius: 8px;
-  transition: all 0.2s ease;
 }
 
 html[data-theme="light"] .filter-shell--compact .filter-chip-label {
@@ -4432,7 +4468,7 @@ html[data-theme="light"] .filter-shell--compact .filter-chip-label:hover {
   min-width: 110px;
 }
 
-/* Gerenciamento dos botões de ação inline */
+/* Gerenciamento dos botões de ação inline no modo compacto */
 .filter-inline-actions {
   display: none;
   margin-left: auto;
@@ -4455,10 +4491,17 @@ html[data-theme="light"] .filter-shell--compact .filter-chip-label:hover {
   background: rgba(255, 255, 255, 0.04);
 }
 
+/* Estilo do painel avançado expandido no modo compacto */
 .filter-shell--compact .filter-advanced-row--open {
   padding: 8px 16px;
   gap: 8px;
   background: rgba(5, 7, 13, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+html[data-theme="light"] .filter-shell--compact .filter-advanced-row--open {
+  background: rgba(15, 23, 42, 0.03) !important;
+  border-top-color: rgba(15, 23, 42, 0.05) !important;
 }
 
 .filter-shell--compact .filter-advanced-row .filter-chip-label {
@@ -4469,6 +4512,59 @@ html[data-theme="light"] .filter-shell--compact .filter-chip-label:hover {
   border: 1px solid rgba(255, 255, 255, 0.06);
   padding: 4px 10px;
   border-radius: 8px;
+}
+
+/* Responsividade: barra horizontal scrollável no mobile/tablet quando compacta */
+@media (max-width: 1024px) {
+  .filter-shell--compact .filter-primary-row {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    padding: 8px 12px !important;
+    gap: 8px !important;
+    scrollbar-width: none; /* Firefox */
+  }
+  .filter-shell--compact .filter-primary-row::-webkit-scrollbar {
+    display: none; /* Safari e Chrome */
+  }
+  .filter-shell--compact .filter-chip-label {
+    flex: 0 0 auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    padding: 4px 10px !important;
+  }
+  .filter-shell--compact .filter-chip-label select,
+  .filter-shell--compact .filter-chip-label input {
+    min-width: 80px !important;
+    max-width: 140px !important;
+    width: auto !important;
+  }
+  .filter-shell--compact .filter-inline-actions {
+    flex-shrink: 0 !important;
+    margin-left: 4px !important;
+  }
+
+  .filter-shell--compact .filter-advanced-row--open {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    padding: 8px 12px !important;
+    gap: 8px !important;
+    scrollbar-width: none;
+  }
+  .filter-shell--compact .filter-advanced-row--open::-webkit-scrollbar {
+    display: none;
+  }
+  .filter-shell--compact .filter-advanced-row .filter-chip-label {
+    flex: 0 0 auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    padding: 4px 10px !important;
+  }
 }
 
 /* Sidebar placeholder no grid */
