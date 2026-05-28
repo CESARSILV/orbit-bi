@@ -151,9 +151,19 @@ export default function HistoricalChart({ timeline }) {
     const cplMedio    = totalLeads > 0 ? totalInvest / totalLeads : 0;
     const byTotal = data.map(d => ({ mes: d.mes, total: (d.google || 0) + (d.meta || 0), leads: d.leads || 0 }));
     const bestMonth = byTotal.reduce((best, d) => d.leads > best.leads ? d : best, byTotal[0]);
-    const first = (data[0].google || 0) + (data[0].meta || 0);
-    const last  = (data[data.length - 1].google || 0) + (data[data.length - 1].meta || 0);
-    const growth = first > 0 ? ((last - first) / first) * 100 : 0;
+    const firstSpend = (data[0].google || 0) + (data[0].meta || 0);
+    const firstLeads = data[0].leads || 0;
+    const firstCpl   = firstLeads > 0 ? firstSpend / firstLeads : 0;
+
+    const lastSpend  = (data[data.length - 1].google || 0) + (data[data.length - 1].meta || 0);
+    const lastLeads  = data[data.length - 1].leads || 0;
+    const lastCpl    = lastLeads > 0 ? lastSpend / lastLeads : 0;
+
+    // Eficiência do CPL: CPL menor é melhor.
+    const growth = (firstCpl > 0 && lastCpl > 0)
+      ? ((firstCpl - lastCpl) / firstCpl) * 100
+      : 0;
+
     return { totalInvest, totalLeads, cplMedio, bestMonth, growth };
   }, [data]);
 
@@ -283,7 +293,7 @@ export default function HistoricalChart({ timeline }) {
 
   if (!kpis) return null;
 
-  const growthColor = kpis.growth >= 0 ? C.meta : "#F87171";
+  const growthColor = kpis.growth >= 0 ? C.leads : "#F87171";
   const growthLabel = kpis.growth >= 0 ? `▲ ${pctFmt(kpis.growth)}` : `▼ ${pctFmt(kpis.growth)}`;
 
   return (
@@ -322,7 +332,7 @@ export default function HistoricalChart({ timeline }) {
         <KpiMini label="Leads Totais"    value={num.format(kpis.totalLeads)}  accent={C.leads}  sub="Todos os canais" />
         <KpiMini label="CPL Médio"       value={brl2.format(kpis.cplMedio)}   accent={C.meta}   sub="Custo por lead" />
         <KpiMini label="Melhor Mês"      value={kpis.bestMonth?.mes?.split("/")[0] ?? "—"} accent={C.leads} sub={`${num.format(kpis.bestMonth?.leads || 0)} leads`} />
-        <KpiMini label="Crescimento"     value={growthLabel}                  accent={growthColor} sub="Primeiro vs último mês" />
+        <KpiMini label="Eficiência CPL"  value={growthLabel}                  accent={growthColor} sub="Primeiro vs último mês" />
       </div>
 
       {/* ── Gráfico ECharts ───────────────────────────────────────────────── */}
