@@ -88,9 +88,9 @@ export default function CampaignTable({ campaigns }) {
                     <td>
                       <span style={{
                         display: "inline-block",
-                        padding: "0.2rem 0.55rem",
+                        padding: "4px 10px",
                         borderRadius: 99,
-                        fontSize: "0.72rem",
+                        fontSize: "var(--fs-caption)",
                         fontWeight: 700,
                         letterSpacing: "0.03em",
                         background: badge.bg,
@@ -121,9 +121,9 @@ export default function CampaignTable({ campaigns }) {
             border: "none",
             borderTop: "1px solid var(--border-soft)",
             color: "var(--text-muted)",
-            fontSize: "0.8rem",
+            fontSize: "var(--fs-secondary)",
             fontWeight: 600,
-            padding: "0.75rem 1.25rem",
+            padding: "var(--space-sm) var(--space-md)",
             cursor: "pointer",
             transition: "all 0.2s ease",
             letterSpacing: "0.02em",
@@ -137,7 +137,7 @@ export default function CampaignTable({ campaigns }) {
               display: "inline-block",
               transition: "transform 0.25s ease",
               transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-              fontSize: "0.75rem",
+              fontSize: "var(--fs-caption)",
             }}
           >
             ▾

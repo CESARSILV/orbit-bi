@@ -191,13 +191,13 @@ function ScoreBadge({ score, hex, rgb }) {
       borderRadius: 10, padding: "8px 12px",
       minWidth: 64,
     }}>
-      <span style={{ fontSize: 18, fontWeight: 900, color: hex, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+      <span style={{ fontSize: "var(--fs-title-md)", fontWeight: 900, color: hex, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
         {displayed}
       </span>
-      <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+      <span style={{ fontSize: "var(--fs-small)", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
         Score
       </span>
-      <span style={{ fontSize: 9, fontWeight: 700, color: tierColor }}>
+      <span style={{ fontSize: "var(--fs-small)", fontWeight: 700, color: tierColor }}>
         {tier}
       </span>
     </div>
@@ -286,13 +286,13 @@ function MetricPill({ label, value, hex, rgb, highlight }) {
       transition: "all 0.3s ease",
     }}>
       <span style={{
-        fontSize: 10, fontWeight: 700, color: "var(--text-muted)",
+        fontSize: "var(--fs-caption)", fontWeight: 700, color: "var(--text-muted)",
         letterSpacing: "0.06em", textTransform: "uppercase",
       }}>
         {label}
       </span>
       <span style={{
-        fontSize: 13, fontWeight: 800,
+        fontSize: "var(--fs-body)", fontWeight: 800,
         color: highlight ? hex : "var(--text-secondary)",
         lineHeight: 1.1,
       }}>
@@ -406,12 +406,12 @@ function DeviceCard({ deviceKey, data, totalInvest, allData, rank, isDominant })
           </div>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 15, fontWeight: 800, color: "var(--text-primary)" }}>
+              <span style={{ fontSize: "var(--fs-body)", fontWeight: 800, color: "var(--text-primary)" }}>
                 {cfg.label}
               </span>
               {isDominant && (
                 <span style={{
-                  fontSize: 9, fontWeight: 800, letterSpacing: "0.07em",
+                  fontSize: "var(--fs-small)", fontWeight: 800, letterSpacing: "0.07em",
                   padding: "2px 7px", borderRadius: 99,
                   background: `rgba(${cfg.rgb},0.2)`,
                   border: `1px solid rgba(${cfg.rgb},0.4)`,
@@ -422,7 +422,7 @@ function DeviceCard({ deviceKey, data, totalInvest, allData, rank, isDominant })
                 </span>
               )}
             </div>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>
+            <span style={{ fontSize: "var(--fs-secondary)", color: "var(--text-muted)", fontWeight: 500 }}>
               {cfg.sublabel}
             </span>
           </div>
@@ -447,20 +447,20 @@ function DeviceCard({ deviceKey, data, totalInvest, allData, rank, isDominant })
             alignItems: "center", justifyContent: "center",
             gap: 1,
           }}>
-            <span style={{ fontSize: 15, fontWeight: 900, color: "var(--text-primary)", lineHeight: 1 }}>
+            <span style={{ fontSize: "var(--fs-body)", fontWeight: 900, color: "var(--text-primary)", lineHeight: 1 }}>
               {(data.percent || 0).toFixed(0)}%
             </span>
-            <span style={{ fontSize: 8, color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            <span style={{ fontSize: "var(--fs-small)", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
               share
             </span>
           </div>
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 22, fontWeight: 900, color: "var(--text-primary)", lineHeight: 1, marginBottom: 2 }}>
+          <div style={{ fontSize: "var(--fs-title-lg)", fontWeight: 900, color: "var(--text-primary)", lineHeight: 1, marginBottom: 2 }}>
             {brl.format(data.invest || 0)}
           </div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>
+          <div style={{ fontSize: "var(--fs-secondary)", color: "var(--text-muted)", marginBottom: 8 }}>
             Investimento total
           </div>
           {/* Barra de progresso premium */}
@@ -497,10 +497,10 @@ function DeviceCard({ deviceKey, data, totalInvest, allData, rank, isDominant })
         background: "var(--hover-bg)",
         border: "1px solid var(--border-soft)",
       }}>
-        <span style={{ fontSize: 11, color: cfg.hex, fontWeight: 700 }}>
+        <span style={{ fontSize: "var(--fs-secondary)", color: cfg.hex, fontWeight: 700 }}>
           {rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉"} #{rank} em volume
         </span>
-        <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-muted)", fontWeight: 600 }}>
+        <span style={{ marginLeft: "auto", fontSize: "var(--fs-caption)", color: "var(--text-muted)", fontWeight: 600 }}>
           {shareLabel} do investimento
         </span>
       </div>
@@ -517,12 +517,12 @@ function InsightChip({ icon, text, accent }) {
       borderRadius: 9,
       background: "var(--hover-bg)",
       border: "1px solid var(--border-soft)",
-      fontSize: 12,
+      fontSize: "var(--fs-secondary)",
       color: "var(--text-secondary)",
       lineHeight: 1.4,
       transition: "background 0.2s ease",
     }}>
-      <span style={{ fontSize: 14, flexShrink: 0 }}>{icon}</span>
+      <span style={{ fontSize: "var(--fs-body)", flexShrink: 0 }}>{icon}</span>
       <span dangerouslySetInnerHTML={{ __html: text }} />
     </div>
   );
@@ -681,12 +681,12 @@ export default function DeviceChart({ deviceData }) {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22 }}>
         <div>
           <p style={{
-            margin: "0 0 4px", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em",
+            margin: "0 0 4px", fontSize: "var(--fs-caption)", fontWeight: 700, letterSpacing: "0.1em",
             textTransform: "uppercase", color: "var(--text-muted)",
           }}>
             Centro de Inteligência
           </p>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.3px" }}>
+          <h2 style={{ margin: 0, fontSize: "var(--fs-title-md)", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.3px" }}>
             Desempenho por Dispositivo
           </h2>
         </div>
@@ -694,7 +694,7 @@ export default function DeviceChart({ deviceData }) {
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {isDataAvailable ? (
             <span style={{
-              fontSize: 11, fontWeight: 700,
+              fontSize: "var(--fs-caption)", fontWeight: 700,
               padding: "4px 10px", borderRadius: 99,
               background: "rgba(34,197,94,0.12)",
               border: "1px solid rgba(34,197,94,0.25)",
@@ -705,7 +705,7 @@ export default function DeviceChart({ deviceData }) {
             </span>
           ) : (
             <span style={{
-              fontSize: 11, fontWeight: 700,
+              fontSize: "var(--fs-caption)", fontWeight: 700,
               padding: "4px 10px", borderRadius: 99,
               background: "var(--hover-bg)",
               border: "1px solid var(--border-soft)",
@@ -727,10 +727,10 @@ export default function DeviceChart({ deviceData }) {
         }}>
           <div style={{ fontSize: 44, opacity: 0.25 }}>📱</div>
           <div>
-            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
+            <p style={{ margin: "0 0 6px", fontSize: "var(--fs-body)", fontWeight: 700, color: "var(--text-primary)" }}>
               Relatório de Dispositivos necessário
             </p>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, maxWidth: 380 }}>
+            <p style={{ margin: 0, fontSize: "var(--fs-secondary)", color: "var(--text-muted)", lineHeight: 1.6, maxWidth: 380 }}>
               No Google Ads: <strong style={{ color: "var(--text-secondary)" }}>Relatórios → Segmentação → Dispositivo</strong><br />
               Exporte e importe o CSV para visualizar dados analíticos por dispositivo.
             </p>
@@ -764,7 +764,7 @@ export default function DeviceChart({ deviceData }) {
           {insights.length > 0 && (
             <div>
               <p style={{
-                margin: "0 0 10px", fontSize: 11, fontWeight: 700,
+                margin: "0 0 10px", fontSize: "var(--fs-caption)", fontWeight: 700,
                 color: "var(--text-muted)", letterSpacing: "0.08em",
                 textTransform: "uppercase",
               }}>

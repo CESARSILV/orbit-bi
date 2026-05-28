@@ -153,22 +153,22 @@ function PlatformCard({ platform, value, percent, total, activeCampaigns, totalC
       transition: `opacity 0.5s ease ${delay}ms, transform 0.5s cubic-bezier(0.34,1.4,0.64,1) ${delay}ms`,
     }}>
       {/* ── Ring + percentual ───────────────────────────────────────── */}
-      <div style={{ position: "relative", marginBottom: "0.8rem" }}>
+      <div style={{ position: "relative", marginBottom: "var(--space-xs)" }}>
         <Ring pct={percent} color={color} size={68} stroke={5} />
         <div style={{
           position: "absolute", inset: 0,
           display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
         }}>
-          <span style={{ fontSize: "0.95rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>
+          <span style={{ fontSize: "var(--fs-body)", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>
             {rolledPct}%
           </span>
         </div>
       </div>
 
       {/* ── Valor principal ─────────────────────────────────────────── */}
-      <div style={{ textAlign: "center", marginBottom: "1rem" }}>
-        <div style={{ fontSize: "1.15rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.1 }}>
+      <div style={{ textAlign: "center", marginBottom: "var(--space-sm)" }}>
+        <div style={{ fontSize: "var(--fs-title-md)", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.1 }}>
           {brl.format(rolledVal)}
         </div>
 
@@ -176,14 +176,14 @@ function PlatformCard({ platform, value, percent, total, activeCampaigns, totalC
         <div style={{
           display: "inline-flex", alignItems: "center", gap: "0.2rem",
           marginTop: "0.3rem",
-          fontSize: "0.72rem", fontWeight: 700,
+          fontSize: "var(--fs-caption)", fontWeight: 700,
           color: isPositive ? "#34D399" : "#F87171",
           background: isPositive ? "rgba(52,211,153,0.10)" : "rgba(248,113,113,0.10)",
           border: `1px solid ${isPositive ? "rgba(52,211,153,0.18)" : "rgba(248,113,113,0.18)"}`,
           borderRadius: 99, padding: "0.12rem 0.5rem",
           transition: "all 0.4s ease",
         }}>
-          <span style={{ fontSize: "0.65rem" }}>{isPositive ? "▲" : "▼"}</span>
+          <span style={{ fontSize: "var(--fs-small)" }}>{isPositive ? "▲" : "▼"}</span>
           {Math.abs(delta).toFixed(1).replace(".", ",")}%
         </div>
       </div>
@@ -246,19 +246,19 @@ function PlatformCard({ platform, value, percent, total, activeCampaigns, totalC
       }} />
 
       {/* ── Label inferior ──────────────────────────────────────────── */}
-      <div style={{ marginTop: "0.7rem", textAlign: "center" }}>
+      <div style={{ marginTop: "var(--space-sm)", textAlign: "center" }}>
         <div style={{
           color,
-          fontSize: "0.72rem", fontWeight: 700,
+          fontSize: "var(--fs-caption)", fontWeight: 700,
           letterSpacing: "0.07em", textTransform: "uppercase",
           textShadow: `0 0 12px rgba(${rgb},0.6)`,
           display: "flex", alignItems: "center", gap: "0.3rem", justifyContent: "center",
         }}>
-          {isDominant && <span style={{ fontSize: "0.6rem" }}>★</span>}
+          {isDominant && <span style={{ fontSize: "var(--fs-small)" }}>★</span>}
           {label}
         </div>
         <div style={{
-          color: "var(--text-muted)", fontSize: "0.64rem", marginTop: "0.2rem",
+          color: "var(--text-muted)", fontSize: "var(--fs-small)", marginTop: "0.2rem",
         }}>
           {totalCampaigns > 0
             ? activeCampaigns === totalCampaigns
@@ -287,10 +287,10 @@ function DominanceBar({ googlePct, metaPct }) {
   }, [googlePct]);
 
   return (
-    <div style={{ marginTop: "1.2rem", padding: "0 0.25rem" }}>
+    <div style={{ marginTop: "var(--space-md)", padding: "0 0.25rem" }}>
       <div style={{
         display: "flex", justifyContent: "space-between",
-        fontSize: "0.65rem", fontWeight: 600,
+        fontSize: "var(--fs-small)", fontWeight: 600,
         color: "var(--text-muted)",
         marginBottom: "0.35rem", letterSpacing: "0.04em",
       }}>
@@ -362,10 +362,10 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
       <article className="chart-panel" style={{
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        gap: "1rem", minHeight: 200, opacity: 0.5,
+        gap: "var(--space-sm)", minHeight: 200, opacity: 0.5,
       }}>
         <div style={{ fontSize: 28, opacity: 0.4 }}>🍩</div>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0, textAlign: "center" }}>
+        <p style={{ color: "var(--text-muted)", fontSize: "var(--fs-secondary)", margin: 0, textAlign: "center" }}>
           Nenhum dado de plataforma.<br />Importe relatórios para ver a distribuição.
         </p>
       </article>
@@ -377,16 +377,16 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
     <article className="chart-panel" style={{ display: "flex", flexDirection: "column" }}>
 
       {/* ── Header ───────────────────────────────────────────────────── */}
-      <div className="panel-heading" style={{ marginBottom: "1.25rem" }}>
+      <div className="panel-heading" style={{ marginBottom: "var(--space-sm)" }}>
         <div>
           <p className="eyebrow">Distribuição</p>
           <h2 style={{ margin: 0 }}>Investimento por Plataforma</h2>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ color: "var(--text-primary)", fontSize: "1.3rem", fontWeight: 800, lineHeight: 1.1 }}>
+          <div style={{ color: "var(--text-primary)", fontSize: "var(--fs-title-lg)", fontWeight: 800, lineHeight: 1.1 }}>
             {brl.format(rolledTotal)}
           </div>
-          <div style={{ color: "var(--text-muted)", fontSize: "0.68rem", fontWeight: 500 }}>
+          <div style={{ color: "var(--text-muted)", fontSize: "var(--fs-caption)", fontWeight: 500 }}>
             total geral
           </div>
         </div>
@@ -425,7 +425,7 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
 
       {/* ── Legenda de dominância ────────────────────────────────────── */}
       <div style={{
-        marginTop: "0.85rem",
+        marginTop: "var(--space-sm)",
         padding: "0.55rem 0.8rem",
         background: "var(--hover-bg)",
         borderRadius: 10,
@@ -434,7 +434,7 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
         alignItems: "center",
         justifyContent: "center",
         gap: "0.4rem",
-        fontSize: "0.7rem",
+        fontSize: "var(--fs-secondary)",
         color: "var(--text-muted)",
       }}>
         <span style={{

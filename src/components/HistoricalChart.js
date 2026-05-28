@@ -106,14 +106,14 @@ function KpiMini({ label, value, accent, sub }) {
         position: "absolute", top: 0, left: 0, right: 0, height: 1,
         background: `linear-gradient(90deg, transparent, ${accent}55, transparent)`,
       }} />
-      <span style={{ fontSize: "0.7rem", fontWeight: 600, color: C.muted, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+      <span style={{ fontSize: "var(--fs-caption)", fontWeight: 600, color: C.muted, letterSpacing: "0.06em", textTransform: "uppercase" }}>
         {label}
       </span>
-      <span style={{ fontSize: "1.25rem", fontWeight: 800, color: C.text, lineHeight: 1.2 }}>
+      <span style={{ fontSize: "var(--fs-title-md)", fontWeight: 800, color: C.text, lineHeight: 1.2 }}>
         {value}
       </span>
       {sub && (
-        <span style={{ fontSize: "0.72rem", color: accent, fontWeight: 600 }}>
+        <span style={{ fontSize: "var(--fs-secondary)", color: accent, fontWeight: 600 }}>
           {sub}
         </span>
       )}
@@ -125,6 +125,19 @@ function KpiMini({ label, value, accent, sub }) {
 export default function HistoricalChart({ timeline }) {
   const C = usePalette();
   const containerRef = useRef(null);
+  const [width, setWidth] = useState(800);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      if (entries[0]) {
+        setWidth(entries[0].contentRect.width);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const data = useMemo(() => {
     if (timeline && timeline.length >= 1) return timeline;
@@ -160,6 +173,9 @@ export default function HistoricalChart({ timeline }) {
     const leadsV  = data.map(d => d.leads  || 0);
     const maxInvest = Math.max(...googleV.map((g, i) => g + metaV[i]), 1) * 1.35;
     const maxLeads  = Math.max(...leadsV, 1) * 1.35;
+
+    const scale = Math.min(Math.max(width / 1200, 0.85), 1.25);
+    const chartFontSize = Math.round(10.5 * scale);
 
     return {
       backgroundColor: "transparent",
@@ -212,7 +228,7 @@ export default function HistoricalChart({ timeline }) {
         data: months,
         axisLine:  { lineStyle: { color: C.border } },
         axisTick:  { show: false },
-        axisLabel: { color: C.muted, fontFamily: "Inter, sans-serif", fontSize: 10.5, margin: 14, interval: 0 },
+        axisLabel: { color: C.muted, fontFamily: "Inter, sans-serif", fontSize: chartFontSize, margin: 14, interval: 0 },
         splitLine: { show: false },
       },
       yAxis: [
@@ -220,12 +236,12 @@ export default function HistoricalChart({ timeline }) {
           type: "value", name: "", max: maxInvest, min: 0, splitNumber: 4,
           axisLine: { show: false }, axisTick: { show: false },
           splitLine: { lineStyle: { color: C.gridCol, type: "dashed" } },
-          axisLabel: { color: C.muted, fontFamily: "Inter, sans-serif", fontSize: 10.5, formatter: (v) => brl.format(v) },
+          axisLabel: { color: C.muted, fontFamily: "Inter, sans-serif", fontSize: chartFontSize, formatter: (v) => brl.format(v) },
         },
         {
           type: "value", name: "", max: maxLeads, min: 0, splitNumber: 4,
           axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
-          axisLabel: { color: "rgba(16,185,129,0.6)", fontFamily: "Inter, sans-serif", fontSize: 10.5, formatter: (v) => num.format(Math.round(v)) },
+          axisLabel: { color: "rgba(16,185,129,0.6)", fontFamily: "Inter, sans-serif", fontSize: chartFontSize, formatter: (v) => num.format(Math.round(v)) },
         },
       ],
       series: [
@@ -248,7 +264,7 @@ export default function HistoricalChart({ timeline }) {
         },
       ],
     };
-  }, [data, growthByMonth, C]);
+  }, [data, growthByMonth, C, width]);
 
   if (!data || data.length === 0) {
     return (
@@ -258,7 +274,7 @@ export default function HistoricalChart({ timeline }) {
         style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem", padding: "2.5rem", minHeight: 280, opacity: 0.5 }}
       >
         <div style={{ fontSize: 32, opacity: 0.4 }}>📊</div>
-        <p style={{ color: C.muted, fontSize: "0.88rem", margin: 0, textAlign: "center" }}>
+        <p style={{ color: C.muted, fontSize: "var(--fs-secondary)", margin: 0, textAlign: "center" }}>
           Nenhum dado importado ainda.<br />Importe um relatório para visualizar o histórico de investimento.
         </p>
       </article>
@@ -289,7 +305,7 @@ export default function HistoricalChart({ timeline }) {
             { color: C.meta,   label: "Meta Ads",    shape: "rect"  },
             { color: C.leads,  label: "Total Leads", shape: "circle"},
           ].map(s => (
-            <span key={s.label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: C.muted, fontWeight: 500 }}>
+            <span key={s.label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "var(--fs-caption)", color: C.muted, fontWeight: 500 }}>
               {s.shape === "rect"
                 ? <span style={{ width: 12, height: 12, borderRadius: 3, background: s.color, display: "inline-block", boxShadow: `0 0 6px ${s.color}55` }} />
                 : <span style={{ width: 10, height: 10, borderRadius: "50%", background: s.color, display: "inline-block", boxShadow: `0 0 6px ${s.color}88` }} />

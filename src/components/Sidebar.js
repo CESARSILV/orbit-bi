@@ -169,7 +169,7 @@ export default function Sidebar({
             border: "1px solid var(--border-soft)",
           }}>
             <p style={{
-              fontSize: "0.62rem", fontWeight: 700, color: "var(--text-muted)",
+              fontSize: "var(--fs-small)", fontWeight: 700, color: "var(--text-muted)",
               textTransform: "uppercase", letterSpacing: "0.09em", margin: "0 0 8px 0",
             }}>Aparência</p>
             <div style={{
@@ -182,7 +182,7 @@ export default function Sidebar({
                 style={{
                   flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
                   gap: "5px", padding: "7px 6px", border: "none", borderRadius: "7px",
-                  fontSize: "0.74rem", fontWeight: 700,
+                  fontSize: "var(--fs-caption)", fontWeight: 700,
                   cursor: isLight ? "pointer" : "default",
                   background: !isLight ? "linear-gradient(135deg,rgba(123,183,255,0.18),rgba(91,156,246,0.12))" : "transparent",
                   color: !isLight ? "var(--blue)" : "var(--text-muted)",
@@ -197,7 +197,7 @@ export default function Sidebar({
                 style={{
                   flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
                   gap: "5px", padding: "7px 6px", border: "none", borderRadius: "7px",
-                  fontSize: "0.74rem", fontWeight: 700,
+                  fontSize: "var(--fs-caption)", fontWeight: 700,
                   cursor: !isLight ? "pointer" : "default",
                   background: isLight ? "linear-gradient(135deg,rgba(245,158,11,0.15),rgba(251,191,36,0.10))" : "transparent",
                   color: isLight ? "#b45309" : "var(--text-muted)",
@@ -219,7 +219,7 @@ export default function Sidebar({
               display: "flex", alignItems: "center", justifyContent: "center",
               width: "100%", padding: "9px", border: "1px solid var(--line)",
               borderRadius: "10px", background: "var(--hover-bg)",
-              cursor: "pointer", fontSize: "16px",
+              cursor: "pointer", fontSize: "var(--fs-body)",
               transition: "all 0.22s ease",
             }}
           >
@@ -232,7 +232,7 @@ export default function Sidebar({
           <div style={{
             padding: "12px", borderRadius: "var(--radius)",
             background: "rgba(255,255,255,0.05)", border: "1px solid var(--line)",
-            fontSize: "0.82rem", display: "flex", flexDirection: "column", gap: "8px",
+            fontSize: "var(--fs-secondary)", display: "flex", flexDirection: "column", gap: "8px",
             marginBottom: "12px",
           }}>
             <div style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", color: "var(--soft)", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -243,7 +243,7 @@ export default function Sidebar({
               <button onClick={onSignOut} style={{
                 background: "rgba(255,125,143,0.15)", color: "var(--red)",
                 border: "1px solid rgba(255,125,143,0.3)", borderRadius: "var(--radius)",
-                padding: "6px", width: "100%", fontSize: "0.76rem",
+                padding: "6px", width: "100%", fontSize: "var(--fs-caption)",
                 fontWeight: "bold", textAlign: "center",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                 cursor: "pointer",

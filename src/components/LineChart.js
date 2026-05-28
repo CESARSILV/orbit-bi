@@ -55,12 +55,15 @@ export default function LineChart({ timeline }) {
     const textMuted = getCssVar("--text-muted", "rgba(245,247,251,0.38)");
     const gridColor = getCssVar("--chart-grid", "rgba(255,255,255,0.055)");
     const axisColor = getCssVar("--chart-axis", "rgba(245,247,251,0.38)");
-    const labelColor = getCssVar("--chart-label", "rgba(245,247,251,0.52)");
+    const getAdaptiveFontSize = (baseSize) => {
+      const scale = Math.min(Math.max(W / 1200, 0.85), 1.25);
+      return `${Math.round(baseSize * scale)}px`;
+    };
 
     // ── sem dados ────────────────────────────────────────────────────────────
     if (!data || data.length === 0) {
       ctx.fillStyle   = textMuted;
-      ctx.font        = "13px Inter, sans-serif";
+      ctx.font        = getAdaptiveFontSize(13) + " Inter, sans-serif";
       ctx.textAlign   = "center";
       ctx.textBaseline = "middle";
       ctx.fillText("Nenhum dado histórico disponível", W / 2, H / 2);
@@ -90,7 +93,7 @@ export default function LineChart({ timeline }) {
 
     // ── eixo Y esquerdo (Investimento R$) ─────────────────────────────────────
     ctx.fillStyle  = axisColor;
-    ctx.font       = "10px Inter, sans-serif";
+    ctx.font       = getAdaptiveFontSize(10) + " Inter, sans-serif";
     ctx.textAlign  = "right";
     ctx.textBaseline = "middle";
     for (let i = 0; i <= 4; i++) {
@@ -110,7 +113,7 @@ export default function LineChart({ timeline }) {
 
     // ── rótulos eixo X ────────────────────────────────────────────────────────
     ctx.fillStyle    = labelColor;
-    ctx.font         = "10px Inter, sans-serif";
+    ctx.font         = getAdaptiveFontSize(10) + " Inter, sans-serif";
     ctx.textAlign    = "center";
     ctx.textBaseline = "top";
 
@@ -240,7 +243,7 @@ export default function LineChart({ timeline }) {
           {SERIES.map(s => (
             <span key={s.key} style={{
               display: "flex", alignItems: "center", gap: "0.35rem",
-              fontSize: "0.78rem", color: "var(--text-secondary)", fontWeight: 500
+              fontSize: "var(--fs-caption)", color: "var(--text-secondary)", fontWeight: 500
             }}>
               <span style={{
                 display: "inline-block", width: s.key === "leads" ? 20 : 28,
@@ -280,7 +283,7 @@ export default function LineChart({ timeline }) {
             boxShadow: "var(--shadow-medium)",
             borderRadius: 8,
             padding: "0.55rem 0.85rem",
-            fontSize: "0.78rem",
+            fontSize: "var(--fs-secondary)",
             lineHeight: 1.75,
             pointerEvents: "none",
             zIndex: 20,
