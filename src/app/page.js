@@ -69,7 +69,9 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setIsSidebarCollapsed(localStorage.getItem("orbit-sidebar-collapsed") === "true");
+      setTimeout(() => {
+        setIsSidebarCollapsed(localStorage.getItem("orbit-sidebar-collapsed") === "true");
+      }, 0);
     }
   }, []);
 
@@ -100,6 +102,14 @@ export default function Home() {
   const [showToast, setShowToast] = useState(false);
   // A-01 FIX: Timer ID stored in useRef instead of useState to avoid unnecessary re-renders
   const toastTimerRef = useRef(null);
+
+  // A-01 FIX: Use ref for timer ID — no re-render triggered
+  const triggerToast = (message) => {
+    setToastMessage(message);
+    setShowToast(true);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setShowToast(false), 3200);
+  };
   
   // File upload management states
   const [files, setFiles] = useState([]);
@@ -254,15 +264,20 @@ export default function Home() {
         const fixedDb = { ...loadedDb, fact_campaigns: deduped };
         const consolidated = consolidateSummary(fixedDb);
         saveDatabase(consolidated);
-        setMarketingDb(consolidated);
-        triggerToast(`✅ Auto-correção: dados normalizados (${totalRemoved} registros inválidos removidos).`);
+        setTimeout(() => {
+          setMarketingDb(consolidated);
+          triggerToast(`✅ Auto-correção: dados normalizados (${totalRemoved} registros inválidos removidos).`);
+        }, 0);
       } else {
-        setMarketingDb(loadedDb);
+        setTimeout(() => {
+          setMarketingDb(loadedDb);
+        }, 0);
       }
     } else {
-      setMarketingDb(loadedDb);
+      setTimeout(() => {
+        setMarketingDb(loadedDb);
+      }, 0);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // roda APENAS no mount inicial
 
   useEffect(() => {
@@ -273,14 +288,6 @@ export default function Home() {
       clearTimeout(timerEnd);
     };
   }, [platform, period, startDate, endDate, campaign, device, gender, age, network, keyword, searchTerm]);
-
-  // A-01 FIX: Use ref for timer ID — no re-render triggered
-  const triggerToast = (message) => {
-    setToastMessage(message);
-    setShowToast(true);
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setShowToast(false), 3200);
-  };
 
   // Auth setup and Session check
   useEffect(() => {
@@ -2280,7 +2287,7 @@ export default function Home() {
                 <ol style={{ color: "var(--text-muted)", fontSize: "0.78rem", lineHeight: 1.8, paddingLeft: "20px", margin: "4px 0 0" }}>
                   <li>Acesse o <strong style={{ color: "var(--text)" }}>Gerenciador de Anúncios do Meta</strong></li>
                   <li>Clique em <strong style={{ color: "var(--text)" }}>Relatórios</strong> → <strong style={{ color: "var(--text)" }}>Exportar tabela como CSV</strong></li>
-                  <li>Em <strong style={{ color: "var(--text)" }}>Detalhamento</strong>, selecione <strong style={{ color: "#7cf7be" }}>"Tempo → Mês"</strong> ou <strong style={{ color: "#7cf7be" }}>"Tempo → Dia"</strong></li>
+                  <li>Em <strong style={{ color: "var(--text)" }}>Detalhamento</strong>, selecione <strong style={{ color: "#7cf7be" }}>&quot;Tempo → Mês&quot;</strong> ou <strong style={{ color: "#7cf7be" }}>&quot;Tempo → Dia&quot;</strong></li>
                   <li>Exporte e importe aqui — cada linha terá o mês real com seus dados</li>
                 </ol>
               </div>

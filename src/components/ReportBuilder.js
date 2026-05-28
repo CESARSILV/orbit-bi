@@ -221,10 +221,12 @@ export default function ReportBuilder({
   useEffect(() => {
     const prefs = loadPrefs();
     if (prefs) {
-      if (prefs.selectedKpis) setSelectedKpis(prefs.selectedKpis);
-      if (prefs.clientName) setClientName(prefs.clientName);
-      if (prefs.highlight !== undefined) setHighlight(prefs.highlight);
-      if (prefs.saveAsDefault !== undefined) setSaveAsDefault(prefs.saveAsDefault);
+      setTimeout(() => {
+        if (prefs.selectedKpis) setSelectedKpis(prefs.selectedKpis);
+        if (prefs.clientName) setClientName(prefs.clientName);
+        if (prefs.highlight !== undefined) setHighlight(prefs.highlight);
+        if (prefs.saveAsDefault !== undefined) setSaveAsDefault(prefs.saveAsDefault);
+      }, 0);
     }
   }, []);
 
@@ -247,7 +249,6 @@ export default function ReportBuilder({
       // Remove a persistência, mas mantém as seleções da sessão atual
       localStorage.removeItem(PREFS_KEY);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedKpis, clientName, highlight]);
 
   // Toggle KPI

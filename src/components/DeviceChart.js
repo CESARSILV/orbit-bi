@@ -103,7 +103,6 @@ function RadialRing({ percent, hex, rgb, size = 80, stroke = 6 }) {
     const dur = 900;
 
     cancelAnimationFrame(rafRef.current);
-    setAnimPct(0);
 
     const tick = (ts) => {
       if (!start) start = ts;
@@ -112,8 +111,16 @@ function RadialRing({ percent, hex, rgb, size = 80, stroke = 6 }) {
       setAnimPct(from + (to - from) * ease);
       if (t < 1) rafRef.current = requestAnimationFrame(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
+
+    const timer = setTimeout(() => {
+      setAnimPct(0);
+      rafRef.current = requestAnimationFrame(tick);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(rafRef.current);
+    };
   }, [percent]);
 
   const r = (size - stroke) / 2;
@@ -205,7 +212,6 @@ function AnimatedBar({ percent, hex, rgb, gradient, isDominant }) {
   useEffect(() => {
     let start = null;
     cancelAnimationFrame(rafRef.current);
-    setBarPct(0);
     const dur = 1000;
 
     const tick = (ts) => {
@@ -216,11 +222,19 @@ function AnimatedBar({ percent, hex, rgb, gradient, isDominant }) {
       if (t < 1) rafRef.current = requestAnimationFrame(tick);
     };
 
-    const delay = setTimeout(() => {
-      rafRef.current = requestAnimationFrame(tick);
-    }, 80);
+    let delay;
+    const timer = setTimeout(() => {
+      setBarPct(0);
+      delay = setTimeout(() => {
+        rafRef.current = requestAnimationFrame(tick);
+      }, 80);
+    }, 0);
 
-    return () => { clearTimeout(delay); cancelAnimationFrame(rafRef.current); };
+    return () => {
+      clearTimeout(timer);
+      if (delay) clearTimeout(delay);
+      cancelAnimationFrame(rafRef.current);
+    };
   }, [percent]);
 
   return (
@@ -522,12 +536,14 @@ export default function DeviceChart({ deviceData }) {
     deviceData.tablet?.invest > 0
   ));
 
-  const empty = { invest: 0, clicks: 0, impressions: 0, conv: 0, percent: 0 };
-  const data = {
-    mobile:  { ...empty, ...(deviceData?.mobile  || {}) },
-    desktop: { ...empty, ...(deviceData?.desktop || {}) },
-    tablet:  { ...empty, ...(deviceData?.tablet  || {}) },
-  };
+  const data = useMemo(() => {
+    const empty = { invest: 0, clicks: 0, impressions: 0, conv: 0, percent: 0 };
+    return {
+      mobile:  { ...empty, ...(deviceData?.mobile  || {}) },
+      desktop: { ...empty, ...(deviceData?.desktop || {}) },
+      tablet:  { ...empty, ...(deviceData?.tablet  || {}) },
+    };
+  }, [deviceData]);
 
   const hasTablet = data.tablet.invest > 0;
   const totalInvest = data.mobile.invest + data.desktop.invest + data.tablet.invest;

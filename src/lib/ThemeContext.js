@@ -21,7 +21,9 @@ export function ThemeProvider({ children }) {
   // Inicializa do localStorage após montar no cliente
   useEffect(() => {
     const initial = getInitialTheme();
-    setTheme(initial);
+    setTimeout(() => {
+      setTheme(initial);
+    }, 0);
     document.documentElement.setAttribute("data-theme", initial);
   }, []);
 

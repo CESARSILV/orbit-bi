@@ -207,7 +207,11 @@ export default function LineChart({ timeline }) {
     const i    = Math.max(0, Math.min(n - 1, idx));
     const d    = timeline[i];
     const tipX = padL + (n > 1 ? (cW / (n - 1)) * i : cW / 2);
-    setTooltip({ x: tipX, mes: d.mes, google: d.google, meta: d.meta, leads: d.leads });
+
+    const maxX   = canvas.clientWidth - 175;
+    const leftPx = Math.min(tipX, maxX);
+
+    setTooltip({ x: leftPx, mes: d.mes, google: d.google, meta: d.meta, leads: d.leads });
   };
 
   return (
@@ -252,36 +256,31 @@ export default function LineChart({ timeline }) {
         <canvas ref={canvasRef} />
 
         {/* tooltip */}
-        {tooltip && (() => {
-          const canvas = canvasRef.current;
-          const maxX   = canvas ? canvas.clientWidth - 175 : 9999;
-          const leftPx = Math.min(tooltip.x, maxX);
-          return (
-            <div style={{
-              position: "absolute",
-              left: leftPx,
-              top: 8,
-              transform: "translateX(-50%)",
-              background: "rgba(10,14,22,0.92)",
-              border: "1px solid rgba(255,255,255,0.10)",
-              borderRadius: 8,
-              padding: "0.55rem 0.85rem",
-              fontSize: "0.78rem",
-              lineHeight: 1.75,
-              pointerEvents: "none",
-              zIndex: 20,
-              backdropFilter: "blur(10px)",
-              minWidth: 168,
-            }}>
-              <div style={{ fontWeight: 700, marginBottom: "0.25rem", color: "rgba(245,247,251,0.9)" }}>
-                {tooltip.mes}
-              </div>
-              <div style={{ color: "#7bb7ff" }}>● Google Ads: {brl.format(tooltip.google || 0)}</div>
-              <div style={{ color: "#7cf7be" }}>● Meta Ads: {brl.format(tooltip.meta   || 0)}</div>
-              <div style={{ color: "#ffd166" }}>● Total Leads: {num.format(Math.round(tooltip.leads || 0))}</div>
+        {tooltip && (
+          <div style={{
+            position: "absolute",
+            left: tooltip.x,
+            top: 8,
+            transform: "translateX(-50%)",
+            background: "rgba(10,14,22,0.92)",
+            border: "1px solid rgba(255,255,255,0.10)",
+            borderRadius: 8,
+            padding: "0.55rem 0.85rem",
+            fontSize: "0.78rem",
+            lineHeight: 1.75,
+            pointerEvents: "none",
+            zIndex: 20,
+            backdropFilter: "blur(10px)",
+            minWidth: 168,
+          }}>
+            <div style={{ fontWeight: 700, marginBottom: "0.25rem", color: "rgba(245,247,251,0.9)" }}>
+              {tooltip.mes}
             </div>
-          );
-        })()}
+            <div style={{ color: "#7bb7ff" }}>● Google Ads: {brl.format(tooltip.google || 0)}</div>
+            <div style={{ color: "#7cf7be" }}>● Meta Ads: {brl.format(tooltip.meta   || 0)}</div>
+            <div style={{ color: "#ffd166" }}>● Total Leads: {num.format(Math.round(tooltip.leads || 0))}</div>
+          </div>
+        )}
       </div>
     </article>
   );

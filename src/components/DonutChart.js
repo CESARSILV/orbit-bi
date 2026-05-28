@@ -123,9 +123,15 @@ function PlatformCard({ platform, value, percent, total, activeCampaigns, totalC
 
   // reanima quando valor muda
   useEffect(() => {
-    setBarH(0);
-    const t = setTimeout(() => setBarH(percent), 80);
-    return () => clearTimeout(t);
+    let t;
+    const tReset = setTimeout(() => {
+      setBarH(0);
+      t = setTimeout(() => setBarH(percent), 80);
+    }, 0);
+    return () => {
+      clearTimeout(tReset);
+      if (t) clearTimeout(t);
+    };
   }, [percent]);
 
   const isPositive = delta >= 0;
