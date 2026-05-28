@@ -4344,80 +4344,25 @@ html[data-theme="light"] .filter-chip-label:hover .fchip-name svg {
 }
 
 /* =========================================================================
-   STICKY & COMPACT NAVIGATION (Orbit BI Premium Scroll UX)
+   STICKY & COMPACT FILTERS (Orbit BI Premium Scroll UX)
    ========================================================================= */
 
-/* Sticky container para os elementos do cabeçalho */
-.workspace-header-sticky {
+/* A barra de filtros em si torna-se sticky e acompanha a rolagem */
+.filter-shell {
   position: sticky;
   top: 0;
   z-index: 100;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: transparent;
-}
-
-/* Quando scrolled, adiciona um leve padding/shadow ao container e melhora o glassmorphism */
-.workspace-header-sticky.scrolled {
-  top: 8px; /* Floating look premium */
-  gap: 8px;
-}
-
-/* --- TOPBAR COMPACTO --- */
-.topbar-premium.topbar-premium--compact {
-  padding: 10px 20px;
-  border-radius: 12px;
-  margin-bottom: 0;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  background: rgba(15, 20, 32, 0.85) !important;
-  backdrop-filter: blur(20px) !important;
-}
-
-html[data-theme="light"] .topbar-premium.topbar-premium--compact {
-  background: rgba(255, 255, 255, 0.90) !important;
-  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
-}
-
-.topbar-premium--compact .topbar-badge,
-.topbar-premium--compact .topbar-subtitle,
-.topbar-premium--compact .topbar-platforms {
-  display: none !important;
-}
-
-.topbar-premium--compact .topbar-left {
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-}
-
-.topbar-premium--compact .topbar-title {
-  font-size: 1.15rem !important;
-  font-weight: 700;
-  margin-bottom: 0;
-  white-space: nowrap;
-}
-
-.topbar-premium--compact .topbar-actions-premium {
-  gap: 8px;
-}
-
-.topbar-premium--compact .topbar-actions-premium .action-btn {
-  padding: 6px 12px !important;
-  font-size: 0.76rem !important;
-  border-radius: 8px;
 }
 
 /* --- FILTROS COMPACTOS (ControlStrip) --- */
 .filter-shell.filter-shell--compact {
+  top: 8px; /* Efeito flutuante (floating card) no topo */
   margin-bottom: 0;
   border-radius: 12px;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   background: rgba(15, 20, 32, 0.85) !important;
   backdrop-filter: blur(20px) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html[data-theme="light"] .filter-shell.filter-shell--compact {

@@ -2146,61 +2146,58 @@ export default function Home() {
         />
 
         <main className="workspace">
-          <div className={`workspace-header-sticky ${isScrolled ? "scrolled" : ""}`}>
-            <Topbar 
-              onRefresh={async () => {
-                // A-09 FIX: Refresh reloads data from localStorage instead of corrupting it with random noise
-                const freshDb = getDatabase();
-                setMarketingDb(freshDb);
-                triggerToast("Dados recarregados do banco local com sucesso.");
-              }} 
-              onGenerateReport={handleGenerateReport} 
-              onClearData={() => setShowClearConfirmModal(true)} 
-              isScrolled={isScrolled}
-            />
+          <Topbar 
+            onRefresh={async () => {
+              // A-09 FIX: Refresh reloads data from localStorage instead of corrupting it with random noise
+              const freshDb = getDatabase();
+              setMarketingDb(freshDb);
+              triggerToast("Dados recarregados do banco local com sucesso.");
+            }} 
+            onGenerateReport={handleGenerateReport} 
+            onClearData={() => setShowClearConfirmModal(true)} 
+          />
 
-            <ControlStrip
-              platform={platform}
-              onPlatformChange={setPlatform}
-              period={period}
-              onPeriodChange={(value) => {
-                setPeriod(value);
-                if (value !== "todos") {
-                  setStartDate(`${value}-01`);
-                  const [year, month] = value.split("-").map(Number);
-                  const lastDay = new Date(year, month, 0).getDate();
-                  setEndDate(`${value}-${String(lastDay).padStart(2, "0")}`);
-                }
-              }}
-              startDate={startDate}
-              onStartDateChange={(value) => {
-                setStartDate(value);
-                setPeriod("todos");
-              }}
-              endDate={endDate}
-              onEndDateChange={(value) => {
-                setEndDate(value);
-                setPeriod("todos");
-              }}
-              campaign={campaign}
-              onCampaignChange={setCampaign}
-              device={device}
-              onDeviceChange={setDevice}
-              gender={gender}
-              onGenderChange={setGender}
-              age={age}
-              onAgeChange={setAge}
-              network={network}
-              onNetworkChange={setNetwork}
-              keyword={keyword}
-              onKeywordChange={setKeyword}
-              searchTerm={searchTerm}
-              onSearchTermChange={setSearchTerm}
-              uniqueValues={uniqueValues}
-              onExport={handleExportSpreadsheet}
-              isScrolled={isScrolled}
-            />
-          </div>
+          <ControlStrip
+            platform={platform}
+            onPlatformChange={setPlatform}
+            period={period}
+            onPeriodChange={(value) => {
+              setPeriod(value);
+              if (value !== "todos") {
+                setStartDate(`${value}-01`);
+                const [year, month] = value.split("-").map(Number);
+                const lastDay = new Date(year, month, 0).getDate();
+                setEndDate(`${value}-${String(lastDay).padStart(2, "0")}`);
+              }
+            }}
+            startDate={startDate}
+            onStartDateChange={(value) => {
+              setStartDate(value);
+              setPeriod("todos");
+            }}
+            endDate={endDate}
+            onEndDateChange={(value) => {
+              setEndDate(value);
+              setPeriod("todos");
+            }}
+            campaign={campaign}
+            onCampaignChange={setCampaign}
+            device={device}
+            onDeviceChange={setDevice}
+            gender={gender}
+            onGenderChange={setGender}
+            age={age}
+            onAgeChange={setAge}
+            network={network}
+            onNetworkChange={setNetwork}
+            keyword={keyword}
+            onKeywordChange={setKeyword}
+            searchTerm={searchTerm}
+            onSearchTermChange={setSearchTerm}
+            uniqueValues={uniqueValues}
+            onExport={handleExportSpreadsheet}
+            isScrolled={isScrolled}
+          />
 
           {/* ── SEÇÃO RELATÓRIOS ─────────────────────────────── */}
           {activeSection === "relatorios" && (
