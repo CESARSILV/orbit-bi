@@ -96,6 +96,13 @@ export default function KpiGrid({ totals }) {
       accent: "#7cf7be", // Green
     },
     {
+      label: "Demos Realizadas",
+      value: 0, // Dados virão de integração futura com sistema externo
+      formatFn: (v) => number.format(Math.round(v)),
+      meta: "Demos que foram realizadas para o Cliente",
+      accent: "#b99cff", // Purple
+    },
+    {
       label: "Leads",
       value: totals.leads || 0,
       formatFn: (v) => number.format(Math.round(v)),
