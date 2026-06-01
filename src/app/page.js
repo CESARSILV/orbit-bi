@@ -1389,13 +1389,18 @@ export default function Home() {
 
           let impressions = 0;
           if (wizardMapping.impressions) {
+            // Mapeamento explícito: usa a coluna que o usuário selecionou no wizard
             impressions = Math.round(parseFormattedFloat(row[wizardMapping.impressions]));
           } else if (wizardMapping.ctr) {
+            // Back-cálculo via CTR quando não há coluna de impressões mas há CTR
             const mappedCtr = parseFormattedFloat(row[wizardMapping.ctr]);
             const ctrValue = mappedCtr > 1 ? mappedCtr / 100 : mappedCtr;
-            impressions = ctrValue > 0 ? Math.round(clicks / ctrValue) : (clicks > 0 ? clicks : 0);
+            impressions = ctrValue > 0 ? Math.round(clicks / ctrValue) : 0;
           } else {
-            impressions = clicks > 0 ? clicks : 0;
+            // Fallback semântico: tenta encontrar a coluna via SYNONYMS (ex: "Impr.", "Impressões", "Impressions")
+            // sem depender do mapeamento manual do wizard
+            const semanticImpressions = Math.round(parseFormattedFloat(getSemanticValue(row, "impressions", 0)));
+            impressions = semanticImpressions > 0 ? semanticImpressions : 0;
           }
           
           const conversionsVal = wizardMapping.conversions ? row[wizardMapping.conversions] : 0;
