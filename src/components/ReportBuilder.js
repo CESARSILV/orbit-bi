@@ -20,18 +20,19 @@ const pct  = (v) => `${(v || 0).toFixed(2).replace(".", ",")}%`;
 const KPI_DEFS = [
   { key: "investimento", label: "Investimento",  icon: "💰", fmt: (v) => brl.format(v),  desc: "Gasto total em mídia paga" },
   { key: "cliques",      label: "Cliques",        icon: "🖱️", fmt: (v) => num.format(v),  desc: "Cliques nos anúncios" },
-  { key: "impressoes",   label: "Impressões",     icon: "👁️", fmt: (v) => num.format(v),  desc: "Total de exibições" },
+  { key: "impressoes",   icon: "👁️", label: "Impressões",     fmt: (v) => num.format(v),  desc: "Total de exibições" },
   { key: "ctr",          label: "CTR",            icon: "📊", fmt: (v) => pct(v * 100),   desc: "Taxa de cliques" },
   { key: "cpc",          label: "CPC",            icon: "💲", fmt: (v) => brl2.format(v), desc: "Custo por clique" },
   { key: "cpm",          label: "CPM",            icon: "📣", fmt: (v) => brl2.format(v), desc: "Custo por mil impressões" },
   { key: "leads",        label: "Leads",          icon: "🎯", fmt: (v) => num.format(v),  desc: "Leads captados" },
-  { key: "conversoes",   label: "Conversões",     icon: "✅", fmt: (v) => num.format(v),  desc: "Total de conversões" },
-  { key: "cpa",          label: "CPA",            icon: "🏷️", fmt: (v) => brl2.format(v), desc: "Custo por aquisição" },
+  { key: "conversoes",   label: "Agendamentos",   icon: "✅", fmt: (v) => num.format(v),  desc: "Agendamentos que foram Marcados" },
+  { key: "demos",        label: "Demos Realizadas", icon: "🔮", fmt: (v) => num.format(v), desc: "Demos que foram realizadas para o Cliente" },
+  { key: "cpa",          label: "CPA",            icon: "🏷️", fmt: (v) => brl2.format(v), desc: "Custo por agendamento" },
   { key: "cpl",          label: "CPL",            icon: "📋", fmt: (v) => brl2.format(v), desc: "Custo por lead" },
   { key: "alcance",      label: "Alcance",        icon: "🌐", fmt: (v) => num.format(v),  desc: "Pessoas alcançadas" },
 ];
 
-const DEFAULT_KPIS = ["investimento", "cliques", "impressoes", "ctr", "leads", "conversoes", "cpa", "cpl"];
+const DEFAULT_KPIS = ["investimento", "cliques", "impressoes", "ctr", "leads", "conversoes", "demos", "cpa", "cpl"];
 
 // ─── Calcula linha de dados para um mês ──────────────────────────────────────
 function calcRowKpis(row) {
@@ -51,6 +52,7 @@ function calcRowKpis(row) {
     cpm:      impressoes > 0 ? (investimento / impressoes) * 1000 : 0,
     leads,
     conversoes,
+    demos:    0,
     cpa:      conversoes > 0 ? investimento / conversoes : 0,
     cpl:      leads      > 0 ? investimento / leads      : 0,
     alcance,
@@ -109,7 +111,8 @@ function KpiToggle({ kpi, checked, onChange }) {
 function SummaryCard({ kpi, value, prevValue }) {
   const def = KPI_DEFS.find(d => d.key === kpi);
   if (!def) return null;
-  const formatted = def.fmt(value);
+  const displayVal = (kpi === "conversoes" || kpi === "demos") ? 0 : value;
+  const formatted = def.fmt(displayVal);
   const delta = prevValue > 0 ? ((value - prevValue) / prevValue) * 100 : null;
   const isPositive = delta >= 0;
 
@@ -188,12 +191,12 @@ function generateInsights(rows, totals) {
     }
   }
 
-  // Melhor mês por conversões
+  // Melhor mês por agendamentos
   const byConv = [...rows].sort((a, b) => b.conversoes - a.conversoes);
   if (byConv[0]?.conversoes > 0) {
     insights.push({
       icon: "✅",
-      text: `<strong>${byConv[0].mes}</strong> liderou em conversões com <strong>${num.format(byConv[0].conversoes)} conversões</strong>.`,
+      text: `<strong>${byConv[0].mes}</strong> liderou em agendamentos com <strong>${num.format(byConv[0].conversoes)} agendamentos</strong>.`,
     });
   }
 
@@ -222,7 +225,14 @@ export default function ReportBuilder({
     const prefs = loadPrefs();
     if (prefs) {
       setTimeout(() => {
-        if (prefs.selectedKpis) setSelectedKpis(prefs.selectedKpis);
+        if (prefs.selectedKpis) {
+          let kpis = prefs.selectedKpis;
+          if (kpis.includes("conversoes") && !kpis.includes("demos")) {
+            const idx = kpis.indexOf("conversoes");
+            kpis = [...kpis.slice(0, idx + 1), "demos", ...kpis.slice(idx + 1)];
+          }
+          setSelectedKpis(kpis);
+        }
         if (prefs.clientName) setClientName(prefs.clientName);
         if (prefs.highlight !== undefined) setHighlight(prefs.highlight);
         if (prefs.saveAsDefault !== undefined) setSaveAsDefault(prefs.saveAsDefault);
@@ -339,7 +349,8 @@ export default function ReportBuilder({
     const kpiCardsHtml = summaryKpis.map(key => {
       const def = KPI_DEFS.find(d => d.key === key);
       if (!def) return "";
-      const val = totals[key] ?? totalRow[key] ?? 0;
+      const rawVal = totals[key] ?? totalRow[key] ?? 0;
+      const val = (key === "conversoes" || key === "demos") ? 0 : rawVal;
       return `<div class="kpi-card"><div class="kpi-ic">${def.icon}</div><div class="kpi-lb">${def.label}</div><div class="kpi-vl">${fmtKpi(key, val)}</div></div>`;
     }).join("");
 
