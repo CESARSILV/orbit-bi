@@ -18,7 +18,7 @@ Você analisa dados de marketing digital de forma ultra-estratégica, direta e p
 Resumo dos totais atuais:
 - Investimento Total: ${brlFormat(totals.investimento)}
 - CPA Médio: ${brlFormat(totals.cpa)}
-- Total de Conversões: ${(totals.conversoes || 0).toLocaleString('pt-BR')}
+- Total de Agendamentos: ${(totals.conversoes || 0).toLocaleString('pt-BR')}
 - CPL Médio: ${brlFormat(totals.cpl || 0)}
 - CTR Médio: ${((totals.ctr || 0) * 100).toFixed(2).replace('.', ',')}%
 
@@ -29,7 +29,7 @@ Instruções importantes:
 1. Responda em português brasileiro (PT-BR) de forma objetiva e executiva.
 2. Baseie suas análises em CPA, CPL, CTR, CPC e CPM estritamente nos dados fornecidos acima.
 3. Se houver imagens ou planilhas enviadas, incorpore-as na análise.
-4. Sugira ações práticas de otimização de orçamento baseadas em CPA e volume de conversões.`;
+4. Sugira ações práticas de otimização de orçamento baseadas em CPA e volume de agendamentos.`;
 
     const result = await generateProviderText({
       systemPrompt,

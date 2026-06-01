@@ -1042,10 +1042,10 @@ export default function Home() {
       ? `período de ${startDate || "início"} até ${endDate || "hoje"}`
       : period === "todos" ? "histórico completo" : `mês de ${uniqueValues.months.find(m => m.value === period)?.label || period}`;
 
-    let text = `Para o ${selectLabel}, o investimento consolidado em mídia paga foi de ${formattedInvest}, resultando em ${formattedConv} conversões. `;
+    let text = `Para o ${selectLabel}, o investimento consolidado em mídia paga foi de ${formattedInvest}, resultando em ${formattedConv} agendamentos. `;
     
     if (topCampaign && topCampaign.cpa > 0) {
-      text += `A campanha de maior eficiência foi "${topCampaign.nome}" com CPA de ${brl.format(topCampaign.cpa)}. `;
+      text += `A campanha de maior eficiência foi "${topCampaign.nome}" com CPA (Custo por Agendamento) de ${brl.format(topCampaign.cpa)}. `;
     }
     
     if (bestDeviceText) {
@@ -1079,7 +1079,7 @@ export default function Home() {
     return {
       summary,
       list: [
-        { title: "Destaque de Conversão", text: `"${best.nome}" lidera o mix com maior volume de investimento (${brl.format(best.investimento)}).` },
+        { title: "Destaque de Agendamentos", text: `"${best.nome}" lidera o mix com maior volume de investimento (${brl.format(best.investimento)}).` },
         { title: "Oportunidade de Otimização", text: worst.cpa > 0 && worst.investimento > 0 ? `"${worst.nome}" apresenta CPA de ${brl.format(worst.cpa)} — avalie ajuste de segmentação.` : "Ajuste lances em horários ociosos do heatmap." },
         { title: "Ação Estratégica", text: "Consulte o heatmap cronológico e o mapa regional abaixo para calibrar criativos por localização." }
       ]
@@ -1750,8 +1750,8 @@ export default function Home() {
     const subtitle     = reportData?.subtitulo     || "Diagnóstico estratégico consolidado";
     const conclusion   = reportData?.conclusao     || insights?.summary || "Dados consolidados do período analisado.";
     const recs         = reportData?.recomendacoes || [
-      "Analise as campanhas com maior volume de conversões e considere escalar o investimento gradualmente.",
-      "Revise criativos e segmentação das campanhas com CPA acima da média.",
+      "Analise as campanhas com maior volume de agendamentos e considere escalar o investimento gradualmente.",
+      "Revise criativos e segmentação das campanhas com CPA (Custo por Agendamento) acima da média.",
       "Monitore as métricas diariamente para identificar oportunidades de otimização.",
     ];
     const steps        = reportData?.proximosPassos || [
@@ -1888,9 +1888,14 @@ export default function Home() {
       <div class="kpi-sub">CTR: ${pct(totals.ctr)}</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Conversões</div>
-      <div class="kpi-value">${numFmt(totals.conversoes)}</div>
-      <div class="kpi-sub">CPA: ${brlFmt(totals.cpa)}</div>
+      <div class="kpi-label">Agendamentos</div>
+      <div class="kpi-value">0</div>
+      <div class="kpi-sub">Dados via integração futura</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Demos Realizadas</div>
+      <div class="kpi-value">0</div>
+      <div class="kpi-sub">Dados via integração futura</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">CPC Médio</div>
@@ -1928,7 +1933,7 @@ export default function Home() {
       <th>Plataforma</th>
       <th class="num">Investimento</th>
       <th class="num">Cliques</th>
-      <th class="num">Conversões</th>
+      <th class="num">Agendamentos</th>
       <th class="num">CPA</th>
       <th>Status</th>
     </tr></thead>
@@ -1988,17 +1993,19 @@ export default function Home() {
       [],
       ["RESUMO DE KPIs (FÓRMULAS EXCEL)"],
       ["KPI", "Valor", "Fórmula", "Descrição"],
-      ["Investimento Total (R$)", `=SOMA(E15:E${totalRows + 14})`, "=SOMA(E15:E...)", "Soma de todo investimento em mídia paga"],
-      ["Cliques Totais", `=SOMA(G15:G${totalRows + 14})`, "=SOMA(G15:G...)", "Quantidade total de cliques recebidos"],
-      ["Impressões Totais", `=SOMA(H15:H${totalRows + 14})`, "=SOMA(H15:H...)", "Quantidade total de exibições do anúncio"],
-      ["CTR Geral", `=SEERRO(B6/B7;0)`, "=Cliques/Impressões", "Taxa média de cliques"],
-      ["CPC Geral (R$)", `=SEERRO(E6/B6;0)`, "=Investimento/Cliques", "Custo médio por clique"],
-      ["CPL Geral (R$)", `=SEERRO(E6/I6;0)`, "=Investimento/Leads", "Custo por lead"],
-      ["CPA Geral (R$)", `=SEERRO(E6/J6;0)`, "=Investimento/Conversões", "Custo por aquisição"],
+      ["Investimento Total (R$)", `=SOMA(E17:E${totalRows + 16})`, "=SOMA(E17:E...)", "Soma de todo investimento em mídia paga"],
+      ["Cliques Totais", `=SOMA(F17:F${totalRows + 16})`, "=SOMA(F17:F...)", "Quantidade total de cliques recebidos"],
+      ["Impressões Totais", `=SOMA(G17:G${totalRows + 16})`, "=SOMA(G17:G...)", "Quantidade total de exibições do anúncio"],
+      ["Leads Totais", `=SOMA(J17:J${totalRows + 16})`, "=SOMA(J17:J...)", "Quantidade total de leads capturados"],
+      ["Agendamentos Totais", `=SOMA(H17:H${totalRows + 16})`, "=SOMA(H17:H...)", "Quantidade total de agendamentos"],
+      ["CTR Geral", `=SEERRO(B7/B8;0)`, "=Cliques/Impressões", "Taxa média de cliques"],
+      ["CPC Geral (R$)", `=SEERRO(B6/B7;0)`, "=Investimento/Cliques", "Custo médio por clique"],
+      ["CPL Geral (R$)", `=SEERRO(B6/B9;0)`, "=Investimento/Leads", "Custo por lead"],
+      ["CPA Geral (R$)", `=SEERRO(B6/B10;0)`, "=Investimento/Agendamentos", "Custo por agendamento"],
       [],
-      ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Cliques Totais", "Impressões", "Conversões", "Leads", "CTR", "CPC", "CPM", "CPL", "CPA", "Status"],
+      ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Cliques Totais", "Impressões", "Agendamentos", "Demos Realizadas", "Leads", "CTR", "CPC", "CPM", "CPL", "CPA", "Status"],
       ...listToExport.map((item, index) => {
-        const rowNum = index + 15; // starts on row 15
+        const rowNum = index + 17; // starts on row 17
         return [
           item.date,
           item.reference_label,
@@ -2008,12 +2015,13 @@ export default function Home() {
           item.clicks,
           item.impressions,
           item.conversions,
+          0,
           item.leads,
-          `=SEERRO(G${rowNum}/H${rowNum};0)`,
-          `=SEERRO(E${rowNum}/G${rowNum};0)`,
-          `=SEERRO((E${rowNum}/H${rowNum})*1000;0)`,
-          `=SEERRO(E${rowNum}/I${rowNum};0)`,
+          `=SEERRO(F${rowNum}/G${rowNum};0)`,
+          `=SEERRO(E${rowNum}/F${rowNum};0)`,
+          `=SEERRO((E${rowNum}/G${rowNum})*1000;0)`,
           `=SEERRO(E${rowNum}/J${rowNum};0)`,
+          `=SEERRO(E${rowNum}/H${rowNum};0)`,
           item.status
         ];
       })
@@ -2074,7 +2082,7 @@ export default function Home() {
     if (q.includes("desperd") || q.includes("cortar")) {
       return `Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.nome}". Considere pausar o conjunto e testar novas segmentações de público.`;
     }
-    return `Diagnóstico Consolidado: Investimento de ${brl.format(totals.investimento)} gerando ${number.format(totals.conversoes)} conversões com CPA médio de ${brl.format(totals.cpa)}. A maior alavanca no momento está em direcionar verbas adicionais para celulares, onde as conversões registraram melhor CPA.`;
+    return `Diagnóstico Consolidado: Investimento de ${brl.format(totals.investimento)} gerando ${number.format(totals.cliques)} cliques com CPC médio de ${brl.format(totals.cpc)}. A maior alavanca no momento está em direcionar verbas adicionais para celulares, onde o CTR registrou melhor desempenho.`;
   };
 
   const handleSendMessage = async (text) => {
