@@ -482,7 +482,7 @@ function DeviceCard({ deviceKey, data, totalInvest, allData, rank, isDominant })
         marginBottom: 14,
       }}>
         <MetricPill label="Cliques"    value={numFmt.format(data.clicks || 0)}     hex={cfg.hex} rgb={cfg.rgb} />
-        <MetricPill label="Agendamentos" value={numFmt.format(data.conv || 0)}        hex={cfg.hex} rgb={cfg.rgb} highlight={data.conv > 0} />
+        <MetricPill label="Agendamentos" value="0"        hex={cfg.hex} rgb={cfg.rgb} highlight={false} />
         <MetricPill label="CTR"        value={`${ctr.toFixed(2).replace(".",",")}%`} hex={cfg.hex} rgb={cfg.rgb} />
         <MetricPill label="CPC"        value={brl2.format(cpc)}                    hex={cfg.hex} rgb={cfg.rgb} />
         <MetricPill label="CPA"        value={data.conv > 0 ? brl2.format(cpa) : "—"} hex={cfg.hex} rgb={cfg.rgb} highlight={data.conv > 0} />

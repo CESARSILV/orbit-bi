@@ -1769,7 +1769,7 @@ export default function Home() {
         <td><span class="badge ${c.tipo}">${c.plataforma}</span></td>
         <td class="num">${brlFmt(c.investimento)}</td>
         <td class="num">${numFmt(c.cliques)}</td>
-        <td class="num">${numFmt(c.conversoes)}</td>
+        <td class="num">0</td>
         <td class="num">${brlFmt(c.cpa)}</td>
         <td><span class="status ${c.status === "Ativa" ? "ativa" : c.status === "Pausada" ? "pausada" : "encerrada"}">${c.status}</span></td>
       </tr>`).join("");
@@ -2014,7 +2014,7 @@ export default function Home() {
           item.spend,
           item.clicks,
           item.impressions,
-          item.conversions,
+          0,
           0,
           item.leads,
           `=SEERRO(F${rowNum}/G${rowNum};0)`,
