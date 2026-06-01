@@ -89,10 +89,10 @@ export default function KpiGrid({ totals }) {
       accent: "#7bb7ff", // Blue
     },
     {
-      label: "Conversões",
-      value: totals.conversoes || 0,
+      label: "Agendamentos",
+      value: 0, // Dados virão de integração futura com sistema externo
       formatFn: (v) => number.format(Math.round(v)),
-      meta: "Total de ações de conversão",
+      meta: "Agendamentos que foram Marcados",
       accent: "#7cf7be", // Green
     },
     {
