@@ -3430,8 +3430,8 @@ td {
 }
 
 .report-th {
-  padding: 9px 14px;
-  text-align: right;
+  padding: 9px 12px;
+  text-align: center;
   font-size: 0.68rem;
   font-weight: 700;
   color: rgba(245, 247, 251, 0.38);
@@ -3439,10 +3439,12 @@ td {
   letter-spacing: 0.06em;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   white-space: nowrap;
+  min-width: 100px;
 }
 
 .report-th-mes {
-  text-align: left;
+  text-align: center;
+  min-width: 120px;
 }
 
 .kpi-icon {
@@ -3451,21 +3453,24 @@ td {
 }
 
 .report-td {
-  padding: 10px 14px;
-  text-align: right;
+  padding: 10px 12px;
+  text-align: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   color: rgba(245, 247, 251, 0.82);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  min-width: 100px;
 }
 
 .report-td-mes {
-  text-align: left;
+  text-align: center;
+  justify-content: center;
   font-weight: 600;
   color: rgba(245, 247, 251, 0.7);
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 120px;
 }
 
 .report-td-num {
@@ -3629,14 +3634,29 @@ td {
     color: #64748b !important;
     border-bottom: 2px solid #e2e8f0 !important;
     font-size: 7pt !important;
-    padding: 6px 10px !important;
+    padding: 6px 8px !important;
+    text-align: center !important;
+    min-width: 80px !important;
+  }
+
+  .report-th-mes {
+    text-align: center !important;
+    min-width: 100px !important;
   }
 
   .report-td {
     color: #1e293b !important;
     border-bottom: 1px solid #f1f5f9 !important;
     font-size: 8pt !important;
-    padding: 6px 10px !important;
+    padding: 6px 8px !important;
+    text-align: center !important;
+    min-width: 80px !important;
+  }
+
+  .report-td-mes {
+    text-align: center !important;
+    justify-content: center !important;
+    min-width: 100px !important;
   }
 
   .report-tr-best td {

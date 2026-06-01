@@ -414,10 +414,10 @@ export default function ReportBuilder({
 
   /* TABELA */
   table{width:100%;border-collapse:collapse;font-size:7.5pt}
-  th{padding:4px 8px;text-align:right;background:#0f172a;color:#fff;font-size:6.5pt;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
-  th.th-mes{text-align:left}
-  td{padding:4px 8px;text-align:right;border-bottom:1px solid #f1f5f9;color:#1e293b;white-space:nowrap;font-size:7.5pt}
-  td.td-mes{text-align:left;font-weight:600;color:#0f172a}
+  th{padding:6px 8px;text-align:center;background:#0f172a;color:#fff;font-size:6.5pt;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;min-width:90px}
+  th.th-mes{text-align:center;min-width:110px}
+  td{padding:6px 8px;text-align:center;border-bottom:1px solid #f1f5f9;color:#1e293b;white-space:nowrap;font-size:7.5pt;min-width:90px}
+  td.td-mes{text-align:center;font-weight:600;color:#0f172a;min-width:110px}
   td.td-n{font-variant-numeric:tabular-nums}
   tr.alt{background:#f8fafc}
   tr.best td{background:#fef9c3!important;color:#78350f!important;font-weight:600}
