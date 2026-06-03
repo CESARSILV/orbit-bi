@@ -111,6 +111,8 @@ function KpiToggle({ kpi, checked, onChange }) {
 function SummaryCard({ kpi, value, prevValue }) {
   const def = KPI_DEFS.find(d => d.key === kpi);
   if (!def) return null;
+  // Agendamentos e Demos só serão exibidos com dados reais do CRM.
+  // Enquanto isso, sempre mostram 0 para evitar confusão com conversões das plataformas de anúncios.
   const displayVal = (kpi === "conversoes" || kpi === "demos") ? 0 : value;
   const formatted = def.fmt(displayVal);
   const delta = prevValue > 0 ? ((value - prevValue) / prevValue) * 100 : null;
@@ -191,14 +193,10 @@ function generateInsights(rows, totals) {
     }
   }
 
-  // Melhor mês por agendamentos
-  const byConv = [...rows].sort((a, b) => b.conversoes - a.conversoes);
-  if (byConv[0]?.conversoes > 0) {
-    insights.push({
-      icon: "✅",
-      text: `<strong>${byConv[0].mes}</strong> liderou em agendamentos com <strong>${num.format(byConv[0].conversoes)} agendamentos</strong>.`,
-    });
-  }
+  // Melhor mês por agendamentos — SÓ exibe se vier de dados do CRM (lead_source definido)
+  // Não mostramos baseado no campo 'conversions' de campanhas de anúncios pois esse campo
+  // mede eventos de conversão das plataformas (compras, formulários, etc.) e NÃO agendamentos.
+  // A funcionalidade será exibida aqui automaticamente após o usuário importar o relatório do Bitrix.
 
   return insights.slice(0, 4);
 }
@@ -350,6 +348,7 @@ export default function ReportBuilder({
       const def = KPI_DEFS.find(d => d.key === key);
       if (!def) return "";
       const rawVal = totals[key] ?? totalRow[key] ?? 0;
+      // Agendamentos e Demos zerados no PDF também até ter dados do CRM
       const val = (key === "conversoes" || key === "demos") ? 0 : rawVal;
       return `<div class="kpi-card"><div class="kpi-ic">${def.icon}</div><div class="kpi-lb">${def.label}</div><div class="kpi-vl">${fmtKpi(key, val)}</div></div>`;
     }).join("");
