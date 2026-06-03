@@ -28,13 +28,17 @@ const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL",
 const number = new Intl.NumberFormat("pt-BR");
 
 const getCrmEstimateForMonth = (monthKey) => {
-  if (!monthKey) return 26;
-  let hash = 0;
-  for (let i = 0; i < monthKey.length; i++) {
-    hash = (hash << 5) - hash + monthKey.charCodeAt(i);
-    hash |= 0;
-  }
-  return 26 + Math.abs(hash % 8);
+  const table = {
+    "2025-10": 28,
+    "2025-11": 31,
+    "2025-12": 26,
+    "2026-01": 33,
+    "2026-02": 27,
+    "2026-03": 30,
+    "2026-04": 32,
+    "2026-05": 29,
+  };
+  return table[monthKey] || 30;
 };
 
 
