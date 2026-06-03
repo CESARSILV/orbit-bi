@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import AuroraBackground from "@/components/AuroraBackground";
 import Sidebar from "@/components/Sidebar";
@@ -27,19 +27,7 @@ import { clearAnalyticsSystem } from "@/lib/clearAnalyticsSystem";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat("pt-BR");
 
-const getCrmEstimateForMonth = (monthKey) => {
-  const table = {
-    "2025-10": 28,
-    "2025-11": 31,
-    "2025-12": 26,
-    "2026-01": 33,
-    "2026-02": 27,
-    "2026-03": 30,
-    "2026-04": 32,
-    "2026-05": 29,
-  };
-  return table[monthKey] || 30;
-};
+
 
 
 const MONTHS_PT = [
@@ -75,6 +63,26 @@ export default function Home() {
   const [network, setNetwork] = useState("todas");
   const [keyword, setKeyword] = useState("todas");
   const [searchTerm, setSearchTerm] = useState("todos");
+
+  // Check if CRM data exists in the database
+  const hasCrmData = useMemo(() => {
+    return marketingDb.fact_marketing_summary.some(s => s.is_crm);
+  }, [marketingDb]);
+
+  const getCrmEstimateForMonth = useCallback((monthKey) => {
+    if (!hasCrmData) return 0;
+    const table = {
+      "2025-10": 28,
+      "2025-11": 31,
+      "2025-12": 26,
+      "2026-01": 33,
+      "2026-02": 27,
+      "2026-03": 30,
+      "2026-04": 32,
+      "2026-05": 29,
+    };
+    return table[monthKey] || 30;
+  }, [hasCrmData]);
 
   // UI state
   const [activeSection, setActiveSection] = useState("visao-geral");
