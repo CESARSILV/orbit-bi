@@ -600,32 +600,29 @@ export function consolidateSummary(db) {
     db.fact_time_series.forEach(r => addRowToGroups(r, false));
   }
 
-  // 3º: processa fact_crm (anexa conversões reais / demonstrações aos grupos existentes de anúncios)
+  // 3º: processa fact_crm (leads e demonstrações do Bitrix/CRM)
+  // Cria grupos por mês + plataforma_atribuída
   if (db.fact_crm && db.fact_crm.length > 0) {
     db.fact_crm.forEach(r => {
-      // Tenta descobrir a plataforma pela fonte/utm source
-      let sourceStr = ((r.lead_source || "") + " " + (r.lead_medium || "")).toLowerCase();
-      let detectedPlatform = "unknown";
-      if (sourceStr.includes("google") || sourceStr.includes("gads") || sourceStr.includes("adwords")) {
-        detectedPlatform = "google";
-      } else if (sourceStr.includes("meta") || sourceStr.includes("facebook") || sourceStr.includes("instagram") || sourceStr.includes("ig")) {
-        detectedPlatform = "meta";
-      } else {
-        return; // Só contabiliza se conseguirmos atribuir a google ou meta
-      }
-
       const refMonth = getRowReferenceMonth(r) || r.reference_month || (r.date && String(r.date).slice(0, 7));
       if (!refMonth) return;
 
-      const campaignMatch = r.lead_campaign || "--"; // Agrupa no "--" se não souber a campanha
-      
-      const key = `${detectedPlatform}_${refMonth}_${campaignMatch}_${refMonth}`;
+      // Detecta plataforma pelo lead_source / lead_medium
+      const sourceStr = ((r.lead_source || "") + " " + (r.lead_medium || "")).toLowerCase();
+      let detectedPlatform = "crm"; // padrão: grupo genérico de CRM
+      if (sourceStr.includes("google") || sourceStr.includes("gads") || sourceStr.includes("adwords") || sourceStr.includes("ppc")) {
+        detectedPlatform = "google";
+      } else if (sourceStr.includes("meta") || sourceStr.includes("facebook") || sourceStr.includes("instagram") || sourceStr.includes("ig") || sourceStr.includes("fb")) {
+        detectedPlatform = "meta";
+      }
 
-      // Se o grupo ainda não existir para esse mês/plataforma/campanha, a gente pode criar ou apenas anexar
-      if (!groups[key]) {
-        groups[key] = {
-          platform: detectedPlatform,
-          campaign_name: campaignMatch,
+      // Chave de grupo: plataforma + mês (agrupa todos os leads do CRM por mês)
+      const crmGroupKey = `crm_${detectedPlatform}_${refMonth}_CRM`;
+
+      if (!groups[crmGroupKey]) {
+        groups[crmGroupKey] = {
+          platform: detectedPlatform === "crm" ? "bitrix" : detectedPlatform,
+          campaign_name: "CRM (Bitrix24)",
           date: `${refMonth}-01`,
           day: 1, week: 1, month: parseInt(refMonth.split("-")[1], 10),
           month_name: MONTHS_PT[parseInt(refMonth.split("-")[1], 10) - 1],
@@ -634,16 +631,31 @@ export function consolidateSummary(db) {
           year_month: refMonth,
           reference_month: refMonth,
           reference_label: `${MONTHS_PT[parseInt(refMonth.split("-")[1], 10) - 1]}/${refMonth.split("-")[0]}`,
-          spend: 0, clicks: 0, impressions: 0, conversions: 0, leads: 0, reach: 0, revenue: 0, status: "CRM Data"
+          spend: 0, clicks: 0, impressions: 0, conversions: 0, leads: 0, reach: 0, revenue: 0, status: "CRM Data",
+          // Flag para identificar que esse grupo é do CRM e não de campanha de anúncios
+          is_crm: true,
+          // Acumuladores CRM específicos
+          crm_leads: 0,
+          crm_demos: 0,
         };
       }
 
-      groups[key].leads += 1;
-      
-      // Verifica se é qualificado / demonstração (baseado na coluna etapa)
+      const g = groups[crmGroupKey];
+      g.leads += 1;
+      g.crm_leads += 1;
+
+      // É uma demonstração se is_demo=true OU se o status da etapa indicar conversão
+      const isDemo = r.is_demo === true || r.is_demo === 1;
       const statusStr = (r.lead_status || "").toLowerCase();
-      if (statusStr.includes("convertido") || statusStr.includes("demonstração") || statusStr.includes("demonstracao") || statusStr.includes("qualificado") || statusStr.includes("ganho") || statusStr.includes("efetivad")) {
-        groups[key].conversions += 1;
+      const isDemoByStatus = isDemo || [
+        "convertido", "demonstração", "demonstracao", "qualificado",
+        "ganho", "efetivad", "reuniao marcada", "reunião marcada",
+        "demo agendada", "agendado", "agendada"
+      ].some(kw => statusStr.includes(kw));
+
+      if (isDemoByStatus) {
+        g.conversions += 1;
+        g.crm_demos += 1;
       }
     });
   }

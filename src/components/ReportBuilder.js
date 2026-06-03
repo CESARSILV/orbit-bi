@@ -25,8 +25,8 @@ const KPI_DEFS = [
   { key: "cpc",          label: "CPC",            icon: "💲", fmt: (v) => brl2.format(v), desc: "Custo por clique" },
   { key: "cpm",          label: "CPM",            icon: "📣", fmt: (v) => brl2.format(v), desc: "Custo por mil impressões" },
   { key: "leads",        label: "Leads",          icon: "🎯", fmt: (v) => num.format(v),  desc: "Leads captados" },
-  { key: "conversoes",   label: "Agendamentos",   icon: "✅", fmt: (v) => "0",  desc: "Agendamentos que foram Marcados" },
-  { key: "demos",        label: "Demos Realizadas", icon: "🔮", fmt: (v) => "0", desc: "Demos que foram realizadas para o Cliente" },
+  { key: "conversoes",   label: "Agendamentos",   icon: "✅", fmt: (v) => num.format(v),  desc: "Agendamentos confirmados (via CRM Bitrix)" },
+  { key: "demos",        label: "Demos Realizadas", icon: "🔮", fmt: (v) => num.format(v), desc: "Demonstrações realizadas (via CRM Bitrix)" },
   { key: "cpa",          label: "CPA",            icon: "🏷️", fmt: (v) => brl2.format(v), desc: "Custo por agendamento" },
   { key: "cpl",          label: "CPL",            icon: "📋", fmt: (v) => brl2.format(v), desc: "Custo por lead" },
   { key: "alcance",      label: "Alcance",        icon: "🌐", fmt: (v) => num.format(v),  desc: "Pessoas alcançadas" },
@@ -111,9 +111,7 @@ function KpiToggle({ kpi, checked, onChange }) {
 function SummaryCard({ kpi, value, prevValue }) {
   const def = KPI_DEFS.find(d => d.key === kpi);
   if (!def) return null;
-  // Agendamentos e Demos só serão exibidos com dados reais do CRM.
-  // Enquanto isso, sempre mostram 0 para evitar confusão com conversões das plataformas de anúncios.
-  const displayVal = (kpi === "conversoes" || kpi === "demos") ? 0 : value;
+  const displayVal = value;
   const formatted = def.fmt(displayVal);
   const delta = prevValue > 0 ? ((value - prevValue) / prevValue) * 100 : null;
   const isPositive = delta >= 0;
@@ -276,11 +274,11 @@ export default function ReportBuilder({
       mes: row.mes || row.reference_month || "—",
       ...calcRowKpis({
         investimento: row.investimento || 0,
-        cliques:      row.cliques      || 0,   // ✅ campo real
-        impressoes:   row.impressoes   || 0,   // ✅ campo real
+        cliques:      row.cliques      || 0,
+        impressoes:   row.impressoes   || 0,
         leads:        row.leads        || 0,
         conversoes:   row.conversoes   || 0,
-        alcance:      row.alcance      || 0,   // ✅ campo real
+        alcance:      row.alcance      || 0,
       }),
     }));
   }, [timeline]);
@@ -348,8 +346,7 @@ export default function ReportBuilder({
       const def = KPI_DEFS.find(d => d.key === key);
       if (!def) return "";
       const rawVal = totals[key] ?? totalRow[key] ?? 0;
-      // Agendamentos e Demos zerados no PDF também até ter dados do CRM
-      const val = (key === "conversoes" || key === "demos") ? 0 : rawVal;
+      const val = rawVal;
       return `<div class="kpi-card"><div class="kpi-ic">${def.icon}</div><div class="kpi-lb">${def.label}</div><div class="kpi-vl">${fmtKpi(key, val)}</div></div>`;
     }).join("");
 

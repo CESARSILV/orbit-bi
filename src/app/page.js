@@ -982,7 +982,8 @@ export default function Home() {
           reference_month: mKey,
           receita: 0,
           investimento: 0,
-          conversoes: 0,
+          conversoes: 0,   // Agendamentos — SOMENTE do CRM (is_crm: true)
+          demos: 0,        // Demos realizadas — SOMENTE do CRM
           google: 0,
           meta: 0,
           leads: 0,
@@ -995,14 +996,20 @@ export default function Home() {
       const spend = s.spend || 0;
       months[mKey].receita      += s.revenue      || 0;
       months[mKey].investimento += spend;
-      months[mKey].conversoes   += s.conversions  || 0;
       months[mKey].leads        += s.leads        || 0;
       months[mKey].cliques      += s.clicks       || 0;
       months[mKey].impressoes   += s.impressions  || 0;
       months[mKey].alcance      += s.reach        || 0;
 
-      if (s.platform === "google") months[mKey].google += spend;
-      if (s.platform === "meta")   months[mKey].meta   += spend;
+      // Conversões (Agendamentos) e Demos: SOMENTE de entradas CRM (is_crm === true)
+      // Isso evita que as conversões de campanhas de anúncios (Google/Meta) apareçam como Agendamentos
+      if (s.is_crm) {
+        months[mKey].conversoes += s.conversions  || 0;
+        months[mKey].demos      += s.crm_demos    || s.conversions || 0;
+      }
+
+      if (s.platform === "google" && !s.is_crm) months[mKey].google += spend;
+      if (s.platform === "meta"   && !s.is_crm) months[mKey].meta   += spend;
     });
 
     return Object.values(months)
@@ -1335,6 +1342,85 @@ export default function Home() {
         file_hash: finalHash,
         count: wizardRawRows.length
       };
+
+      // ─── CAMINHO BITRIX CRM ────────────────────────────────────────────────
+      // Processamento separado para relatórios do Bitrix24.
+      // Não tem spend, campaign_name, ou as colunas de anúncios —
+      // então usamos um caminho próprio que não filtra por spend.
+      if (wizardPlatform === "bitrix") {
+        const DEMO_KEYWORDS = [
+          "convertido", "demonstração", "demonstracao", "qualificado",
+          "ganho", "efetivad", "reuniao marcada", "reunião marcada",
+          "demo agendada", "agendado", "agendada"
+        ];
+
+        const crmRows = wizardRawRows
+          .filter(row => {
+            // Ignora linhas totalmente vazias
+            return Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== "");
+          })
+          .map((row, idx) => {
+            const leadId = wizardMapping.lead_id ? String(row[wizardMapping.lead_id] || "").trim() : String(idx);
+            const leadStatus = wizardMapping.lead_status ? String(row[wizardMapping.lead_status] || "").trim() : "";
+            const leadSource = wizardMapping.lead_source ? String(row[wizardMapping.lead_source] || "").trim() : "";
+            const leadMedium = wizardMapping.lead_medium ? String(row[wizardMapping.lead_medium] || "").trim() : "";
+            const leadCampaign = wizardMapping.lead_campaign ? String(row[wizardMapping.lead_campaign] || "").trim() : "";
+
+            let dateVal = wizardMapping.date ? row[wizardMapping.date] : undefined;
+            if (!dateVal) dateVal = getSemanticValue(row, "date");
+            const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`);
+
+            const statusLower = leadStatus.toLowerCase();
+            const isDemo = DEMO_KEYWORDS.some(kw => statusLower.includes(kw));
+
+            return {
+              id: `crm_${reference_month}_${leadId}_${idx}`,
+              platform: "bitrix",
+              dataset_type: "crm_leads",
+              lead_id: leadId,
+              lead_status: leadStatus,
+              lead_source: leadSource,
+              lead_medium: leadMedium,
+              lead_campaign: leadCampaign,
+              is_demo: isDemo,
+              date: enrichedDate.date,
+              reference_month: enrichedDate.reference_month || reference_month,
+              reference_label: enrichedDate.reference_label || reference_label,
+              day: enrichedDate.day,
+              week: enrichedDate.week,
+              month: enrichedDate.month,
+              month_name: enrichedDate.month_name,
+              quarter: enrichedDate.quarter,
+              year: enrichedDate.year,
+              year_month: enrichedDate.year_month,
+              spend: 0, clicks: 0, impressions: 0, conversions: isDemo ? 1 : 0,
+              leads: 1,
+              reach: 0, revenue: 0, frequency: 1,
+              ctr: 0, cpc: 0, cpm: 0, cpl: 0, cac: 0, roas: 0,
+              status: leadStatus,
+              raw_file_name: wizardFile.name,
+              file_hash: finalHash,
+              created_at: new Date().toISOString()
+            };
+          });
+
+        setWizardProgress(90);
+        setWizardStatusText("Verificando duplicados e gravando no banco (CRM)...");
+
+        const dup = checkFileDuplicate(marketingDb, metadata);
+        const action = dup ? "replace" : "replace";
+        const result = await insertDataset(marketingDb, metadata, crmRows, action);
+        setMarketingDb(result.db);
+
+        setWizardProgress(100);
+        setWizardStatusText("Finalizado!");
+        setWizardResultCount(crmRows.length);
+        setWizardStep("success");
+        updateFileStatus(wizardFile.name, "sucesso", "Sincronizado CRM");
+        triggerToast(`CRM Bitrix: ${crmRows.length} leads processados (${crmRows.filter(r => r.is_demo).length} demonstrações).`);
+        return;
+      }
+      // ─────────────────────────────────────────────────────────────────────────
 
       // C-02 FIX: Filter rows correctly even when campaign_name is not mapped
       // CRITICAL: Meta Ads exports include a "total" row with empty campaign name
