@@ -191,15 +191,10 @@ export function parseDate(val) {
   }
 
   const strLower = str.toLowerCase();
-
-  // Try parsing ISO date with time component (keep UTC behavior for full timestamps)
-  let d = new Date(val);
-  if (!isNaN(d.getTime()) && str.includes("T")) {
-    return d;
-  }
-
-  // Handle 'qua., 1 de abr. de 2026' / '1 de abr. de 2026'
-  const cleanStr = strLower.replace(/[.,]/g, "").replace(/\s+/g, " ");
+  
+  // Substitui pontos por barras em datas no formato DD.MM.YYYY ou DD.MM.YY para evitar que sejam apagados na limpeza
+  let cleanStr = strLower.replace(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/g, "$1/$2/$3");
+  cleanStr = cleanStr.replace(/[.,]/g, "").replace(/\s+/g, " ");
   
   // FIX: Handle "month de year" format (e.g. "outubro de 2025") — Meta Ads monthly export
   // Split on " de " gives ["outubro", "2025"] (only 2 parts, no day)
@@ -247,31 +242,31 @@ export function parseDate(val) {
     const p1 = parseInt(slashParts[1], 10);
     const p2 = parseInt(slashParts[2], 10);
 
-    if (p2 > 999) {
+    // Smart 2-digit to 4-digit year conversion
+    let year = p2;
+    if (year <= 99 && year >= 0) {
+      year += 2000;
+    }
+
+    if (year > 1900) {
       // M-03 FIX: Smart detection of BR (DD/MM/YYYY) vs US (MM/DD/YYYY)
-      // If p1 > 12, it cannot be a month → must be DD/MM/YYYY
-      // If p0 > 12, it cannot be a day → must be MM/DD/YYYY (US format)
-      // Default: assume DD/MM/YYYY for Brazilian exports
       if (p0 > 12) {
         // p0 > 12 significa que p0 NÃO pode ser mês → é o dia no formato brasileiro (DD/MM/YYYY)
         const day = p0;
         const month = p1 - 1;
-        const year = p2;
         return new Date(year, month, day);
       } else if (p1 > 12) {
         // p1 > 12 significa que p1 NÃO pode ser mês → é o dia no formato americano (MM/DD/YYYY)
         const month = p0 - 1;
         const day = p1;
-        const year = p2;
         return new Date(year, month, day);
       } else {
         // Ambíguo — padrão brasileiro DD/MM/YYYY
         const day = p0;
         const month = p1 - 1;
-        const year = p2;
         return new Date(year, month, day);
       }
-    } else if (p0 > 999) {
+    } else if (p0 > 1900) {
       // YYYY/MM/DD
       const year = p0;
       const month = p1 - 1;
