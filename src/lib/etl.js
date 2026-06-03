@@ -1,4 +1,4 @@
-import readXlsxFile from "read-excel-file/browser";
+import * as XLSX from "xlsx";
 import { buildDeterministicId } from "./data-validator";
 
 export function sanitizeMojibake(str) {
@@ -335,7 +335,7 @@ export function applyTemporalIntelligence(dateVal) {
 export function detectPlatform(fileName, rowKeys, rows = []) {
   const name = fileName.toLowerCase();
 
-  if (name.includes("doitsa") || name.includes("doit_sa") || name.includes("doit sa")) {
+  if (name.includes("doitsa") || name.includes("doit_sa") || name.includes("doit sa") || name.includes("doit-sa") || (name.includes("doit") && !name.includes("google") && !name.includes("meta") && !name.includes("facebook") && !name.includes("bitrix"))) {
     return "doitsa";
   }
   if (name.includes("meta") || name.includes("facebook") || name.includes("instagram") || name.includes("fbad")) {
@@ -755,6 +755,7 @@ export const SYNONYMS = {
 };
 
 export function getSemanticValue(row, targetField, defaultValue = undefined) {
+  if (!row || typeof row !== "object") return defaultValue;
   const synonyms = SYNONYMS[targetField];
   if (!synonyms) return defaultValue;
 
@@ -865,40 +866,92 @@ export function parseCsv(text) {
 
 export async function parseExcelFile(file) {
   try {
-    const rawRows = await readXlsxFile(file);
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+          
+          if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+            resolve([]);
+            return;
+          }
 
-    if (rawRows.length < 2) return [];
+          let sheetName = "";
+          for (const name of workbook.SheetNames) {
+            const sheet = workbook.Sheets[name];
+            if (!sheet) continue;
+            const ref = sheet['!ref'];
+            if (ref) {
+              const range = XLSX.utils.decode_range(ref);
+              if (range && range.e && (range.e.r > 0 || range.e.c > 0)) {
+                sheetName = name;
+                break;
+              }
+            }
+          }
+          if (!sheetName) sheetName = workbook.SheetNames[0];
 
-    let headerIndex = 0;
-    let bestScore = -1;
-    rawRows.slice(0, 12).forEach((row, index) => {
-      const text = row.join(" ").toLowerCase();
-      const filled = row.filter((cell) => String(cell).trim()).length;
-      const keywords = ["campanha", "campaign", "custo", "spend", "receita", "revenue", "cliques", "clicks", "data", "dispositivo"]
-        .filter((word) => text.includes(word)).length;
-      const score = filled + keywords * 4;
-      if (score > bestScore) {
-        bestScore = score;
-        headerIndex = index;
-      }
+          const worksheet = workbook.Sheets[sheetName];
+          if (!worksheet) {
+            resolve([]);
+            return;
+          }
+
+          const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          if (!rawRows || rawRows.length < 2) {
+            resolve([]);
+            return;
+          }
+
+          let headerIndex = 0;
+          let bestScore = -1;
+          rawRows.slice(0, 12).forEach((row, index) => {
+            if (!Array.isArray(row)) return;
+            const text = row.join(" ").toLowerCase();
+            const filled = row.filter((cell) => cell !== null && cell !== undefined && String(cell).trim()).length;
+            const keywords = ["campanha", "campaign", "custo", "spend", "receita", "revenue", "cliques", "clicks", "data", "dispositivo"]
+              .filter((word) => text.includes(word)).length;
+            const score = filled + keywords * 4;
+            if (score > bestScore) {
+              bestScore = score;
+              headerIndex = index;
+            }
+          });
+
+          const rawHeaders = rawRows[headerIndex] || [];
+          const headers = rawHeaders.map((header, index) => {
+            const value = sanitizeMojibake(String(header || "").trim());
+            return value || `Coluna_${index + 1}`;
+          });
+
+          const formattedRows = rawRows.slice(headerIndex + 1).map((row) => {
+            const record = {};
+            headers.forEach((header, index) => {
+              let val = row ? row[index] : undefined;
+              if (val === undefined || val === null) {
+                val = "";
+              } else if (val instanceof Date) {
+                val = val.toISOString().split("T")[0];
+              }
+              record[header] = val;
+            });
+            return record;
+          });
+
+          resolve(formattedRows);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsArrayBuffer(file);
     });
-
-    // FIX: Keep original header case for display in the wizard dropdown
-    const headers = rawRows[headerIndex].map((header, index) => {
-      const value = sanitizeMojibake(String(header || "").trim());
-      return value || `Coluna_${index + 1}`;
-    });
-
-    return rawRows.slice(headerIndex + 1).map((row) =>
-      headers.reduce((record, header, index) => {
-        record[header] = row[index] ?? "";
-        return record;
-      }, {})
-    );
   } catch (xlsxErr) {
-    console.warn("read-excel-file failed, trying HTML/CSV fallback parser...", xlsxErr);
+    console.warn("SheetJS failed, trying HTML/CSV fallback parser...", xlsxErr);
 
-    // Fallback: Ler arquivo como texto
     const text = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => resolve(e.target.result);
@@ -906,7 +959,6 @@ export async function parseExcelFile(file) {
       reader.readAsText(file, "utf-8");
     });
 
-    // Se parecer código HTML (muito comum em exportações falsas de ERPs/CRMs de planilhas)
     if (text.includes("<table") || text.includes("<tr") || text.includes("<html") || text.includes("xmlns:x=\"urn:schemas-microsoft-com:office:excel\"")) {
       if (typeof window !== "undefined") {
         const parser = new DOMParser();
@@ -914,12 +966,13 @@ export async function parseExcelFile(file) {
         const rows = Array.from(doc.querySelectorAll("tr"));
         if (rows.length >= 2) {
           const rawRows = rows.map(tr =>
-            Array.from(tr.querySelectorAll("th, td")).map(td => td.innerText.trim())
+            Array.from(tr.querySelectorAll("th, td")).map(td => (td.innerText || td.textContent || "").trim())
           );
 
           let headerIndex = 0;
           let bestScore = -1;
           rawRows.slice(0, 12).forEach((row, index) => {
+            if (!Array.isArray(row)) return;
             const rowText = row.join(" ").toLowerCase();
             const filled = row.filter((cell) => String(cell).trim()).length;
             const keywords = ["campanha", "campaign", "custo", "spend", "receita", "revenue", "cliques", "clicks", "data", "dispositivo"]
@@ -931,14 +984,15 @@ export async function parseExcelFile(file) {
             }
           });
 
-          const headers = rawRows[headerIndex].map((header, index) => {
+          const rawHeaders = rawRows[headerIndex] || [];
+          const headers = rawHeaders.map((header, index) => {
             const value = sanitizeMojibake(String(header || "").trim());
             return value || `Coluna_${index + 1}`;
           });
 
           return rawRows.slice(headerIndex + 1).map((row) =>
             headers.reduce((record, header, index) => {
-              record[header] = row[index] ?? "";
+              record[header] = row ? (row[index] ?? "") : "";
               return record;
             }, {})
           );
@@ -946,7 +1000,6 @@ export async function parseExcelFile(file) {
       }
     }
 
-    // Se parecer um arquivo CSV ou TSV com extensão de Excel alterada
     const rows = parseCsv(text);
     if (rows && rows.length > 0) {
       return rows;
