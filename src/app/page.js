@@ -585,6 +585,13 @@ export default function Home() {
     return true;
   };
 
+  const matchesTimelineFilters = (r) => {
+    if (period !== "todos" && r.reference_month !== period) return false;
+    if (!isInsideSelectedDateRange(r)) return false;
+    if (campaign !== "todas" && r.campaign_name !== campaign) return false;
+    return true;
+  };
+
 
   // A-03 FIX: Memoized campaign grouped list
   const filteredCampaigns = useMemo(() => {
@@ -987,18 +994,7 @@ export default function Home() {
   const geoData = getRegionalMapData();
 
   // M-07 FIX: Use reference_month (YYYY-MM stable key) for grouping, not reference_label (string prone to variation)
-  // ─── TIMELINE (BUG 2 FIX): usa filtro SEM restrição de plataforma ─────────
-  // Motivo: o gráfico de 3 linhas é um painel COMPARATIVO (Google vs Meta vs Leads).
-  // Se usarmos matchesCoreFilters, quando o filtro de plataforma = "Google",
-  // todos os registros Meta são filtrados → linha Meta = R$0 no gráfico.
-  // Solução: ignorar o filtro de plataforma dentro do timeline (mas manter
-  // período, data e campanha).
-  const matchesTimelineFilters = (r) => {
-    if (period !== "todos" && r.reference_month !== period) return false;
-    if (!isInsideSelectedDateRange(r)) return false;
-    if (campaign !== "todas" && r.campaign_name !== campaign) return false;
-    return true;
-  };
+
 
   const timeline = useMemo(() => {
     const months = {};
