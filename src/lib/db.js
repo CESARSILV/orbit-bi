@@ -644,19 +644,9 @@ export function consolidateSummary(db) {
       g.leads += 1;
       g.crm_leads += 1;
 
-      // É uma demonstração se is_demo=true OU se o status da etapa indicar conversão
-      const isDemo = r.is_demo === true || r.is_demo === 1;
-      const statusStr = (r.lead_status || "").toLowerCase();
-      const isDemoByStatus = isDemo || [
-        "convertido", "demonstração", "demonstracao", "qualificado",
-        "ganho", "efetivad", "reuniao marcada", "reunião marcada",
-        "demo agendada", "agendado", "agendada"
-      ].some(kw => statusStr.includes(kw));
-
-      if (isDemoByStatus) {
-        g.conversions += 1;
-        g.crm_demos += 1;
-      }
+      // Agendados (conversions) e Leads Qualificados (crm_demos) são calculados separadamente
+      g.conversions += r.conversions || 0;
+      g.crm_demos += (r.is_demo === true || r.is_demo === 1) ? 1 : 0;
     });
   }
 

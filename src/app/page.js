@@ -219,6 +219,7 @@ export default function Home() {
         { key: "lead_source", label: "Fonte / Origem (Obrigatório)", required: true, description: "Fonte original do tráfego ou formulário." },
         { key: "lead_medium", label: "UTM Medium", required: false, description: "Meio / UTM Medium." },
         { key: "lead_campaign", label: "UTM Campaign", required: false, description: "Campanha associada." },
+        { key: "lead_industry", label: "Indústria / Segmento", required: false, description: "Coluna que indica o setor ou indústria da empresa/negócio." },
       ];
     }
 
@@ -1350,11 +1351,13 @@ export default function Home() {
       // Não tem spend, campaign_name, ou as colunas de anúncios —
       // então usamos um caminho próprio que não filtra por spend.
       if (wizardPlatform === "bitrix") {
-        const DEMO_KEYWORDS = [
+        const AGENDADOS_KEYWORDS = [
           "convertido", "demonstração", "demonstracao", "qualificado",
           "ganho", "efetivad", "reuniao marcada", "reunião marcada",
-          "demo agendada", "agendado", "agendada"
+          "demo agendada", "agendado", "agendada", "marcado", "marcada", "agendamento"
         ];
+
+        const QUALIFYING_TERMS = ["arq", "design", "estúdio", "studio", "interiores", "arquitetos", "arquitetura", "estudio"];
 
         const crmRows = wizardRawRows
           .filter(row => {
@@ -1367,13 +1370,23 @@ export default function Home() {
             const leadSource = wizardMapping.lead_source ? String(row[wizardMapping.lead_source] || "").trim() : "";
             const leadMedium = wizardMapping.lead_medium ? String(row[wizardMapping.lead_medium] || "").trim() : "";
             const leadCampaign = wizardMapping.lead_campaign ? String(row[wizardMapping.lead_campaign] || "").trim() : "";
+            const leadIndustry = wizardMapping.lead_industry ? String(row[wizardMapping.lead_industry] || "").trim() : "";
 
             let dateVal = wizardMapping.date ? row[wizardMapping.date] : undefined;
             if (!dateVal) dateVal = getSemanticValue(row, "date");
             const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`);
 
             const statusLower = leadStatus.toLowerCase();
-            const isDemo = DEMO_KEYWORDS.some(kw => statusLower.includes(kw));
+            const industryLower = leadIndustry.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+            const nameLower = leadCampaign.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+            // Regra de Qualificação para Leads Qualificados
+            const isQualified = 
+              industryLower === "arquitetura" || 
+              QUALIFYING_TERMS.some(term => nameLower.includes(term));
+
+            // Agendados (status comercial correspondente)
+            const isScheduled = AGENDADOS_KEYWORDS.some(kw => statusLower.includes(kw));
 
             return {
               id: `crm_${reference_month}_${leadId}_${idx}`,
@@ -1384,7 +1397,8 @@ export default function Home() {
               lead_source: leadSource,
               lead_medium: leadMedium,
               lead_campaign: leadCampaign,
-              is_demo: isDemo,
+              lead_industry: leadIndustry,
+              is_demo: isQualified, // is_demo representa "Leads Qualificados"
               date: enrichedDate.date,
               reference_month: enrichedDate.reference_month || reference_month,
               reference_label: enrichedDate.reference_label || reference_label,
@@ -1395,7 +1409,8 @@ export default function Home() {
               quarter: enrichedDate.quarter,
               year: enrichedDate.year,
               year_month: enrichedDate.year_month,
-              spend: 0, clicks: 0, impressions: 0, conversions: isDemo ? 1 : 0,
+              spend: 0, clicks: 0, impressions: 0, 
+              conversions: isScheduled ? 1 : 0, // conversions representa "Agendados"
               leads: 1,
               reach: 0, revenue: 0, frequency: 1,
               ctr: 0, cpc: 0, cpm: 0, cpl: 0, cac: 0, roas: 0,

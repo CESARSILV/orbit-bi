@@ -660,6 +660,9 @@ export const SYNONYMS = {
   lead_campaign: [
     "UTM Campaign", "utm_campaign", "utm campaign", "Campanha", "campanha"
   ],
+  lead_industry: [
+    "Empresa: Indústria", "Empresa: Industria", "Indústria", "Industria", "industria", "Setor", "Segmento", "Dor Principal ??"
+  ],
   adset_name: [
     // Meta Ads exact
     "Nome do conjunto de anúncios", "nome do conjunto de anúncios",
