@@ -717,7 +717,8 @@ export default function Home() {
     const investimento = list.reduce((sum, item) => sum + (item.spend || 0), 0);
     const receita      = list.reduce((sum, item) => sum + (item.revenue || 0), 0);
     const leads        = list.reduce((sum, item) => sum + (item.leads || 0), 0);
-    const conversoes   = list.reduce((sum, item) => sum + (item.conversions || 0), 0);
+    const conversoes   = list.reduce((sum, item) => sum + (item.is_crm ? (item.conversions || 0) : 0), 0);
+    const demos        = list.reduce((sum, item) => sum + (item.is_crm ? (item.crm_demos || item.conversions || 0) : 0), 0);
     const cliques      = list.reduce((sum, item) => sum + (item.clicks || 0), 0);
     const impressoes   = list.reduce((sum, item) => sum + (item.impressions || 0), 0);
     const reach        = list.reduce((sum, item) => sum + (item.reach || 0), 0);
@@ -739,6 +740,7 @@ export default function Home() {
       ctr,
       cpc,
       conversoes,
+      demos,
       cliques,
       impressoes,
       alcance: reach,
@@ -1987,14 +1989,19 @@ export default function Home() {
       <div class="kpi-sub">CTR: ${pct(totals.ctr)}</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Agendamentos</div>
-      <div class="kpi-value">0</div>
-      <div class="kpi-sub">Dados via integração futura</div>
+      <div class="kpi-label">Leads</div>
+      <div class="kpi-value">${numFmt(totals.leads)}</div>
+      <div class="kpi-sub">Contatos e cadastros</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Demos Realizadas</div>
-      <div class="kpi-value">0</div>
-      <div class="kpi-sub">Dados via integração futura</div>
+      <div class="kpi-label">Leads Qualificados</div>
+      <div class="kpi-value">${numFmt(totals.demos)}</div>
+      <div class="kpi-sub">Leads qualificados CRM</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Agendados</div>
+      <div class="kpi-value">${numFmt(totals.conversoes)}</div>
+      <div class="kpi-sub">Agendamentos no CRM</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">CPC Médio</div>
@@ -2095,14 +2102,14 @@ export default function Home() {
       ["Investimento Total (R$)", `=SOMA(E17:E${totalRows + 16})`, "=SOMA(E17:E...)", "Soma de todo investimento em mídia paga"],
       ["Cliques Totais", `=SOMA(F17:F${totalRows + 16})`, "=SOMA(F17:F...)", "Quantidade total de cliques recebidos"],
       ["Impressões Totais", `=SOMA(G17:G${totalRows + 16})`, "=SOMA(G17:G...)", "Quantidade total de exibições do anúncio"],
-      ["Leads Totais", `=SOMA(J17:J${totalRows + 16})`, "=SOMA(J17:J...)", "Quantidade total de leads capturados"],
-      ["Agendamentos Totais", `=SOMA(H17:H${totalRows + 16})`, "=SOMA(H17:H...)", "Quantidade total de agendamentos"],
+      ["Leads Totais", `=SOMA(H17:H${totalRows + 16})`, "=SOMA(H17:H...)", "Quantidade total de leads capturados"],
+      ["Agendados Totais", `=SOMA(J17:J${totalRows + 16})`, "=SOMA(J17:J...)", "Quantidade total de agendamentos"],
       ["CTR Geral", `=SEERRO(B7/B8;0)`, "=Cliques/Impressões", "Taxa média de cliques"],
       ["CPC Geral (R$)", `=SEERRO(B6/B7;0)`, "=Investimento/Cliques", "Custo médio por clique"],
       ["CPL Geral (R$)", `=SEERRO(B6/B9;0)`, "=Investimento/Leads", "Custo por lead"],
-      ["CPA Geral (R$)", `=SEERRO(B6/B10;0)`, "=Investimento/Agendamentos", "Custo por agendamento"],
+      ["CPA Geral (R$)", `=SEERRO(B6/B10;0)`, "=Investimento/Agendados", "Custo por agendamento"],
       [],
-      ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Cliques Totais", "Impressões", "Agendamentos", "Demos Realizadas", "Leads", "CTR", "CPC", "CPM", "CPL", "CPA", "Status"],
+      ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Cliques Totais", "Impressões", "Leads", "Leads Qualificados", "Agendados", "CTR", "CPC", "CPM", "CPL", "CPA", "Status"],
       ...listToExport.map((item, index) => {
         const rowNum = index + 17; // starts on row 17
         return [
@@ -2113,14 +2120,14 @@ export default function Home() {
           item.spend,
           item.clicks,
           item.impressions,
-          0,
-          0,
           item.leads,
+          item.is_crm ? (item.crm_demos || item.conversions || 0) : 0,
+          item.is_crm ? (item.conversions || 0) : 0,
           `=SEERRO(F${rowNum}/G${rowNum};0)`,
           `=SEERRO(E${rowNum}/F${rowNum};0)`,
           `=SEERRO((E${rowNum}/G${rowNum})*1000;0)`,
-          `=SEERRO(E${rowNum}/J${rowNum};0)`,
           `=SEERRO(E${rowNum}/H${rowNum};0)`,
+          `=SEERRO(E${rowNum}/J${rowNum};0)`,
           item.status
         ];
       })

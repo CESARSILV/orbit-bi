@@ -89,25 +89,25 @@ export default function KpiGrid({ totals }) {
       accent: "#7bb7ff", // Blue
     },
     {
-      label: "Agendamentos",
-      value: 0, // Dados virão de integração futura com sistema externo
-      formatFn: (v) => number.format(Math.round(v)),
-      meta: "Agendamentos que foram Marcados",
-      accent: "#7cf7be", // Green
-    },
-    {
-      label: "Demos Realizadas",
-      value: 0, // Dados virão de integração futura com sistema externo
-      formatFn: (v) => number.format(Math.round(v)),
-      meta: "Demos que foram realizadas para o Cliente",
-      accent: "#b99cff", // Purple
-    },
-    {
       label: "Leads",
       value: totals.leads || 0,
       formatFn: (v) => number.format(Math.round(v)),
       meta: "Contatos e cadastros capturados",
       accent: "#7bb7ff", // Blue
+    },
+    {
+      label: "Leads Qualificados",
+      value: totals.demos || 0,
+      formatFn: (v) => number.format(Math.round(v)),
+      meta: "Leads qualificados no CRM",
+      accent: "#b99cff", // Purple
+    },
+    {
+      label: "Agendados",
+      value: totals.conversoes || 0,
+      formatFn: (v) => number.format(Math.round(v)),
+      meta: "Agendamentos confirmados (via CRM)",
+      accent: "#7cf7be", // Green
     },
     {
       label: "CTR Médio",

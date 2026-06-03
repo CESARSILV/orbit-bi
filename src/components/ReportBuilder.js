@@ -25,14 +25,14 @@ const KPI_DEFS = [
   { key: "cpc",          label: "CPC",            icon: "💲", fmt: (v) => brl2.format(v), desc: "Custo por clique" },
   { key: "cpm",          label: "CPM",            icon: "📣", fmt: (v) => brl2.format(v), desc: "Custo por mil impressões" },
   { key: "leads",        label: "Leads",          icon: "🎯", fmt: (v) => num.format(v),  desc: "Leads captados" },
-  { key: "conversoes",   label: "Agendamentos",   icon: "✅", fmt: (v) => num.format(v),  desc: "Agendamentos confirmados (via CRM Bitrix)" },
-  { key: "demos",        label: "Demos Realizadas", icon: "🔮", fmt: (v) => num.format(v), desc: "Demonstrações realizadas (via CRM Bitrix)" },
+  { key: "demos",        label: "Leads Qualificados", icon: "🔮", fmt: (v) => num.format(v), desc: "Leads qualificados no CRM (via CRM Bitrix)" },
+  { key: "conversoes",   label: "Agendados",      icon: "✅", fmt: (v) => num.format(v),  desc: "Agendamentos confirmados (via CRM Bitrix)" },
   { key: "cpa",          label: "CPA",            icon: "🏷️", fmt: (v) => brl2.format(v), desc: "Custo por agendamento" },
   { key: "cpl",          label: "CPL",            icon: "📋", fmt: (v) => brl2.format(v), desc: "Custo por lead" },
   { key: "alcance",      label: "Alcance",        icon: "🌐", fmt: (v) => num.format(v),  desc: "Pessoas alcançadas" },
 ];
 
-const DEFAULT_KPIS = ["investimento", "cliques", "impressoes", "ctr", "leads", "conversoes", "demos", "cpa", "cpl"];
+const DEFAULT_KPIS = ["investimento", "cliques", "impressoes", "ctr", "leads", "demos", "conversoes", "cpa", "cpl"];
 
 // ─── Calcula linha de dados para um mês ──────────────────────────────────────
 function calcRowKpis(row) {
