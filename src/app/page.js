@@ -608,7 +608,7 @@ export default function Home() {
       if (!grouped[key]) {
         grouped[key] = {
           nome: name,
-          plataforma: c.platform === "google" ? "Google Ads" : "Meta Ads",
+          plataforma: c.platform === "google" ? "Google Ads" : c.platform === "bitrix" ? "Bitrix24 CRM" : "Meta Ads",
           tipo: c.platform,
           investimento: 0,
           receita: 0,
@@ -688,7 +688,7 @@ export default function Home() {
       })
       .reduce((acc, c) => {
         const key = `${c.platform}_${c.campaign_name}`;
-        if (!acc[key]) acc[key] = { nome: c.campaign_name, plataforma: c.platform === "google" ? "Google Ads" : "Meta Ads", tipo: c.platform, investimento: 0, status: "Ativa" };
+        if (!acc[key]) acc[key] = { nome: c.campaign_name, plataforma: c.platform === "google" ? "Google Ads" : c.platform === "bitrix" ? "Bitrix24 CRM" : "Meta Ads", tipo: c.platform, investimento: 0, status: "Ativa" };
         acc[key].investimento += c.spend || 0;
         return acc;
       }, {});
@@ -1273,8 +1273,11 @@ export default function Home() {
 
   const handleRunWizardIngestion = async () => {
     // Validate required fields are mapped
+    const requiredFields = getWizardFields(wizardPlatform, wizardDatasetType).filter(f => f.required);
     const missingFields = [];
-    if (!wizardMapping.spend) missingFields.push("Investimento / Gasto");
+    requiredFields.forEach(f => {
+      if (!wizardMapping[f.key]) missingFields.push(f.label);
+    });
 
     if (missingFields.length > 0) {
       setWizardErrorMsg(`Por favor, mapeie os campos obrigatórios: ${missingFields.join(", ")}`);
@@ -2019,7 +2022,7 @@ export default function Home() {
         return [
           item.date,
           item.reference_label,
-          item.platform === "google" ? "Google Ads" : "Meta Ads",
+          item.platform === "google" ? "Google Ads" : item.platform === "bitrix" ? "Bitrix24 CRM" : "Meta Ads",
           item.campaign_name,
           item.spend,
           item.clicks,
@@ -2371,7 +2374,7 @@ export default function Home() {
           <div className="dedup-modal-box">
             <h3>📊 Conflito de Arquivo Detectado</h3>
             <p>
-              O arquivo <strong>{pendingUpload.file.name}</strong> contém dados de <strong>{pendingUpload.metadata.platform === "google" ? "Google Ads" : "Meta Ads"}</strong> para o relatório de <strong>{pendingUpload.metadata.dataset_type}</strong> de <strong>{pendingUpload.metadata.reference_label}</strong> que já foram importados.
+              O arquivo <strong>{pendingUpload.file.name}</strong> contém dados de <strong>{pendingUpload.metadata.platform === "google" ? "Google Ads" : pendingUpload.metadata.platform === "bitrix" ? "Bitrix24 CRM" : "Meta Ads"}</strong> para o relatório de <strong>{pendingUpload.metadata.dataset_type}</strong> de <strong>{pendingUpload.metadata.reference_label}</strong> que já foram importados.
             </p>
             <p className="hint">Como deseja proceder com este upload?</p>
             
@@ -2492,7 +2495,7 @@ export default function Home() {
             {/* Wizard Header */}
             <header className="wizard-header">
               <h2 id="wizardTitle">🧙‍♂️ Assistente de Ingestão de Dados</h2>
-              <p>Arquivo: <strong>{wizardFile.name}</strong> (Plataforma: <strong>{wizardPlatform === "google" ? "Google Ads" : "Meta Ads"}</strong>)</p>
+              <p>Arquivo: <strong>{wizardFile.name}</strong> (Plataforma: <strong>{wizardPlatform === "google" ? "Google Ads" : wizardPlatform === "bitrix" ? "Bitrix24 (CRM)" : "Meta Ads"}</strong>)</p>
             </header>
 
             {/* Step Indicators */}

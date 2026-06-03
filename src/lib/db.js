@@ -725,7 +725,7 @@ export async function syncWithSupabase(db) {
     const campaignsToInsert = db.fact_campaigns.map(c => ({
       id: c.id,
       nome: c.campaign_name,
-      plataforma: c.platform === "google" ? "Google Ads" : "Meta Ads",
+      plataforma: c.platform === "google" ? "Google Ads" : c.platform === "bitrix" ? "Bitrix24 CRM" : "Meta Ads",
       tipo: c.platform,
       investimento: c.spend || 0,
       receita: c.revenue || 0,
