@@ -253,21 +253,19 @@ export function parseDate(val) {
       // If p0 > 12, it cannot be a day → must be MM/DD/YYYY (US format)
       // Default: assume DD/MM/YYYY for Brazilian exports
       if (p0 > 12) {
-        // Must be MM/DD/YYYY (US format — p0 is month > 12 is invalid, so p0 is the month)
-        // Actually p0 > 12 means p0 is NOT a valid month → it is a day in DD/MM/YYYY
-        // Correction: if p1 > 12, p1 cannot be month → p1 is day → MM/DD/YYYY
-        const month = p0 - 1;
-        const day = p1;
+        // p0 > 12 significa que p0 NÃO pode ser mês → é o dia no formato brasileiro (DD/MM/YYYY)
+        const day = p0;
+        const month = p1 - 1;
         const year = p2;
         return new Date(year, month, day);
       } else if (p1 > 12) {
-        // p1 > 12 means p1 is a day → format is MM/DD/YYYY (US)
+        // p1 > 12 significa que p1 NÃO pode ser mês → é o dia no formato americano (MM/DD/YYYY)
         const month = p0 - 1;
         const day = p1;
         const year = p2;
         return new Date(year, month, day);
       } else {
-        // Ambiguous — default to Brazilian DD/MM/YYYY
+        // Ambíguo — padrão brasileiro DD/MM/YYYY
         const day = p0;
         const month = p1 - 1;
         const year = p2;
