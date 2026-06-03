@@ -81,7 +81,17 @@ export default function Home() {
       "2026-04": 32,
       "2026-05": 29,
     };
-    return table[monthKey] || 30;
+    if (table[monthKey] !== undefined) {
+      return table[monthKey];
+    }
+    // Para meses futuros não mapeados, gera um número fixo e estável (entre 26 e 33) baseado no mês
+    if (!monthKey) return 30;
+    let hash = 0;
+    for (let i = 0; i < monthKey.length; i++) {
+      hash = (hash << 5) - hash + monthKey.charCodeAt(i);
+      hash |= 0;
+    }
+    return 26 + Math.abs(hash % 8);
   }, [hasCrmData]);
 
   // UI state
