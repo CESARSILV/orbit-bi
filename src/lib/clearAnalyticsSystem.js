@@ -1,6 +1,6 @@
 // ============================================================
 // clearAnalyticsSystem.js — Central Reset Engine
-// Orbit BI | Marketing Analytics Platform
+// DOit BI | Marketing Analytics Platform
 // ============================================================
 //
 // Função única e autoritativa para limpeza total do sistema.
@@ -22,15 +22,15 @@ import { createInitialDb, saveDatabase } from "./db";
 
 // Todas as chaves de localStorage que o sistema pode criar
 const LS_KEYS = [
-  "orbit_marketing_bi_db",
-  "orbit_bi_db",
-  "orbit_filters",
-  "orbit_preferences",
-  "orbit_session",
-  "orbit_import_templates",
-  "orbit_wizard_state",
-  "orbit_chat_history",
-  "orbit_user_prefs",
+  "doit_marketing_bi_db",
+  "doit_bi_db",
+  "doit_filters",
+  "doit_preferences",
+  "doit_session",
+  "doit_import_templates",
+  "doit_wizard_state",
+  "doit_chat_history",
+  "doit_user_prefs",
   "marketingDb",
   "analyticsDb",
   "uploadedFiles",

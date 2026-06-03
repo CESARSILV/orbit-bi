@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 
 // ─── Chave de persistência ────────────────────────────────────────────────────
-const PREFS_KEY = "orbit-report-prefs";
+const PREFS_KEY = "doit-report-prefs";
 
 function loadPrefs() {
   if (typeof window === "undefined") return null;
@@ -328,7 +328,7 @@ export default function ReportBuilder({
     const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `orbit-relatorio-${Date.now()}.csv`;
+    a.href = url; a.download = `doit-relatorio-${Date.now()}.csv`;
     a.click(); URL.revokeObjectURL(url);
   };
 
@@ -382,7 +382,7 @@ export default function ReportBuilder({
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Relatório Executivo — ${clientName || "Orbit BI"}</title>
+<title>Relatório Executivo — ${clientName || "DOit BI"}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -449,7 +449,7 @@ export default function ReportBuilder({
   <div class="hdr">
     <div class="brand">
       <div class="logo">O</div>
-      <div><div class="brand-name">Orbit BI</div><div class="brand-sub">Inteligência de mídia paga</div></div>
+      <div><div class="brand-name">DOit BI</div><div class="brand-sub">Inteligência de mídia paga</div></div>
     </div>
     <div class="hdr-r">
       <div class="cli">${clientName || "Relatório Executivo"}</div>
@@ -469,7 +469,7 @@ export default function ReportBuilder({
   ${platformHtml}
 
   <div class="footer">
-    <span>Orbit BI — Inteligência de Mídia Paga</span>
+    <span>DOit BI — Inteligência de Mídia Paga</span>
     <span>${clientName || "Relatório Executivo"} &nbsp;·&nbsp; ${periodLabel}</span>
     <span>Gerado em ${today}</span>
   </div>
@@ -640,7 +640,7 @@ export default function ReportBuilder({
             )}
             <div>
               <p style={{ margin: 0, fontSize: "0.68rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>
-                Orbit BI — Report Builder
+                DOit BI — Report Builder
               </p>
               <h1 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 800, color: "var(--text-primary)" }}>
                 Relatório Executivo
@@ -673,7 +673,7 @@ export default function ReportBuilder({
               }}>O</div>
               <div>
                 <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>
-                  Orbit BI
+                  DOit BI
                 </div>
                 <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 500 }}>
                   Inteligência de mídia paga
@@ -831,7 +831,7 @@ export default function ReportBuilder({
 
           {/* RODAPÉ */}
           <div className="report-footer">
-            <span>Orbit BI — Inteligência de Mídia Paga</span>
+            <span>DOit BI — Inteligência de Mídia Paga</span>
             <span>Gerado em {today}</span>
             <span>{clientName || "Relatório Executivo"}</span>
           </div>

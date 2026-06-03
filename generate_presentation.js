@@ -52,15 +52,15 @@ const p1 = new PdfWriter();
 p1.bg();
 p1.accentBorder();
 p1.rect(54, 250, 487, 240, 0.05, 0.08, 0.13); // Card
-p1.text("ORBIT BI", 38, 72, 600, 0.48, 0.72, 1.0, true);
+p1.text("DOIT BI", 38, 72, 600, 0.48, 0.72, 1.0, true);
 p1.text("Plataforma Premium de Analytics e Co-Piloto de IA", 16, 72, 565, 0.26, 0.73, 0.51, false);
 p1.text("DOSSIÊ EXECUTIVO DE APRESENTAÇÃO", 10, 72, 450, 0.60, 0.65, 0.72, true);
 p1.text("Visão Geral das Funcionalidades e Escala de Mídia", 14, 72, 420, 0.95, 0.97, 0.99, true);
 p1.text("Este documento descreve detalhadamente o conjunto de recursos, integracoes", 10, 72, 380, 0.80, 0.83, 0.88, false);
-p1.text("e visualizacoes de alto impacto embarcados no Orbit BI para tomada de decisao.", 10, 72, 362, 0.80, 0.83, 0.88, false);
+p1.text("e visualizacoes de alto impacto embarcados no DOit BI para tomada de decisao.", 10, 72, 362, 0.80, 0.83, 0.88, false);
 p1.line(72, 335, 510, 335, 0.26, 0.73, 0.51, 1);
 p1.text("Status: Produção (v1.5)  |  Tecnologia: Next.js + Supabase + Gemini API", 9, 72, 305, 0.60, 0.65, 0.72, false);
-p1.text("MAIO DE 2026  •  ORBIT ANALYTICS", 9, 230, 100, 0.40, 0.45, 0.52, true);
+p1.text("MAIO DE 2026  •  DOIT ANALYTICS", 9, 230, 100, 0.40, 0.45, 0.52, true);
 
 // Generate Page 2: Importador e Parser
 const p2 = new PdfWriter();
@@ -93,7 +93,7 @@ p2.text("• Tratamento Numérico: Converte automaticamente formatos brasileiros
 p2.text("• Remoção de Totais: Ignora linhas de resumo ('Total', 'Total Geral', 'Resumo') para não duplicar métricas.", 9, 72, 304, 0.80, 0.83, 0.88, false);
 p2.text("• Inteligência de Quebra: Detecta planilhas de segmentação (Dispositivos, Dia/Hora) e as separa das campanhas.", 9, 72, 286, 0.80, 0.83, 0.88, false);
 
-p2.text("Página 2  |  Orbit BI Apresentação", 9, 54, 50, 0.40, 0.45, 0.52, false);
+p2.text("Página 2  |  DOit BI Apresentação", 9, 54, 50, 0.40, 0.45, 0.52, false);
 
 // Generate Page 3: Widgets de Segmentação
 const p3 = new PdfWriter();
@@ -126,7 +126,7 @@ p3.text("• Efeitos de Brilho Neon: Destaque visual interativo nas bordas da re
 p3.text("• Painel de Métricas Regionalizado: Atualização em tempo real de Conversões, CPA, Investimento e ROI regional.", 9, 72, 304, 0.80, 0.83, 0.88, false);
 p3.text("• Insights Geográficos: Recomendações em texto de escala ou otimização para Norte, Nordeste, Sul, Sudeste, CO.", 9, 72, 286, 0.80, 0.83, 0.88, false);
 
-p3.text("Página 3  |  Orbit BI Apresentação", 9, 54, 50, 0.40, 0.45, 0.52, false);
+p3.text("Página 3  |  DOit BI Apresentação", 9, 54, 50, 0.40, 0.45, 0.52, false);
 
 // Generate Page 4: Co-Piloto de IA e Exportação
 const p4 = new PdfWriter();
@@ -159,7 +159,7 @@ p4.text("• Fórmulas Dinâmicas: Linhas de fórmula nativa Excel prontas para 
 p4.text("• Estrutura Organizada: Limpeza de acentos incompatíveis e formatação com delimitador ponto e vírgula.", 9, 72, 304, 0.80, 0.83, 0.88, false);
 p4.text("• Auditoria de IA: Exporta junto o veredito e status de escala de cada campanha.", 9, 72, 286, 0.80, 0.83, 0.88, false);
 
-p4.text("Página 4  |  Orbit BI Apresentação", 9, 54, 50, 0.40, 0.45, 0.52, false);
+p4.text("Página 4  |  DOit BI Apresentação", 9, 54, 50, 0.40, 0.45, 0.52, false);
 
 // Generate Page 5: Arquitetura e Segurança
 const p5 = new PdfWriter();
@@ -192,7 +192,7 @@ p5.text("• Glassmorphism: Componentes translúcidos com bordas brilhantes e de
 p5.text("• Interface Responsiva: Grade adaptável para perfeita visualização em computadores, tablets e smartphones.", 9, 72, 304, 0.80, 0.83, 0.88, false);
 p5.text("• Micro-interações: Efeitos hover inteligentes, transições CSS suaves e feedback de Toast instantâneo.", 9, 72, 286, 0.80, 0.83, 0.88, false);
 
-p5.text("Página 5  |  Orbit BI Apresentação", 9, 54, 50, 0.40, 0.45, 0.52, false);
+p5.text("Página 5  |  DOit BI Apresentação", 9, 54, 50, 0.40, 0.45, 0.52, false);
 
 // Assemble PDF document structure
 const generatePdfFile = (outputPath) => {
@@ -236,5 +236,5 @@ const generatePdfFile = (outputPath) => {
   console.log(`PDF successfully generated at: ${outputPath}`);
 };
 
-const destPath = path.join(__dirname, 'Apresentacao_Orbit_BI.pdf');
+const destPath = path.join(__dirname, 'Apresentacao_DOit_BI.pdf');
 generatePdfFile(destPath);

@@ -92,7 +92,7 @@ export default function Sidebar({
           <div className="brand-mark">O</div>
           {!isCollapsed && (
             <div className="brand-text">
-              <strong>Orbit BI</strong>
+              <strong>DOit BI</strong>
               <span>Inteligência de mídia paga</span>
             </div>
           )}

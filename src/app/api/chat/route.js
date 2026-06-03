@@ -12,7 +12,7 @@ export async function POST(request) {
     const latestUserMsg = [...messages].reverse().find(m => m.type === "user")?.text || "";
 
     // Build context prompt
-    const systemPrompt = `Você é o Orbit AI, um analista executivo sênior de mídia paga e especialista em performance de Google Ads e Meta Ads.
+    const systemPrompt = `Você é o DOit AI, um analista executivo sênior de mídia paga e especialista em performance de Google Ads e Meta Ads.
 Você analisa dados de marketing digital de forma ultra-estratégica, direta e profissional.
 
 Resumo dos totais atuais:

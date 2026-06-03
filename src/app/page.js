@@ -70,7 +70,7 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       setTimeout(() => {
-        setIsSidebarCollapsed(localStorage.getItem("orbit-sidebar-collapsed") === "true");
+        setIsSidebarCollapsed(localStorage.getItem("doit-sidebar-collapsed") === "true");
       }, 0);
     }
   }, []);
@@ -94,7 +94,7 @@ export default function Home() {
   const toggleSidebarCollapse = () => {
     setIsSidebarCollapsed(prev => {
       const next = !prev;
-      localStorage.setItem("orbit-sidebar-collapsed", next);
+      localStorage.setItem("doit-sidebar-collapsed", next);
       return next;
     });
   };
@@ -1203,7 +1203,7 @@ export default function Home() {
       });
 
       // Check if there is an existing import template matching the headers to prefill
-      const savedTemplates = JSON.parse(localStorage.getItem("orbit_import_templates") || "[]");
+      const savedTemplates = JSON.parse(localStorage.getItem("doit_import_templates") || "[]");
       const matchedTemplate = savedTemplates.find(t => 
         t.platform === detectedPlatform && 
         Object.values(t.mapping).every(v => !v || headers.includes(v))
@@ -1283,7 +1283,7 @@ export default function Home() {
       
       // Step 6: System saves reusable import template
       if (wizardSaveTemplate) {
-        const templates = JSON.parse(localStorage.getItem("orbit_import_templates") || "[]");
+        const templates = JSON.parse(localStorage.getItem("doit_import_templates") || "[]");
         templates.push({
           id: `template_${Date.now()}`,
           name: wizardTemplateName || "Modelo Customizado",
@@ -1291,7 +1291,7 @@ export default function Home() {
           mapping: wizardMapping,
           created_at: new Date().toISOString()
         });
-        localStorage.setItem("orbit_import_templates", JSON.stringify(templates));
+        localStorage.setItem("doit_import_templates", JSON.stringify(templates));
       }
 
       await new Promise(r => setTimeout(r, 700));
@@ -1779,7 +1779,7 @@ export default function Home() {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title} – Orbit BI</title>
+<title>${title} – DOit BI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -1861,7 +1861,7 @@ export default function Home() {
 
   <!-- CABEÇALHO -->
   <div class="header">
-    <div class="brand">Orbit<span>BI</span></div>
+    <div class="brand">DOit<span>BI</span></div>
     <div class="header-right">
       <div class="header-date">Gerado em ${now}</div>
       <div class="header-period">Relatório Executivo de Mídia Paga</div>
@@ -1954,7 +1954,7 @@ export default function Home() {
 
   <!-- RODAPÉ -->
   <div class="footer">
-    <span>Orbit BI — Plataforma de Business Intelligence de Mídia Paga</span>
+    <span>DOit BI — Plataforma de Business Intelligence de Mídia Paga</span>
     <span>Documento gerado automaticamente em ${now}</span>
   </div>
 
@@ -1988,7 +1988,7 @@ export default function Home() {
     
     // Build spreadsheet rows with formulas
     const rows = [
-      ["ORBIT BI - RELATÓRIO EXECUTIVO E BASE CONSOLIDADA DE MARKETING"],
+      ["DOIT BI - RELATÓRIO EXECUTIVO E BASE CONSOLIDADA DE MARKETING"],
       ["Gerado em:", new Date().toLocaleString("pt-BR")],
       [],
       ["RESUMO DE KPIs (FÓRMULAS EXCEL)"],
@@ -2033,7 +2033,7 @@ export default function Home() {
     }).join(";")).join("\n");
 
     const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
-    downloadBlob(blob, `orbit-bi-base-executiva-${period}.csv`);
+    downloadBlob(blob, `doit-bi-base-executiva-${period}.csv`);
     triggerToast("Exportação com fórmulas Excel gerada com sucesso! Verifique a pasta Downloads.");
   };
 

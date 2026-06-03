@@ -8,7 +8,7 @@ export async function POST(request) {
     // Format BRL function for prompt context
     const brlFormat = (val) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(val);
 
-    const systemPrompt = `Você é o Orbit AI, um analista executivo sênior de mídia paga e especialista em performance de Google Ads e Meta Ads.
+    const systemPrompt = `Você é o DOit AI, um analista executivo sênior de mídia paga e especialista em performance de Google Ads e Meta Ads.
 Você deve analisar o desempenho das campanhas e métricas fornecidas do usuário e produzir um diagnóstico estratégico executivo.
 
 Aqui estão os dados reais do painel atual do usuário (campanhas ativas):

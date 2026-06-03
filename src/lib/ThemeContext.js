@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 
 const ThemeContext = createContext({ theme: "dark", toggleTheme: () => {} });
 
-const STORAGE_KEY = "orbit-theme";
+const STORAGE_KEY = "doit-theme";
 
 function getInitialTheme() {
   if (typeof window === "undefined") return "dark";

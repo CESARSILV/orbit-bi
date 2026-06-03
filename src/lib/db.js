@@ -39,7 +39,7 @@ export function createInitialDb() {
   };
 }
 
-const STORAGE_KEY = "orbit_marketing_bi_db";
+const STORAGE_KEY = "doit_marketing_bi_db";
 
 const DATASET_TABLE_MAP = {
   campaign_performance: "fact_campaigns",

@@ -83,7 +83,7 @@ export default function AuthModal({ onAuthSuccess }) {
       <div className="auth-card">
         <div className="auth-header">
           <div className="brand-mark" style={{ margin: "0 auto 16px" }}>O</div>
-          <h2>{isLogin ? "Acessar Orbit BI" : "Criar sua Conta"}</h2>
+          <h2>{isLogin ? "Acessar DOit BI" : "Criar sua Conta"}</h2>
           <p className="eyebrow" style={{ marginTop: "6px" }}>
             Painel Executivo de Mídia Paga
           </p>

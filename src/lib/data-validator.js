@@ -1,6 +1,6 @@
 // ============================================================
 // data-validator.js — Camada de Validação de Integridade
-// Orbit BI | Mídia Paga Analytics
+// DOit BI | Mídia Paga Analytics
 // ============================================================
 //
 // Responsabilidades:

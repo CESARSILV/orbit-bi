@@ -21,7 +21,7 @@ export async function POST(request) {
 
     // If AI is configured, let's invoke Vision model to parse screenshots
     if (isAiConfigured) {
-      const systemPrompt = `Você é o Orbit OCR & Vision AI, um pipeline de ingestão de dados e inteligência de marketing.
+      const systemPrompt = `Você é o DOit OCR & Vision AI, um pipeline de ingestão de dados e inteligência de marketing.
 Sua missão é ler o conteúdo dos arquivos enviados (prints de dashboards, fotos, planilhas ou relatórios em PDF) e extrair os dados tabulares em formato JSON bruto estruturado.
 
 Instruções cruciais de extração:

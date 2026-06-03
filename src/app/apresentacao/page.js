@@ -172,7 +172,7 @@ export default function Apresentacao() {
   const totalSlides = 5;
 
   useEffect(() => {
-    document.title = "Dossiê Executivo de Apresentação | Orbit BI";
+    document.title = "Dossiê Executivo de Apresentação | DOit BI";
 
     // Add keyboard event listener
     const handleKeyDown = (e) => {
@@ -204,7 +204,7 @@ export default function Apresentacao() {
       case 0:
         return (
           <div className="slide-cover">
-            <h1 className="slide-title-large">ORBIT BI</h1>
+            <h1 className="slide-title-large">DOIT BI</h1>
             <p className="slide-subtitle-large">Plataforma Premium de Analytics e Co-Piloto de IA</p>
             <div className="slide-cover-card">
               <h4>Dossiê Executivo de Apresentação</h4>
@@ -212,7 +212,7 @@ export default function Apresentacao() {
                 Visão Geral das Funcionalidades e Escala de Mídia
               </p>
               <p>
-                Este documento descreve detalhadamente o conjunto de recursos, integrações e visualizações de alto impacto embarcados no Orbit BI para tomada de decisão estratégica em campanhas digitais.
+                Este documento descreve detalhadamente o conjunto de recursos, integrações e visualizações de alto impacto embarcados no DOit BI para tomada de decisão estratégica em campanhas digitais.
               </p>
             </div>
           </div>
@@ -494,7 +494,7 @@ export default function Apresentacao() {
           {renderSlideContent(currentSlide)}
         </div>
         <footer className="slide-footer">
-          <span className="slide-footer-text">ORBIT BI &bull; DOSSIÊ EXECUTIVO DE APRESENTAÇÃO</span>
+          <span className="slide-footer-text">DOIT BI &bull; DOSSIÊ EXECUTIVO DE APRESENTAÇÃO</span>
           <span className="slide-footer-text" style={{ fontWeight: "700" }}>
             Slide {currentSlide + 1} de {totalSlides}
           </span>
@@ -509,7 +509,7 @@ export default function Apresentacao() {
               {renderSlideContent(idx)}
             </div>
             <footer className="slide-footer" style={{ padding: "16px 0 0 0", borderTop: "1px solid rgba(255, 255, 255, 0.08)", background: "transparent", marginTop: "auto" }}>
-              <span className="slide-footer-text" style={{ fontSize: "10px" }}>ORBIT BI &bull; DOSSIÊ EXECUTIVO DE APRESENTAÇÃO</span>
+              <span className="slide-footer-text" style={{ fontSize: "10px" }}>DOIT BI &bull; DOSSIÊ EXECUTIVO DE APRESENTAÇÃO</span>
               <span className="slide-footer-text" style={{ fontSize: "10px", fontWeight: "700" }}>
                 Página {idx + 1} de {totalSlides}
               </span>
