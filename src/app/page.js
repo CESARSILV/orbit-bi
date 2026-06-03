@@ -219,12 +219,23 @@ export default function Home() {
       // ---- CRM BITRIX24 ----
       return [
         { key: "lead_id", label: "ID do Lead", required: false, description: "Identificador único do Lead." },
-        { key: "date", label: "Data de Criação (Criado)", required: false, description: "Data de conversão/entrada do lead." },
+        { key: "client_name", label: "Nome do Cliente", required: false, description: "Nome completo do cliente." },
+        { key: "phone", label: "Telefone", required: false, description: "Telefone de contato." },
+        { key: "date", label: "Data de Criação (Criado)", required: true, description: "Data de conversão/entrada do lead." },
         { key: "lead_status", label: "Etapa / Status (Obrigatório)", required: true, description: "A etapa do lead (ex: Demonstração)." },
-        { key: "lead_source", label: "Fonte / Origem (Obrigatório)", required: true, description: "Fonte original do tráfego ou formulário." },
+        { key: "lead_source", label: "Origem (Como ficou sabendo)", required: true, description: "Origem / Como ficou sabendo do DOit." },
         { key: "lead_medium", label: "UTM Medium", required: false, description: "Meio / UTM Medium." },
         { key: "lead_campaign", label: "UTM Campaign", required: false, description: "Campanha associada." },
         { key: "lead_industry", label: "Indústria / Segmento", required: false, description: "Coluna que indica o setor ou indústria da empresa/negócio." },
+      ];
+    } else if (platform === "doitsa") {
+      // ---- DOITSA DEMOS/AGENDAMENTOS ----
+      return [
+        { key: "lead_id", label: "ID do Lead", required: false, description: "Identificador do Lead para cruzamento." },
+        { key: "client_name", label: "Nome do Cliente", required: false, description: "Nome completo do cliente para cruzamento." },
+        { key: "phone", label: "Telefone", required: false, description: "Telefone de contato para cruzamento." },
+        { key: "date", label: "Data do Agendamento (Obrigatório)", required: true, description: "Coluna contendo as datas dos agendamentos." },
+        { key: "conversions", label: "Demo / Agendamento (Obrigatório)", required: true, description: "Coluna contendo os agendamentos (Demo)." }
       ];
     }
 
@@ -568,7 +579,13 @@ export default function Home() {
   };
 
   const matchesCoreFilters = (row) => {
-    if (platform !== "todas" && row.platform !== platform) return false;
+    if (platform === "bitrix") {
+      if (!row.is_crm || (row.crm_demos || 0) === 0) return false;
+    } else if (platform === "doitsa") {
+      if (!row.is_crm || (row.conversions || 0) === 0) return false;
+    } else if (platform !== "todas" && row.platform !== platform) {
+      return false;
+    }
     if (period !== "todos" && row.reference_month !== period) return false;
     if (!isInsideSelectedDateRange(row)) return false;
     if (campaign !== "todas" && row.campaign_name !== campaign) return false;
@@ -1348,19 +1365,9 @@ export default function Home() {
         count: wizardRawRows.length
       };
 
-      // ─── CAMINHO BITRIX CRM ────────────────────────────────────────────────
-      // Processamento separado para relatórios do Bitrix24.
-      // Não tem spend, campaign_name, ou as colunas de anúncios —
-      // então usamos um caminho próprio que não filtra por spend.
-      if (wizardPlatform === "bitrix") {
-        const AGENDADOS_KEYWORDS = [
-          "convertido", "demonstração", "demonstracao", "qualificado",
-          "ganho", "efetivad", "reuniao marcada", "reunião marcada",
-          "demo agendada", "agendado", "agendada", "marcado", "marcada", "agendamento"
-        ];
-
-        const QUALIFYING_TERMS = ["arq", "design", "estúdio", "studio", "interiores", "arquitetos", "arquitetura", "estudio"];
-
+      // ─── CAMINHO CRM (BITRIX24 & DOITSA) ───────────────────────────────────
+      // Processamento separado para relatórios do Bitrix24 e DOitSA.
+      if (wizardPlatform === "bitrix" || wizardPlatform === "doitsa") {
         const crmRows = wizardRawRows
           .filter(row => {
             // Ignora linhas totalmente vazias
@@ -1368,6 +1375,8 @@ export default function Home() {
           })
           .map((row, idx) => {
             const leadId = wizardMapping.lead_id ? String(row[wizardMapping.lead_id] || "").trim() : String(idx);
+            const clientName = wizardMapping.client_name ? String(row[wizardMapping.client_name] || "").trim() : "";
+            const phone = wizardMapping.phone ? String(row[wizardMapping.phone] || "").trim() : "";
             const leadStatus = wizardMapping.lead_status ? String(row[wizardMapping.lead_status] || "").trim() : "";
             const leadSource = wizardMapping.lead_source ? String(row[wizardMapping.lead_source] || "").trim() : "";
             const leadMedium = wizardMapping.lead_medium ? String(row[wizardMapping.lead_medium] || "").trim() : "";
@@ -1378,29 +1387,25 @@ export default function Home() {
             if (!dateVal) dateVal = getSemanticValue(row, "date");
             const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`);
 
-            const statusLower = leadStatus.toLowerCase();
-            const industryLower = leadIndustry.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-            const nameLower = leadCampaign.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-            // Regra de Qualificação para Leads Qualificados
-            const isQualified = 
-              industryLower === "arquitetura" || 
-              QUALIFYING_TERMS.some(term => nameLower.includes(term));
-
-            // Agendados: Zerado para o Bitrix CRM, pois os dados reais de agendamento virão do novo relatório da DOitSA
-            const isScheduled = false;
+            // Bitrix: todos os registros contam como Leads Qualificados (is_demo = true)
+            // DOitSA: todos os registros contam como Agendados (conversions = 1)
+            const isQualified = wizardPlatform === "bitrix";
+            const isScheduled = wizardPlatform === "doitsa";
 
             return {
-              id: `crm_${reference_month}_${leadId}_${idx}`,
-              platform: "bitrix",
+              id: `crm_${wizardPlatform}_${reference_month}_${leadId}_${idx}`,
+              platform: wizardPlatform,
+              crm_platform: wizardPlatform,
               dataset_type: "crm_leads",
               lead_id: leadId,
+              client_name: clientName,
+              phone: phone,
               lead_status: leadStatus,
               lead_source: leadSource,
               lead_medium: leadMedium,
               lead_campaign: leadCampaign,
               lead_industry: leadIndustry,
-              is_demo: isQualified, // is_demo representa "Leads Qualificados"
+              is_demo: isQualified, 
               date: enrichedDate.date,
               reference_month: enrichedDate.reference_month || reference_month,
               reference_label: enrichedDate.reference_label || reference_label,
@@ -1412,11 +1417,11 @@ export default function Home() {
               year: enrichedDate.year,
               year_month: enrichedDate.year_month,
               spend: 0, clicks: 0, impressions: 0, 
-              conversions: isScheduled ? 1 : 0, // conversions representa "Agendados"
-              leads: 1,
+              conversions: isScheduled ? 1 : 0, 
+              leads: 0,
               reach: 0, revenue: 0, frequency: 1,
               ctr: 0, cpc: 0, cpm: 0, cpl: 0, cac: 0, roas: 0,
-              status: leadStatus,
+              status: leadStatus || "Ativo",
               raw_file_name: wizardFile.name,
               file_hash: finalHash,
               created_at: new Date().toISOString()
@@ -1435,8 +1440,8 @@ export default function Home() {
         setWizardStatusText("Finalizado!");
         setWizardResultCount(crmRows.length);
         setWizardStep("success");
-        updateFileStatus(wizardFile.name, "sucesso", "Sincronizado CRM");
-        triggerToast(`CRM Bitrix: ${crmRows.length} leads processados (${crmRows.filter(r => r.is_demo).length} demonstrações).`);
+        updateFileStatus(wizardFile.name, "sucesso", `Sincronizado ${wizardPlatform === "bitrix" ? "Bitrix24" : "DOitSA"}`);
+        triggerToast(`${wizardPlatform === "bitrix" ? "Bitrix24 CRM" : "DOitSA"}: ${crmRows.length} registros processados.`);
         return;
       }
       // ─────────────────────────────────────────────────────────────────────────

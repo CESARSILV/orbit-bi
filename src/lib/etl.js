@@ -334,7 +334,10 @@ export function applyTemporalIntelligence(dateVal) {
 
 export function detectPlatform(fileName, rowKeys, rows = []) {
   const name = fileName.toLowerCase();
-  
+
+  if (name.includes("doitsa") || name.includes("doit_sa") || name.includes("doit sa")) {
+    return "doitsa";
+  }
   if (name.includes("meta") || name.includes("facebook") || name.includes("instagram") || name.includes("fbad")) {
     return "meta";
   }
@@ -348,6 +351,7 @@ export function detectPlatform(fileName, rowKeys, rows = []) {
   let googleScore = 0;
   let metaScore = 0;
   let bitrixScore = 0;
+  let doitsaScore = 0;
 
   const googleColumns = [
     "cpc méd.", "cpc med.", "impr.", "taxa de conv.", "custo / conv.",
@@ -368,14 +372,18 @@ export function detectPlatform(fileName, rowKeys, rows = []) {
     "etapa", "modificado por", "quantas pessoas", "como ficou sabe"
   ];
 
+  const doitsaColumns = ["demo", "demos", "agendamento", "data de agendamento", "data do agendamento"];
+
   rowKeys.forEach(key => {
     const k = key.toLowerCase().trim();
     if (googleColumns.some(gc => k === gc || k.includes(gc))) googleScore += 2;
     if (metaColumns.some(mc => k === mc || k.includes(mc))) metaScore += 2;
     if (bitrixColumns.some(bc => k === bc || k.includes(bc))) bitrixScore += 2;
+    if (doitsaColumns.some(dc => k === dc || k.includes(dc))) doitsaScore += 2;
   });
 
-  if (bitrixScore > googleScore && bitrixScore > metaScore) return "bitrix";
+  if (doitsaScore > googleScore && doitsaScore > metaScore && doitsaScore > bitrixScore) return "doitsa";
+  if (bitrixScore > googleScore && bitrixScore > metaScore && bitrixScore > doitsaScore) return "bitrix";
 
 
   // Check row content
@@ -405,6 +413,10 @@ export function detectDataset(platform, rowKeys) {
   const keys = rowKeys.map(k => k.toLowerCase().trim());
 
   if (platform === "bitrix") {
+    return "crm_leads";
+  }
+
+  if (platform === "doitsa") {
     return "crm_leads";
   }
 
@@ -525,7 +537,9 @@ export const SYNONYMS = {
     "Conversões", "conversões", "Conversoes", "conversoes",
     "Conversões totais", "conversões totais", "Todas as conversões", "todas as conversões",
     // English
-    "Conversions", "conversions", "Total conversions", "total conversions", "All conversions", "all conversions"
+    "Conversions", "conversions", "Total conversions", "total conversions", "All conversions", "all conversions",
+    // DOitSA
+    "Demo", "demo", "demos"
   ],
   leads: [
     // PRIORIDADE 1: coluna total "Leads" do Meta Ads — já inclui Leads na Meta + Leads no site
@@ -652,7 +666,8 @@ export const SYNONYMS = {
     "Etapa", "etapa", "Status do Lead", "status do lead", "Fase", "fase"
   ],
   lead_source: [
-    "Fonte", "fonte", "UTM Source", "utm_source", "utm source", "UTM Source.1", "Origem"
+    "Fonte", "fonte", "UTM Source", "utm_source", "utm source", "UTM Source.1", "Origem",
+    "Como ficou sabendo do DOit", "como ficou sabendo do DOit", "Como ficou sabendo", "como ficou sabendo"
   ],
   lead_medium: [
     "UTM Medium", "utm_medium", "utm medium", "UTM Medium.1", "Meio", "meio"

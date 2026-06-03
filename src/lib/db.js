@@ -600,29 +600,112 @@ export function consolidateSummary(db) {
     db.fact_time_series.forEach(r => addRowToGroups(r, false));
   }
 
-  // 3º: processa fact_crm (leads e demonstrações do Bitrix/CRM)
-  // Cria grupos por mês + plataforma_atribuída
+  // 3º: processa fact_crm (leads e demonstrações do CRM Bitrix24 & DOitSA)
+  // Cruzamento automático de dados para evitar duplicidade
+  const cleanPhoneForMatch = (p) => {
+    if (!p) return "";
+    return String(p).replace(/\D/g, "");
+  };
+
+  const cleanNameForMatch = (n) => {
+    if (!n) return "";
+    return String(n)
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "")
+      .trim();
+  };
+
+  const bitrixRows = [];
+  const doitsaRows = [];
+
   if (db.fact_crm && db.fact_crm.length > 0) {
     db.fact_crm.forEach(r => {
-      const refMonth = getRowReferenceMonth(r) || r.reference_month || (r.date && String(r.date).slice(0, 7));
+      if (r.platform === "doitsa" || r.crm_platform === "doitsa") {
+        doitsaRows.push(r);
+      } else {
+        bitrixRows.push(r);
+      }
+    });
+  }
+
+  const mergedCrmRows = [];
+  const matchedDoitsaIds = new Set();
+
+  bitrixRows.forEach(b => {
+    const bName = cleanNameForMatch(b.client_name);
+    const bPhone = cleanPhoneForMatch(b.phone);
+    const bLeadId = b.lead_id ? String(b.lead_id).trim() : "";
+
+    const match = doitsaRows.find(d => {
+      if (matchedDoitsaIds.has(d.id)) return false;
+
+      const dName = cleanNameForMatch(d.client_name);
+      const dPhone = cleanPhoneForMatch(d.phone);
+      const dLeadId = d.lead_id ? String(d.lead_id).trim() : "";
+
+      if (bLeadId && dLeadId && bLeadId === dLeadId) return true;
+      if (bPhone && dPhone && bPhone === dPhone) return true;
+      if (bName && dName && bName === dName) return true;
+      if (bName && dName && b.date === d.date && dName.includes(bName)) return true;
+
+      return false;
+    });
+
+    if (match) {
+      matchedDoitsaIds.add(match.id);
+      mergedCrmRows.push({
+        ...b,
+        conversions: match.conversions || 1,
+        is_demo: b.is_demo,
+        crm_platform: "bitrix",
+        doitsa_matched: true,
+        client_name: b.client_name || match.client_name,
+        phone: b.phone || match.phone,
+        lead_id: b.lead_id || match.lead_id,
+      });
+    } else {
+      mergedCrmRows.push({
+        ...b,
+        conversions: 0,
+        crm_platform: "bitrix",
+      });
+    }
+  });
+
+  doitsaRows.forEach(d => {
+    if (!matchedDoitsaIds.has(d.id)) {
+      mergedCrmRows.push({
+        ...d,
+        is_demo: false,
+        crm_platform: "doitsa",
+      });
+    }
+  });
+
+  if (mergedCrmRows.length > 0) {
+    mergedCrmRows.forEach(r => {
+      const refMonth = r.reference_month || (r.date && String(r.date).slice(0, 7));
       if (!refMonth) return;
 
-      // Detecta plataforma pelo lead_source / lead_medium
-      const sourceStr = ((r.lead_source || "") + " " + (r.lead_medium || "")).toLowerCase();
-      let detectedPlatform = "crm"; // padrão: grupo genérico de CRM
-      if (sourceStr.includes("google") || sourceStr.includes("gads") || sourceStr.includes("adwords") || sourceStr.includes("ppc")) {
-        detectedPlatform = "google";
-      } else if (sourceStr.includes("meta") || sourceStr.includes("facebook") || sourceStr.includes("instagram") || sourceStr.includes("ig") || sourceStr.includes("fb")) {
-        detectedPlatform = "meta";
+      let detectedPlatform = r.crm_platform === "doitsa" ? "doitsa" : "bitrix";
+      
+      if (r.crm_platform === "bitrix" || r.doitsa_matched) {
+        const sourceStr = String(r.lead_source || "").toLowerCase();
+        if (sourceStr.includes("google")) {
+          detectedPlatform = "google";
+        } else if (sourceStr.includes("instagram") || sourceStr.includes("facebook") || sourceStr.includes("meta")) {
+          detectedPlatform = "meta";
+        }
       }
 
-      // Chave de grupo: plataforma + mês (agrupa todos os leads do CRM por mês)
       const crmGroupKey = `crm_${detectedPlatform}_${refMonth}_CRM`;
 
       if (!groups[crmGroupKey]) {
         groups[crmGroupKey] = {
-          platform: detectedPlatform === "crm" ? "bitrix" : detectedPlatform,
-          campaign_name: "CRM (Bitrix24)",
+          platform: detectedPlatform,
+          campaign_name: detectedPlatform === "google" ? "Google Ads (CRM)" : detectedPlatform === "meta" ? "Meta Ads (CRM)" : detectedPlatform === "doitsa" ? "DOitSA Demos" : "Bitrix24 CRM",
           date: `${refMonth}-01`,
           day: 1, week: 1, month: parseInt(refMonth.split("-")[1], 10),
           month_name: MONTHS_PT[parseInt(refMonth.split("-")[1], 10) - 1],
@@ -632,9 +715,7 @@ export function consolidateSummary(db) {
           reference_month: refMonth,
           reference_label: `${MONTHS_PT[parseInt(refMonth.split("-")[1], 10) - 1]}/${refMonth.split("-")[0]}`,
           spend: 0, clicks: 0, impressions: 0, conversions: 0, leads: 0, reach: 0, revenue: 0, status: "CRM Data",
-          // Flag para identificar que esse grupo é do CRM e não de campanha de anúncios
           is_crm: true,
-          // Acumuladores CRM específicos
           crm_leads: 0,
           crm_demos: 0,
         };
@@ -642,8 +723,6 @@ export function consolidateSummary(db) {
 
       const g = groups[crmGroupKey];
       g.crm_leads += 1;
-
-      // Agendados (conversions) e Leads Qualificados (crm_demos) são calculados separadamente
       g.conversions += r.conversions || 0;
       g.crm_demos += (r.is_demo === true || r.is_demo === 1) ? 1 : 0;
     });

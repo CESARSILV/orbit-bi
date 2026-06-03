@@ -119,6 +119,8 @@ export default function ControlStrip({
             <option value="todas">Todas</option>
             <option value="google">Google Ads</option>
             <option value="meta">Meta Ads</option>
+            <option value="bitrix">Bitrix24 CRM</option>
+            <option value="doitsa">DOitSA</option>
           </select>
         </label>
 
