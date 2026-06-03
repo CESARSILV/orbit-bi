@@ -641,7 +641,6 @@ export function consolidateSummary(db) {
       }
 
       const g = groups[crmGroupKey];
-      g.leads += 1;
       g.crm_leads += 1;
 
       // Agendados (conversions) e Leads Qualificados (crm_demos) são calculados separadamente
