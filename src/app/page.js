@@ -64,35 +64,7 @@ export default function Home() {
   const [keyword, setKeyword] = useState("todas");
   const [searchTerm, setSearchTerm] = useState("todos");
 
-  // Check if CRM data exists in the database
-  const hasCrmData = useMemo(() => {
-    return marketingDb.fact_marketing_summary.some(s => s.is_crm);
-  }, [marketingDb]);
 
-  const getCrmEstimateForMonth = useCallback((monthKey) => {
-    if (!hasCrmData) return 0;
-    const table = {
-      "2025-10": 28,
-      "2025-11": 31,
-      "2025-12": 26,
-      "2026-01": 33,
-      "2026-02": 27,
-      "2026-03": 30,
-      "2026-04": 32,
-      "2026-05": 29,
-    };
-    if (table[monthKey] !== undefined) {
-      return table[monthKey];
-    }
-    // Para meses futuros não mapeados, gera um número fixo e estável (entre 26 e 33) baseado no mês
-    if (!monthKey) return 30;
-    let hash = 0;
-    for (let i = 0; i < monthKey.length; i++) {
-      hash = (hash << 5) - hash + monthKey.charCodeAt(i);
-      hash |= 0;
-    }
-    return 26 + Math.abs(hash % 8);
-  }, [hasCrmData]);
 
   // UI state
   const [activeSection, setActiveSection] = useState("visao-geral");
@@ -760,19 +732,7 @@ export default function Home() {
     const leads        = list.reduce((sum, item) => sum + (item.leads || 0), 0);
     const conversoes   = list.reduce((sum, item) => sum + (item.is_crm ? (item.conversions || 0) : 0), 0);
 
-    const activeMonths = Array.from(new Set(
-      marketingDb.fact_marketing_summary
-        .filter(matchesTimelineFilters)
-        .map(s => s.reference_month)
-        .filter(Boolean)
-    ));
-    const demos = hasCrmData ? activeMonths.reduce((sum, mKey) => {
-      const googleLeads = marketingDb.fact_marketing_summary
-        .filter(s => s.reference_month === mKey && s.platform === "google" && !s.is_crm && matchesTimelineFilters(s))
-        .reduce((leadsSum, s) => leadsSum + (s.leads || 0), 0);
-      const estimate = getCrmEstimateForMonth(mKey);
-      return sum + estimate + googleLeads;
-    }, 0) : 0;
+    const demos        = list.reduce((sum, item) => sum + (item.is_crm ? (item.crm_demos || 0) : 0), 0);
     const cliques      = list.reduce((sum, item) => sum + (item.clicks || 0), 0);
     const impressoes   = list.reduce((sum, item) => sum + (item.impressions || 0), 0);
     const reach        = list.reduce((sum, item) => sum + (item.reach || 0), 0);
@@ -806,7 +766,7 @@ export default function Home() {
       cac
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [marketingDb, platform, period, startDate, endDate, campaign, hasCrmData]);
+  }, [marketingDb, platform, period, startDate, endDate, campaign]);
 
   // Dynamic Device Chart Data
   const getDeviceChartData = () => {
@@ -1050,26 +1010,17 @@ export default function Home() {
       // Isso evita que as conversões de campanhas de anúncios (Google/Meta) apareçam como Agendamentos
       if (s.is_crm) {
         months[mKey].conversoes += s.conversions  || 0;
+        months[mKey].demos      += s.crm_demos    || 0;
       }
 
-      if (!months[mKey].googleLeads) {
-        months[mKey].googleLeads = 0;
-      }
-      if (s.platform === "google" && !s.is_crm) {
-        months[mKey].googleLeads += s.leads || 0;
-        months[mKey].google += spend;
-      }
+      if (s.platform === "google" && !s.is_crm) months[mKey].google += spend;
       if (s.platform === "meta"   && !s.is_crm) months[mKey].meta   += spend;
     });
 
     return Object.values(months)
-      .map(m => {
-        m.demos = hasCrmData ? (getCrmEstimateForMonth(m.reference_month) + (m.googleLeads || 0)) : 0;
-        return m;
-      })
       .sort((a, b) => a.reference_month.localeCompare(b.reference_month));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [marketingDb, period, startDate, endDate, campaign, hasCrmData]);
+  }, [marketingDb, period, startDate, endDate, campaign]);
 
   // Search keyword data filtered
   const getKeywordsDataFiltered = () => {
