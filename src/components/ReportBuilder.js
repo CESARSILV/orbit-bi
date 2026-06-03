@@ -42,6 +42,7 @@ function calcRowKpis(row) {
   const leads        = row.leads       || 0;
   const conversoes   = row.conversoes  || 0;
   const alcance      = row.alcance     || 0;
+  const demos        = row.demos       || 0;
 
   return {
     investimento,
@@ -52,7 +53,7 @@ function calcRowKpis(row) {
     cpm:      impressoes > 0 ? (investimento / impressoes) * 1000 : 0,
     leads,
     conversoes,
-    demos:    0,
+    demos,
     cpa:      conversoes > 0 ? investimento / conversoes : 0,
     cpl:      leads      > 0 ? investimento / leads      : 0,
     alcance,
@@ -63,7 +64,7 @@ function calcRowKpis(row) {
 function calcTotalRow(rows) {
   const total = {
     investimento: 0, cliques: 0, impressoes: 0,
-    leads: 0, conversoes: 0, alcance: 0,
+    leads: 0, conversoes: 0, alcance: 0, demos: 0,
   };
   rows.forEach(r => {
     total.investimento += r.investimento || 0;
@@ -72,6 +73,7 @@ function calcTotalRow(rows) {
     total.leads        += r.leads        || 0;
     total.conversoes   += r.conversoes   || 0;
     total.alcance      += r.alcance      || 0;
+    total.demos        += r.demos        || 0;
   });
   return calcRowKpis(total);
 }
@@ -279,6 +281,7 @@ export default function ReportBuilder({
         leads:        row.leads        || 0,
         conversoes:   row.conversoes   || 0,
         alcance:      row.alcance      || 0,
+        demos:        row.demos        || 0,
       }),
     }));
   }, [timeline]);
