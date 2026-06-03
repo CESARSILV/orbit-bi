@@ -849,36 +849,96 @@ export function parseCsv(text) {
 }
 
 export async function parseExcelFile(file) {
-  const rawRows = await readXlsxFile(file);
+  try {
+    const rawRows = await readXlsxFile(file);
 
-  if (rawRows.length < 2) return [];
+    if (rawRows.length < 2) return [];
 
-  let headerIndex = 0;
-  let bestScore = -1;
-  rawRows.slice(0, 12).forEach((row, index) => {
-    const text = row.join(" ").toLowerCase();
-    const filled = row.filter((cell) => String(cell).trim()).length;
-    const keywords = ["campanha", "campaign", "custo", "spend", "receita", "revenue", "cliques", "clicks", "data", "dispositivo"]
-      .filter((word) => text.includes(word)).length;
-    const score = filled + keywords * 4;
-    if (score > bestScore) {
-      bestScore = score;
-      headerIndex = index;
+    let headerIndex = 0;
+    let bestScore = -1;
+    rawRows.slice(0, 12).forEach((row, index) => {
+      const text = row.join(" ").toLowerCase();
+      const filled = row.filter((cell) => String(cell).trim()).length;
+      const keywords = ["campanha", "campaign", "custo", "spend", "receita", "revenue", "cliques", "clicks", "data", "dispositivo"]
+        .filter((word) => text.includes(word)).length;
+      const score = filled + keywords * 4;
+      if (score > bestScore) {
+        bestScore = score;
+        headerIndex = index;
+      }
+    });
+
+    // FIX: Keep original header case for display in the wizard dropdown
+    const headers = rawRows[headerIndex].map((header, index) => {
+      const value = sanitizeMojibake(String(header || "").trim());
+      return value || `Coluna_${index + 1}`;
+    });
+
+    return rawRows.slice(headerIndex + 1).map((row) =>
+      headers.reduce((record, header, index) => {
+        record[header] = row[index] ?? "";
+        return record;
+      }, {})
+    );
+  } catch (xlsxErr) {
+    console.warn("read-excel-file failed, trying HTML/CSV fallback parser...", xlsxErr);
+
+    // Fallback: Ler arquivo como texto
+    const text = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = () => reject(new Error("Erro ao ler o arquivo como texto."));
+      reader.readAsText(file, "utf-8");
+    });
+
+    // Se parecer código HTML (muito comum em exportações falsas de ERPs/CRMs de planilhas)
+    if (text.includes("<table") || text.includes("<tr") || text.includes("<html") || text.includes("xmlns:x=\"urn:schemas-microsoft-com:office:excel\"")) {
+      if (typeof window !== "undefined") {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, "text/html");
+        const rows = Array.from(doc.querySelectorAll("tr"));
+        if (rows.length >= 2) {
+          const rawRows = rows.map(tr =>
+            Array.from(tr.querySelectorAll("th, td")).map(td => td.innerText.trim())
+          );
+
+          let headerIndex = 0;
+          let bestScore = -1;
+          rawRows.slice(0, 12).forEach((row, index) => {
+            const rowText = row.join(" ").toLowerCase();
+            const filled = row.filter((cell) => String(cell).trim()).length;
+            const keywords = ["campanha", "campaign", "custo", "spend", "receita", "revenue", "cliques", "clicks", "data", "dispositivo"]
+              .filter((word) => rowText.includes(word)).length;
+            const score = filled + keywords * 4;
+            if (score > bestScore) {
+              bestScore = score;
+              headerIndex = index;
+            }
+          });
+
+          const headers = rawRows[headerIndex].map((header, index) => {
+            const value = sanitizeMojibake(String(header || "").trim());
+            return value || `Coluna_${index + 1}`;
+          });
+
+          return rawRows.slice(headerIndex + 1).map((row) =>
+            headers.reduce((record, header, index) => {
+              record[header] = row[index] ?? "";
+              return record;
+            }, {})
+          );
+        }
+      }
     }
-  });
 
-  // FIX: Keep original header case for display in the wizard dropdown
-  const headers = rawRows[headerIndex].map((header, index) => {
-    const value = sanitizeMojibake(String(header || "").trim());
-    return value || `Coluna_${index + 1}`;
-  });
+    // Se parecer um arquivo CSV ou TSV com extensão de Excel alterada
+    const rows = parseCsv(text);
+    if (rows && rows.length > 0) {
+      return rows;
+    }
 
-  return rawRows.slice(headerIndex + 1).map((row) =>
-    headers.reduce((record, header, index) => {
-      record[header] = row[index] ?? "";
-      return record;
-    }, {})
-  );
+    throw xlsxErr;
+  }
 }
 
 // Helper to determine reference month from file name or rows
