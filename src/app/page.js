@@ -1436,8 +1436,8 @@ export default function Home() {
               industryLower === "arquitetura" || 
               QUALIFYING_TERMS.some(term => nameLower.includes(term));
 
-            // Agendados (Todo lead/negócio no relatório do CRM representa um agendamento - incluindo qualificados, não qualificados e fechados)
-            const isScheduled = true;
+            // Agendados: Zerado para o Bitrix CRM, pois os dados reais de agendamento virão do novo relatório da DOitSA
+            const isScheduled = false;
 
             return {
               id: `crm_${reference_month}_${leadId}_${idx}`,
