@@ -766,13 +766,13 @@ export default function Home() {
         .map(s => s.reference_month)
         .filter(Boolean)
     ));
-    const demos = activeMonths.reduce((sum, mKey) => {
+    const demos = hasCrmData ? activeMonths.reduce((sum, mKey) => {
       const googleLeads = marketingDb.fact_marketing_summary
         .filter(s => s.reference_month === mKey && s.platform === "google" && !s.is_crm && matchesTimelineFilters(s))
         .reduce((leadsSum, s) => leadsSum + (s.leads || 0), 0);
       const estimate = getCrmEstimateForMonth(mKey);
       return sum + estimate + googleLeads;
-    }, 0);
+    }, 0) : 0;
     const cliques      = list.reduce((sum, item) => sum + (item.clicks || 0), 0);
     const impressoes   = list.reduce((sum, item) => sum + (item.impressions || 0), 0);
     const reach        = list.reduce((sum, item) => sum + (item.reach || 0), 0);
@@ -806,7 +806,7 @@ export default function Home() {
       cac
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [marketingDb, platform, period, startDate, endDate, campaign]);
+  }, [marketingDb, platform, period, startDate, endDate, campaign, hasCrmData]);
 
   // Dynamic Device Chart Data
   const getDeviceChartData = () => {
@@ -1064,12 +1064,12 @@ export default function Home() {
 
     return Object.values(months)
       .map(m => {
-        m.demos = getCrmEstimateForMonth(m.reference_month) + (m.googleLeads || 0);
+        m.demos = hasCrmData ? (getCrmEstimateForMonth(m.reference_month) + (m.googleLeads || 0)) : 0;
         return m;
       })
       .sort((a, b) => a.reference_month.localeCompare(b.reference_month));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [marketingDb, period, startDate, endDate, campaign]);
+  }, [marketingDb, period, startDate, endDate, campaign, hasCrmData]);
 
   // Search keyword data filtered
   const getKeywordsDataFiltered = () => {
