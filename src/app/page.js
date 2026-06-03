@@ -1436,8 +1436,8 @@ export default function Home() {
               industryLower === "arquitetura" || 
               QUALIFYING_TERMS.some(term => nameLower.includes(term));
 
-            // Agendados (status comercial correspondente)
-            const isScheduled = AGENDADOS_KEYWORDS.some(kw => statusLower.includes(kw));
+            // Agendados (Todo lead/negócio no relatório do CRM representa um agendamento - incluindo qualificados, não qualificados e fechados)
+            const isScheduled = true;
 
             return {
               id: `crm_${reference_month}_${leadId}_${idx}`,
