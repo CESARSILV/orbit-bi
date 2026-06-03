@@ -17,6 +17,7 @@ export const INITIAL_DB = {
   fact_demographics: [],
   fact_time_series: [],
   fact_conversions: [],
+  fact_crm: [],
   fact_marketing_summary: [],
   uploaded_files: []
 };
@@ -34,6 +35,7 @@ export function createInitialDb() {
     fact_demographics: [],
     fact_time_series: [],
     fact_conversions: [],
+    fact_crm: [],
     fact_marketing_summary: [],
     uploaded_files: []
   };
@@ -56,7 +58,8 @@ const DATASET_TABLE_MAP = {
   demographics_age: "fact_demographics",
   demographics_gender: "fact_demographics",
   demographics_gender_age: "fact_demographics",
-  daily_time_series: "fact_time_series"
+  daily_time_series: "fact_time_series",
+  crm_leads: "fact_crm"
 };
 
 const MONTHS_PT = [
@@ -351,6 +354,7 @@ export async function insertDataset(db, fileMeta, rows, action = "replace") {
     fact_demographics: [...(db.fact_demographics || [])],
     fact_time_series: [...(db.fact_time_series || [])],
     fact_conversions: [...(db.fact_conversions || [])],
+    fact_crm: [...(db.fact_crm || [])],
     fact_marketing_summary: [...(db.fact_marketing_summary || [])],
     uploaded_files: [...(db.uploaded_files || [])]
   };
@@ -594,6 +598,54 @@ export function consolidateSummary(db) {
   // 2º: processa fact_time_series (fonte secundária — só preenche onde não há dado de campanha)
   if (db.fact_time_series && db.fact_time_series.length > 0) {
     db.fact_time_series.forEach(r => addRowToGroups(r, false));
+  }
+
+  // 3º: processa fact_crm (anexa conversões reais / demonstrações aos grupos existentes de anúncios)
+  if (db.fact_crm && db.fact_crm.length > 0) {
+    db.fact_crm.forEach(r => {
+      // Tenta descobrir a plataforma pela fonte/utm source
+      let sourceStr = ((r.lead_source || "") + " " + (r.lead_medium || "")).toLowerCase();
+      let detectedPlatform = "unknown";
+      if (sourceStr.includes("google") || sourceStr.includes("gads") || sourceStr.includes("adwords")) {
+        detectedPlatform = "google";
+      } else if (sourceStr.includes("meta") || sourceStr.includes("facebook") || sourceStr.includes("instagram") || sourceStr.includes("ig")) {
+        detectedPlatform = "meta";
+      } else {
+        return; // Só contabiliza se conseguirmos atribuir a google ou meta
+      }
+
+      const refMonth = getRowReferenceMonth(r) || r.reference_month || (r.date && String(r.date).slice(0, 7));
+      if (!refMonth) return;
+
+      const campaignMatch = r.lead_campaign || "--"; // Agrupa no "--" se não souber a campanha
+      
+      const key = `${detectedPlatform}_${refMonth}_${campaignMatch}_${refMonth}`;
+
+      // Se o grupo ainda não existir para esse mês/plataforma/campanha, a gente pode criar ou apenas anexar
+      if (!groups[key]) {
+        groups[key] = {
+          platform: detectedPlatform,
+          campaign_name: campaignMatch,
+          date: `${refMonth}-01`,
+          day: 1, week: 1, month: parseInt(refMonth.split("-")[1], 10),
+          month_name: MONTHS_PT[parseInt(refMonth.split("-")[1], 10) - 1],
+          quarter: `Q${Math.ceil(parseInt(refMonth.split("-")[1], 10) / 3)}`,
+          year: parseInt(refMonth.split("-")[0], 10),
+          year_month: refMonth,
+          reference_month: refMonth,
+          reference_label: `${MONTHS_PT[parseInt(refMonth.split("-")[1], 10) - 1]}/${refMonth.split("-")[0]}`,
+          spend: 0, clicks: 0, impressions: 0, conversions: 0, leads: 0, reach: 0, revenue: 0, status: "CRM Data"
+        };
+      }
+
+      groups[key].leads += 1;
+      
+      // Verifica se é qualificado / demonstração (baseado na coluna etapa)
+      const statusStr = (r.lead_status || "").toLowerCase();
+      if (statusStr.includes("convertido") || statusStr.includes("demonstração") || statusStr.includes("demonstracao") || statusStr.includes("qualificado") || statusStr.includes("ganho") || statusStr.includes("efetivad")) {
+        groups[key].conversions += 1;
+      }
+    });
   }
 
   // ATENÇÃO: fact_devices, fact_networks e fact_demographics NÃO contribuem para

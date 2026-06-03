@@ -348,9 +348,13 @@ export function detectPlatform(fileName, rowKeys, rows = []) {
   if (name.includes("google") || name.includes("gads") || name.includes("adwords") || name.includes("g_ads")) {
     return "google";
   }
+  if (name.includes("bitrix") || name.includes("crm") || name.includes("leads")) {
+    return "bitrix";
+  }
 
   let googleScore = 0;
   let metaScore = 0;
+  let bitrixScore = 0;
 
   const googleColumns = [
     "cpc méd.", "cpc med.", "impr.", "taxa de conv.", "custo / conv.",
@@ -366,11 +370,20 @@ export function detectPlatform(fileName, rowKeys, rows = []) {
     "inicio dos relatorios", "encerramento dos relatórios", "encerramento dos relatorios"
   ];
 
+  const bitrixColumns = [
+    "nome do lead", "telefone de trab", "criado pelo form", "etapa alterada p", "dor principal",
+    "etapa", "modificado por", "quantas pessoas", "como ficou sabe"
+  ];
+
   rowKeys.forEach(key => {
     const k = key.toLowerCase().trim();
     if (googleColumns.some(gc => k === gc || k.includes(gc))) googleScore += 2;
     if (metaColumns.some(mc => k === mc || k.includes(mc))) metaScore += 2;
+    if (bitrixColumns.some(bc => k === bc || k.includes(bc))) bitrixScore += 2;
   });
+
+  if (bitrixScore > googleScore && bitrixScore > metaScore) return "bitrix";
+
 
   // Check row content
   if (rows && rows.length > 0) {
@@ -397,6 +410,10 @@ export function detectPlatform(fileName, rowKeys, rows = []) {
 
 export function detectDataset(platform, rowKeys) {
   const keys = rowKeys.map(k => k.toLowerCase().trim());
+
+  if (platform === "bitrix") {
+    return "crm_leads";
+  }
 
   if (platform === "meta") {
     const hasAd = keys.some(k => k.includes("anúncio") || k.includes("anuncio") || k.includes("ad name") || k.includes("ad_name") || k === "ad" || k === "ads");
@@ -618,7 +635,9 @@ export const SYNONYMS = {
     "Dia", "dia", "Day", "day", "Data", "data", "Date", "date",
     "Reporting starts", "reporting starts", "Reporting start", "reporting start",
     "data_inicio", "start_date",
-    "Dia da semana", "dia da semana", "Day of week", "day of week"
+    "Dia da semana", "dia da semana", "Day of week", "day of week",
+    // CRM / Bitrix
+    "Criado", "criado", "Data de criação", "data de criação"
   ],
   hour: [
     "Hora", "hora", "Hour", "hour",
@@ -632,6 +651,21 @@ export const SYNONYMS = {
     // Generic
     "Status", "status", "Estado", "estado", "Situação", "situação",
     "Delivery", "delivery", "Status da campanha", "status da campanha", "status_campanha"
+  ],
+  lead_id: [
+    "ID", "id", "Lead ID", "lead_id", "id_lead"
+  ],
+  lead_status: [
+    "Etapa", "etapa", "Status do Lead", "status do lead", "Fase", "fase"
+  ],
+  lead_source: [
+    "Fonte", "fonte", "UTM Source", "utm_source", "utm source", "UTM Source.1", "Origem"
+  ],
+  lead_medium: [
+    "UTM Medium", "utm_medium", "utm medium", "UTM Medium.1", "Meio", "meio"
+  ],
+  lead_campaign: [
+    "UTM Campaign", "utm_campaign", "utm campaign", "Campanha", "campanha"
   ],
   adset_name: [
     // Meta Ads exact

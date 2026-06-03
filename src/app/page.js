@@ -210,6 +210,16 @@ export default function Home() {
         { key: "adset_name",  label: "Nome do Conjunto de Anúncios",      required: false, description: "Ad Set (se o relatório for nível conjunto)." },
         { key: "ad_name",     label: "Nome do Anúncio (Ad)",              required: false, description: "Nome do anúncio específico (se nível anúncio)." },
       ];
+    } else if (platform === "bitrix") {
+      // ---- CRM BITRIX24 ----
+      return [
+        { key: "lead_id", label: "ID do Lead", required: false, description: "Identificador único do Lead." },
+        { key: "date", label: "Data de Criação (Criado)", required: false, description: "Data de conversão/entrada do lead." },
+        { key: "lead_status", label: "Etapa / Status (Obrigatório)", required: true, description: "A etapa do lead (ex: Demonstração)." },
+        { key: "lead_source", label: "Fonte / Origem (Obrigatório)", required: true, description: "Fonte original do tráfego ou formulário." },
+        { key: "lead_medium", label: "UTM Medium", required: false, description: "Meio / UTM Medium." },
+        { key: "lead_campaign", label: "UTM Campaign", required: false, description: "Campanha associada." },
+      ];
     }
 
     // Fallback genérico
