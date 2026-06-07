@@ -3465,12 +3465,8 @@ td {
 
 .report-td-mes {
   text-align: center;
-  justify-content: center;
   font-weight: 600;
   color: rgba(245, 247, 251, 0.7);
-  display: flex;
-  align-items: center;
-  gap: 6px;
   min-width: 120px;
 }
 
@@ -3500,7 +3496,8 @@ td {
 .best-badge {
   font-size: 10px;
   color: #ffd166;
-  flex-shrink: 0;
+  margin-right: 6px;
+  display: inline-block;
 }
 
 /* Linha de total */
