@@ -2676,7 +2676,18 @@ export default function Home() {
                       )}
                       {wizardDetectedMonths.length <= 1 && (
                         <p style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: "4px" }}>
-                          Para dados reais por mês: no Meta Ads, use <strong style={{color:"var(--text)"}}>Detalhamento → Tempo → Mês</strong> antes de exportar.
+                          {wizardPlatform === "meta" && (
+                            <>Para dados reais por mês: no Meta Ads, use <strong style={{color:"var(--text)"}}>Detalhamento → Tempo → Mês</strong> antes de exportar.</>
+                          )}
+                          {wizardPlatform === "google" && (
+                            <>Para dados mensais: no Google Ads, inclua a coluna <strong style={{color:"var(--text)"}}>Dia</strong> ou <strong style={{color:"var(--text)"}}>Mês</strong> na segmentação do relatório.</>
+                          )}
+                          {wizardPlatform === "doitsa" && (
+                            <>Verifique se as datas da coluna <strong style={{color:"var(--text)"}}>Demo</strong> estão no formato correto (DD/MM/AAAA) para distribuição mensal.</>
+                          )}
+                          {wizardPlatform === "bitrix" && (
+                            <>Verifique se as datas da coluna <strong style={{color:"var(--text)"}}>Criado</strong> estão no formato correto para distribuição mensal.</>
+                          )}
                         </p>
                       )}
                     </div>
