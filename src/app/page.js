@@ -539,7 +539,7 @@ export default function Home() {
         value: val,
         label
       }))
-      .filter(m => m.value <= currentYearMonth) // Ignorar meses futuros em relação ao calendário atual
+      .filter(m => m.value >= "2025-10" && m.value <= currentYearMonth) // Limite absoluto: de Outubro/2025 até o mês atual
       .sort((a, b) => a.value.localeCompare(b.value));
 
     const campaigns = [...new Set(marketingDb.fact_marketing_summary.map(s => s.campaign_name))].filter(Boolean);
@@ -598,6 +598,9 @@ export default function Home() {
   };
 
   const matchesCoreFilters = (row) => {
+    // Restrição absoluta: nunca mostrar dados anteriores a Outubro de 2025
+    if (row.reference_month && row.reference_month < "2025-10") return false;
+
     if (platform === "bitrix") {
       if (!row.is_crm || (row.crm_demos || 0) === 0) return false;
     } else if (platform === "doitsa") {
