@@ -3427,6 +3427,7 @@ td {
   border-collapse: collapse;
   font-size: 0.83rem;
   min-width: 500px;
+  table-layout: fixed;
 }
 
 .report-th {

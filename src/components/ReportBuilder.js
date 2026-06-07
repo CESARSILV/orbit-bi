@@ -212,6 +212,39 @@ export default function ReportBuilder({
   endDate,
 }) {
   const printRef = useRef(null);
+
+  // Controle de largura de colunas para ajuste manual
+  const [colWidths, setColWidths] = useState(() => {
+    const initial = { mes: 140 };
+    KPI_DEFS.forEach(k => {
+      initial[k.key] = 120;
+    });
+    return initial;
+  });
+
+  const handleMouseDown = (colKey, event) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = colWidths[colKey] || (colKey === "mes" ? 140 : 120);
+
+    const handleMouseMove = (e) => {
+      const deltaX = e.clientX - startX;
+      const newWidth = Math.max(70, startWidth + deltaX);
+      setColWidths(prev => ({
+        ...prev,
+        [colKey]: newWidth
+      }));
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
   // Config state — inicializa do localStorage após montar no cliente (SSR-safe)
   const [selectedKpis,   setSelectedKpis]   = useState(DEFAULT_KPIS);
   const [clientName,     setClientName]      = useState("");
@@ -729,13 +762,57 @@ export default function ReportBuilder({
 
                 <div className="report-table-wrap">
                   <table className="report-table">
+                    <colgroup>
+                      <col style={{ width: colWidths.mes || 140 }} />
+                      {orderedKpis.map(kpi => (
+                        <col key={kpi.key} style={{ width: colWidths[kpi.key] || 120 }} />
+                      ))}
+                    </colgroup>
                     <thead>
                       <tr>
-                        <th className="report-th report-th-mes">Mês</th>
+                        <th className="report-th report-th-mes" style={{ position: "relative" }}>
+                          Mês
+                          <div
+                            className="col-resize-handle"
+                            onMouseDown={(e) => handleMouseDown("mes", e)}
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              right: 0,
+                              bottom: 0,
+                              width: "6px",
+                              cursor: "col-resize",
+                              userSelect: "none",
+                              zIndex: 10,
+                              background: "transparent",
+                              transition: "background 0.2s",
+                            }}
+                            onMouseEnter={(e) => e.target.style.background = "rgba(91,156,246,0.3)"}
+                            onMouseLeave={(e) => e.target.style.background = "transparent"}
+                          />
+                        </th>
                         {orderedKpis.map(kpi => (
-                          <th key={kpi.key} className="report-th report-th-num">
+                          <th key={kpi.key} className="report-th report-th-num" style={{ position: "relative" }}>
                             <span className="kpi-icon">{kpi.icon}</span>
                             {kpi.label}
+                            <div
+                              className="col-resize-handle"
+                              onMouseDown={(e) => handleMouseDown(kpi.key, e)}
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                right: 0,
+                                bottom: 0,
+                                width: "6px",
+                                cursor: "col-resize",
+                                userSelect: "none",
+                                zIndex: 10,
+                                background: "transparent",
+                                transition: "background 0.2s",
+                              }}
+                              onMouseEnter={(e) => e.target.style.background = "rgba(91,156,246,0.3)"}
+                              onMouseLeave={(e) => e.target.style.background = "transparent"}
+                            />
                           </th>
                         ))}
                       </tr>
