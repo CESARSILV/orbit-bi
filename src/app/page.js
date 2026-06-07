@@ -1395,6 +1395,10 @@ export default function Home() {
         count: wizardRawRows.length
       };
 
+      // Re-detect dynamic date format using the final user-selected date mapping column
+      const finalDateKey = wizardMapping.date || null;
+      const finalDateFormat = detectFileDateFormat(wizardRawRows, finalDateKey);
+
       // ─── CAMINHO CRM (BITRIX24 & DOITSA) ───────────────────────────────────
       // Processamento separado para relatórios do Bitrix24 e DOitSA.
       if (wizardPlatform === "bitrix" || wizardPlatform === "doitsa") {
@@ -1415,7 +1419,7 @@ export default function Home() {
 
             let dateVal = wizardMapping.date ? row[wizardMapping.date] : undefined;
             if (!dateVal) dateVal = getSemanticValue(row, "date");
-            const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`, wizardDateFormat);
+            const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`, finalDateFormat);
 
             // Bitrix: todos os registros contam como Leads Qualificados (is_demo = true)
             // DOitSA: todos os registros contam como Agendados (conversions = 1)
@@ -1528,7 +1532,7 @@ export default function Home() {
           if (!dateVal) {
             dateVal = getSemanticValue(row, "date");
           }
-          const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`, wizardDateFormat);
+          const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`, finalDateFormat);
 
           const spend = parseFormattedFloat(row[wizardMapping.spend]);
           

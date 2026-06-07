@@ -702,7 +702,7 @@ export const SYNONYMS = {
     "data_inicio", "start_date",
     "Dia da semana", "dia da semana", "Day of week", "day of week",
     // CRM / Bitrix / DOitSA
-    "Criado", "criado", "Data de criação", "data de criação",
+    "Criado em", "criado em", "Criado", "criado", "Data de criação", "data de criação",
     "Data do Agendamento", "data do agendamento", "Data de Agendamento", "data de agendamento", "Agendado para", "agendado para", "Data da Demo", "data da demo", "Datas", "datas"
   ],
   hour: [
