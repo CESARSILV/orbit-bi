@@ -312,7 +312,7 @@ export default function ReportBuilder({
     return "Histórico completo";
   }, [period, startDate, endDate]);
 
-  const platformLabel = platform === "todas" ? "Todas as plataformas" : platform === "google" ? "Google Ads" : "Meta Ads";
+  const platformLabel = platform === "todas" ? "Todas as plataformas" : platform === "google" ? "Google Ads" : platform === "meta" ? "Meta Ads" : platform === "bitrix" ? "Bitrix24 CRM" : "DOitSA";
   const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 
   // Export CSV

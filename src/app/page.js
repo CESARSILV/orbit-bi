@@ -612,10 +612,13 @@ export default function Home() {
   };
 
   const matchesTimelineFilters = (r) => {
-    if (period !== "todos" && r.reference_month !== period) return false;
-    if (!isInsideSelectedDateRange(r)) return false;
-    if (campaign !== "todas" && r.campaign_name !== campaign) return false;
-    return true;
+    // 1. Ignorar meses futuros em relação ao calendário atual
+    const now = new Date();
+    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    if (r.reference_month && r.reference_month > currentYearMonth) return false;
+
+    // 2. Aplicar os mesmos filtros de plataforma, campanha, período e datas do dashboard
+    return matchesCoreFilters(r);
   };
 
 
