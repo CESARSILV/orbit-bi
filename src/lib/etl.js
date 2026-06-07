@@ -539,7 +539,7 @@ export const SYNONYMS = {
     // English
     "Conversions", "conversions", "Total conversions", "total conversions", "All conversions", "all conversions",
     // DOitSA
-    "Demo", "demo", "demos"
+    "Demo", "demo", "demos", "Agendamento", "agendamento", "Agendamentos", "agendamentos", "Demo / Agendamento", "demo / agendamento", "Status do Agendamento", "status do agendamento"
   ],
   leads: [
     // PRIORIDADE 1: coluna total "Leads" do Meta Ads — já inclui Leads na Meta + Leads no site
@@ -643,8 +643,9 @@ export const SYNONYMS = {
     "Reporting starts", "reporting starts", "Reporting start", "reporting start",
     "data_inicio", "start_date",
     "Dia da semana", "dia da semana", "Day of week", "day of week",
-    // CRM / Bitrix
-    "Criado", "criado", "Data de criação", "data de criação"
+    // CRM / Bitrix / DOitSA
+    "Criado", "criado", "Data de criação", "data de criação",
+    "Data do Agendamento", "data do agendamento", "Data de Agendamento", "data de agendamento", "Agendado para", "agendado para", "Data da Demo", "data da demo", "Datas", "datas"
   ],
   hour: [
     "Hora", "hora", "Hour", "hour",
