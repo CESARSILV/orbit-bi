@@ -689,10 +689,15 @@ export function consolidateSummary(db) {
       const refMonth = r.reference_month || (r.date && String(r.date).slice(0, 7));
       if (!refMonth) return;
 
+      // Regra de Exclusão: indicação ou Playbooks não fazem parte do marketing e devem ser ignorados
+      const sourceStr = String(r.lead_source || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      if (sourceStr.includes("indicacao") || sourceStr.includes("playbook")) {
+        return;
+      }
+
       let detectedPlatform = r.crm_platform === "doitsa" ? "doitsa" : "bitrix";
       
       if (r.crm_platform === "bitrix" || r.doitsa_matched) {
-        const sourceStr = String(r.lead_source || "").toLowerCase();
         if (sourceStr.includes("google")) {
           detectedPlatform = "google";
         } else if (sourceStr.includes("instagram") || sourceStr.includes("facebook") || sourceStr.includes("meta")) {

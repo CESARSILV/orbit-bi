@@ -673,7 +673,8 @@ export const SYNONYMS = {
   ],
   lead_source: [
     "Fonte", "fonte", "UTM Source", "utm_source", "utm source", "UTM Source.1", "Origem",
-    "Como ficou sabendo do DOit", "como ficou sabendo do DOit", "Como ficou sabendo", "como ficou sabendo"
+    "Como ficou sabendo do DOit ???", "como ficou sabendo do DOit ???", "Como ficou sabendo do DOit", "como ficou sabendo do DOit", "Como ficou sabendo", "como ficou sabendo",
+    "Jornada do cliente", "jornada do cliente"
   ],
   lead_medium: [
     "UTM Medium", "utm_medium", "utm medium", "UTM Medium.1", "Meio", "meio"
@@ -682,7 +683,7 @@ export const SYNONYMS = {
     "UTM Campaign", "utm_campaign", "utm campaign", "Campanha", "campanha"
   ],
   lead_industry: [
-    "Empresa: Indústria", "Empresa: Industria", "Indústria", "Industria", "industria", "Setor", "Segmento", "Dor Principal ??"
+    "Empresa: Indústria", "Empresa: Industria", "Indústria", "Industria", "industria", "Setor", "Segmento", "Dor Principal ???", "Dor Principal ??", "Dor Principal"
   ],
   adset_name: [
     // Meta Ads exact
