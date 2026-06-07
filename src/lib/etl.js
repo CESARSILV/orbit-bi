@@ -170,7 +170,49 @@ const MONTH_MAP_PT = {
   julho: 6, agosto: 7, setembro: 8, outubro: 9, novembro: 10, dezembro: 11
 };
 
-export function parseDate(val) {
+export function detectFileDateFormat(rows, dateKey) {
+  if (!rows || rows.length === 0 || !dateKey) return "BR";
+
+  let hasUSForce = false;
+  let hasBRForce = false;
+
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const val = row[dateKey];
+    if (val === undefined || val === null || val === "") continue;
+    if (val instanceof Date) continue;
+
+    const str = String(val).trim();
+    if (/^\d{5}$/.test(str)) continue;
+
+    const strLower = str.toLowerCase();
+    let cleanStr = strLower.replace(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/g, "$1/$2/$3");
+    cleanStr = cleanStr.replace(/[.,]/g, "").replace(/\s+/g, " ");
+
+    const slashParts = cleanStr.split(/[\/\-]/);
+    if (slashParts.length === 3) {
+      const p0 = parseInt(slashParts[0], 10);
+      const p1 = parseInt(slashParts[1], 10);
+      const p2 = parseInt(slashParts[2], 10);
+
+      let year = p2;
+      if (year <= 99 && year >= 0) year += 2000;
+
+      if (year > 1900) {
+        if (p0 > 12 && p1 <= 12) {
+          hasBRForce = true; // DD/MM/YYYY
+        } else if (p0 <= 12 && p1 > 12) {
+          hasUSForce = true; // MM/DD/YYYY
+        }
+      }
+    }
+  }
+
+  if (hasUSForce && !hasBRForce) return "US";
+  return "BR";
+}
+
+export function parseDate(val, dateFormat = "BR") {
   if (!val) return null;
   if (val instanceof Date) return val;
 
@@ -257,19 +299,27 @@ export function parseDate(val) {
     }
 
     if (year > 1900) {
-      // M-03 FIX: Smart detection of BR (DD/MM/YYYY) vs US (MM/DD/YYYY)
+      if (dateFormat === "US") {
+        const month = p0 - 1;
+        const day = p1;
+        return new Date(year, month, day);
+      } else if (dateFormat === "BR") {
+        const day = p0;
+        const month = p1 - 1;
+        return new Date(year, month, day);
+      }
+
+      // Fallback dinâmico caso formato não especificado
       if (p0 > 12) {
-        // p0 > 12 significa que p0 NÃO pode ser mês → é o dia no formato brasileiro (DD/MM/YYYY)
         const day = p0;
         const month = p1 - 1;
         return new Date(year, month, day);
       } else if (p1 > 12) {
-        // p1 > 12 significa que p1 NÃO pode ser mês → é o dia no formato americano (MM/DD/YYYY)
         const month = p0 - 1;
         const day = p1;
         return new Date(year, month, day);
       } else {
-        // Ambíguo — padrão brasileiro DD/MM/YYYY
+        // Ambíguo
         const day = p0;
         const month = p1 - 1;
         return new Date(year, month, day);
@@ -290,8 +340,8 @@ export function parseDate(val) {
 // Temporal Intelligence Builder
 // ----------------------------------------------------
 
-export function applyTemporalIntelligence(dateVal) {
-  const d = parseDate(dateVal);
+export function applyTemporalIntelligence(dateVal, dateFormat = "BR") {
+  const d = parseDate(dateVal, dateFormat);
   if (!d || isNaN(d.getTime())) {
     const fallbackDate = new Date();
     const y = fallbackDate.getFullYear();

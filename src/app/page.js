@@ -19,7 +19,7 @@ import RegionalMap from "@/components/RegionalMap";
 import ReportBuilder from "@/components/ReportBuilder";
 
 // Custom ETL & DB Ingestion Imports
-import { parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticValue, parseDate, inferReferenceMonth, isTotalOrMetadata, applyTemporalIntelligence, parseFormattedFloat, sanitizeMojibake, SYNONYMS } from "@/lib/etl";
+import { parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticValue, parseDate, inferReferenceMonth, isTotalOrMetadata, applyTemporalIntelligence, parseFormattedFloat, sanitizeMojibake, SYNONYMS, detectFileDateFormat } from "@/lib/etl";
 import { getDatabase, saveDatabase, insertDataset, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary } from "@/lib/db";
 import { clearAnalyticsSystem } from "@/lib/clearAnalyticsSystem";
 
@@ -153,6 +153,7 @@ export default function Home() {
   const [wizardResultCount, setWizardResultCount] = useState(0);
   const [wizardDatasetType, setWizardDatasetType] = useState("campaign_performance");
   const [wizardDetectedMonths, setWizardDetectedMonths] = useState([]); // months found in CSV date column
+  const [wizardDateFormat, setWizardDateFormat] = useState("BR");
 
   // Tipos de arquivo que NÃO precisam de Investimento e Campanha como obrigatórios
   const TIME_OR_SEGMENT_TYPES = [
@@ -1271,6 +1272,19 @@ export default function Home() {
 
       // --- Detect unique months from date column values ---
       const dateColumnName = initialMapping.date || null;
+      let actualDateColumnKey = dateColumnName;
+      if (!actualDateColumnKey && headers.length > 0) {
+        for (const key of headers) {
+          if (getSemanticValue({[key]: "test"}, "date")) {
+            actualDateColumnKey = key;
+            break;
+          }
+        }
+      }
+      
+      const fileDateFormat = detectFileDateFormat(rawRows, actualDateColumnKey);
+      setWizardDateFormat(fileDateFormat);
+
       const detectedMonthsMap = {};
       
       const rowsWithDates = rawRows.filter(row => {
@@ -1283,7 +1297,7 @@ export default function Home() {
         let dv = dateColumnName ? row[dateColumnName] : undefined;
         if (!dv) dv = getSemanticValue(row, "date");
         if (!dv) return;
-        const parsed = parseDate(dv);
+        const parsed = parseDate(dv, fileDateFormat);
         if (!parsed || isNaN(parsed.getTime())) return;
         const ym = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}`;
         const label = `${["Janeiro","Fevereiro","Mar\u00e7o","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][parsed.getMonth()]}/${parsed.getFullYear()}`;
@@ -1401,7 +1415,7 @@ export default function Home() {
 
             let dateVal = wizardMapping.date ? row[wizardMapping.date] : undefined;
             if (!dateVal) dateVal = getSemanticValue(row, "date");
-            const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`);
+            const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`, wizardDateFormat);
 
             // Bitrix: todos os registros contam como Leads Qualificados (is_demo = true)
             // DOitSA: todos os registros contam como Agendados (conversions = 1)
@@ -1514,7 +1528,7 @@ export default function Home() {
           if (!dateVal) {
             dateVal = getSemanticValue(row, "date");
           }
-          const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`);
+          const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`, wizardDateFormat);
 
           const spend = parseFormattedFloat(row[wizardMapping.spend]);
           
