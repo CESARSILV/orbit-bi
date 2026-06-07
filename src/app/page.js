@@ -1272,8 +1272,14 @@ export default function Home() {
       // --- Detect unique months from date column values ---
       const dateColumnName = initialMapping.date || null;
       const detectedMonthsMap = {};
-      rawRows.slice(0, 300).forEach(row => {
-        // Try mapped column first, then auto-detect via SYNONYMS
+      
+      const rowsWithDates = rawRows.filter(row => {
+        let dv = dateColumnName ? row[dateColumnName] : undefined;
+        if (!dv) dv = getSemanticValue(row, "date");
+        return dv !== undefined && dv !== null && String(dv).trim() !== "" && String(dv).trim() !== "-";
+      });
+
+      rowsWithDates.slice(0, 500).forEach(row => {
         let dv = dateColumnName ? row[dateColumnName] : undefined;
         if (!dv) dv = getSemanticValue(row, "date");
         if (!dv) return;

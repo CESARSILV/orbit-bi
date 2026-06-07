@@ -177,6 +177,14 @@ export function parseDate(val) {
   const str = String(val).trim();
   if (str === "" || str === "-") return null;
 
+  // Suporte a número de série do Excel (ex: 46178)
+  const num = Number(str);
+  if (!isNaN(num) && num >= 35000 && num <= 60000) {
+    const excelDate = new Date(1899, 11, 30);
+    excelDate.setDate(excelDate.getDate() + Math.floor(num));
+    return excelDate;
+  }
+
   // FIX: Handle ISO YYYY-MM-DD as LOCAL date to avoid UTC timezone offset (e.g. 2025-10-01 UTC = 2025-09-30 in UTC-3)
   const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (isoMatch) {
@@ -879,7 +887,7 @@ export async function parseExcelFile(file) {
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: "array" });
+          const workbook = XLSX.read(data, { type: "array", cellDates: true });
           
           if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
             resolve([]);
@@ -1046,7 +1054,12 @@ export function inferReferenceMonth(fileName, rows) {
   }
 
   // Look into rows
-  for (const row of rows.slice(0, 100)) {
+  const rowsWithDates = rows.filter(row => {
+    const dateVal = getSemanticValue(row, "date");
+    return dateVal !== undefined && dateVal !== null && String(dateVal).trim() !== "" && String(dateVal).trim() !== "-";
+  });
+
+  for (const row of rowsWithDates.slice(0, 300)) {
     const dateVal = getSemanticValue(row, "date");
     if (dateVal) {
       const d = parseDate(dateVal);
