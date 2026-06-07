@@ -257,6 +257,18 @@ export default function Home() {
   // C-08 FIX: Queue for multiple files uploaded at once
   const pendingFilesQueueRef = useRef([]);
 
+  // C-08 FIX: Process queued files sequentially when the wizard step is cleared (wizard closes)
+  useEffect(() => {
+    if (wizardStep === null && pendingFilesQueueRef.current.length > 0) {
+      const nextFile = pendingFilesQueueRef.current.shift();
+      if (nextFile) {
+        setTimeout(() => {
+          launchImportWizard(nextFile);
+        }, 100);
+      }
+    }
+  }, [wizardStep]);
+
   // Load database from localStorage after initial hydration and run auto-cleanup if necessary
   useEffect(() => {
     const loadedDb = getDatabase();
