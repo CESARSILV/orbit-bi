@@ -531,10 +531,16 @@ export default function Home() {
       }
     });
 
-    const months = Object.entries(monthsMap).map(([val, label]) => ({
-      value: val,
-      label
-    })).sort((a, b) => a.value.localeCompare(b.value));
+    const now = new Date();
+    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    const months = Object.entries(monthsMap)
+      .map(([val, label]) => ({
+        value: val,
+        label
+      }))
+      .filter(m => m.value <= currentYearMonth) // Ignorar meses futuros em relação ao calendário atual
+      .sort((a, b) => a.value.localeCompare(b.value));
 
     const campaigns = [...new Set(marketingDb.fact_marketing_summary.map(s => s.campaign_name))].filter(Boolean);
     const devices = [...new Set(marketingDb.fact_devices.map(d => d.device))].filter(Boolean);
