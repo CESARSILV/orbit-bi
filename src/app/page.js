@@ -638,7 +638,7 @@ export default function Home() {
       if (!grouped[key]) {
         grouped[key] = {
           nome: name,
-          plataforma: c.platform === "google" ? "Google Ads" : c.platform === "bitrix" ? "Bitrix24 CRM" : "Meta Ads",
+          plataforma: c.platform === "google" ? "Google Ads" : c.platform === "bitrix" ? "Bitrix24 CRM" : c.platform === "doitsa" ? "DOitSA" : "Meta Ads",
           tipo: c.platform,
           investimento: 0,
           receita: 0,
@@ -718,7 +718,7 @@ export default function Home() {
       })
       .reduce((acc, c) => {
         const key = `${c.platform}_${c.campaign_name}`;
-        if (!acc[key]) acc[key] = { nome: c.campaign_name, plataforma: c.platform === "google" ? "Google Ads" : c.platform === "bitrix" ? "Bitrix24 CRM" : "Meta Ads", tipo: c.platform, investimento: 0, status: "Ativa" };
+        if (!acc[key]) acc[key] = { nome: c.campaign_name, plataforma: c.platform === "google" ? "Google Ads" : c.platform === "bitrix" ? "Bitrix24 CRM" : c.platform === "doitsa" ? "DOitSA" : "Meta Ads", tipo: c.platform, investimento: 0, status: "Ativa" };
         acc[key].investimento += c.spend || 0;
         return acc;
       }, {});
@@ -2610,7 +2610,7 @@ export default function Home() {
             {/* Wizard Header */}
             <header className="wizard-header">
               <h2 id="wizardTitle">🧙‍♂️ Assistente de Ingestão de Dados</h2>
-              <p>Arquivo: <strong>{wizardFile.name}</strong> (Plataforma: <strong>{wizardPlatform === "google" ? "Google Ads" : wizardPlatform === "bitrix" ? "Bitrix24 (CRM)" : "Meta Ads"}</strong>)</p>
+              <p>Arquivo: <strong>{wizardFile.name}</strong> (Plataforma: <strong>{wizardPlatform === "google" ? "Google Ads" : wizardPlatform === "bitrix" ? "Bitrix24 (CRM)" : wizardPlatform === "doitsa" ? "DOitSA" : "Meta Ads"}</strong>)</p>
             </header>
 
             {/* Step Indicators */}
