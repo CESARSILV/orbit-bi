@@ -662,6 +662,12 @@ export const SYNONYMS = {
   lead_id: [
     "ID", "id", "Lead ID", "lead_id", "id_lead"
   ],
+  client_name: [
+    "Nome", "nome", "Nome do Lead", "nome do lead", "Nome Completo", "nome completo", "Cliente", "cliente", "Client Name", "client name", "Lead Name", "lead name", "Nome do contato", "nome do contato"
+  ],
+  phone: [
+    "Telefone", "telefone", "Celular", "celular", "Contato", "contato", "Phone", "phone", "Telephone", "telephone", "Telefone de contato", "telefone de contato", "Telefone de trab", "telefone de trab"
+  ],
   lead_status: [
     "Etapa", "etapa", "Status do Lead", "status do lead", "Fase", "fase"
   ],
