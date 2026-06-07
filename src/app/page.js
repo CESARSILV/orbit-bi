@@ -1241,6 +1241,16 @@ export default function Home() {
 
       });
 
+      // Override automático com mapeamento exato para a planilha DOitSA
+      if (detectedPlatform === "doitsa") {
+        if (headers.includes("Demo")) initialMapping.date = "Demo";
+        if (headers.includes("Demo Realizada")) initialMapping.conversions = "Demo Realizada";
+        else if (headers.includes("Demo")) initialMapping.conversions = "Demo";
+        if (headers.includes("Cliente")) initialMapping.client_name = "Cliente";
+        if (headers.includes("Telefone do Cliente")) initialMapping.phone = "Telefone do Cliente";
+        if (headers.includes("Cód")) initialMapping.lead_id = "Cód";
+      }
+
       // Check if there is an existing import template matching the headers to prefill
       const savedTemplates = JSON.parse(localStorage.getItem("doit_import_templates") || "[]");
       const matchedTemplate = savedTemplates.find(t => 
