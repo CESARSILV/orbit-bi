@@ -480,7 +480,9 @@ export default function ReportBuilder({
 
   <div class="hdr">
     <div class="brand">
-      <div class="logo">O</div>
+      <div class="logo" style="background:transparent;border:none;display:flex;align-items:center;justify-content:center;">
+        <img src="https://www.doit.com.br/wp-content/uploads/2025/06/favicon.png" alt="DOit" style="width:28px;height:28px;object-fit:contain;" />
+      </div>
       <div><div class="brand-name">DOit BI</div><div class="brand-sub">Inteligência de mídia paga</div></div>
     </div>
     <div class="hdr-r">
@@ -698,11 +700,16 @@ export default function ReportBuilder({
           <div className="report-header-block">
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{
-                width: 40, height: 40, borderRadius: 10,
-                background: "linear-gradient(135deg, #fbbc05, #0866ff)",
+                width: 40, height: 40,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 18, fontWeight: 900, color: "#fff", flexShrink: 0,
-              }}>O</div>
+                flexShrink: 0,
+              }}>
+                <img
+                  src="https://www.doit.com.br/wp-content/uploads/2025/06/favicon.png"
+                  alt="DOit"
+                  style={{ width: "36px", height: "36px", objectFit: "contain" }}
+                />
+              </div>
               <div>
                 <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>
                   DOit BI

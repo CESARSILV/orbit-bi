@@ -89,7 +89,13 @@ export default function Sidebar({
 
         {/* ── Brand ────────────────────────────────────────────────── */}
         <div className="brand">
-          <div className="brand-mark">O</div>
+          <div className="brand-mark" style={{ background: "transparent", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <img
+              src="https://www.doit.com.br/wp-content/uploads/2025/06/favicon.png"
+              alt="DOit"
+              style={{ width: "38px", height: "38px", objectFit: "contain" }}
+            />
+          </div>
           {!isCollapsed && (
             <div className="brand-text">
               <strong>DOit BI</strong>
