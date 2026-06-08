@@ -927,8 +927,8 @@ select {
 }
 
 .upload-zone.dragover {
-  border-color: var(--green);
-  background: rgba(124, 247, 190, 0.1);
+  border-color: #ffd200;
+  background: rgba(255, 210, 0, 0.08);
 }
 
 .upload-zone input {
@@ -952,11 +952,11 @@ select {
   margin-bottom: 8px;
 }
 .upload-zone:hover .upload-icon-container {
-  background: rgba(124, 247, 190, 0.12);
-  border-color: var(--green);
-  color: var(--green);
+  background: rgba(255, 210, 0, 0.12);
+  border-color: #ffd200;
+  color: #ffd200;
   transform: scale(1.1) translateY(-2px);
-  box-shadow: 0 0 20px rgba(124, 247, 190, 0.25);
+  box-shadow: 0 0 20px rgba(255, 210, 0, 0.25);
 }
 .upload-icon-svg {
   transition: transform 0.28s ease;
@@ -4720,4 +4720,127 @@ html[data-theme="light"] .filter-shell--compact .filter-advanced-row--open {
     display: none !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   APRIMORAMENTOS ESTÉTICOS AVANÇADOS (FASE 2)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* 1. Shimmer Loading Effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.shimmer-effect {
+  background: linear-gradient(90deg, var(--hover-bg) 25%, var(--border-soft) 50%, var(--hover-bg) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite linear;
+}
+
+/* 2. Premium Table Row Hover */
+.table-wrap table tbody {
+  cursor: pointer;
+}
+.table-wrap table tbody tr {
+  transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1), 
+              transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), 
+              background-color 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.table-wrap table tbody:hover tr {
+  opacity: 0.45;
+}
+.table-wrap table tbody tr:hover {
+  opacity: 1 !important;
+  background-color: var(--hover-bg) !important;
+  transform: scale(1.005) translateX(3px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* 3. AI Chat Terminal UI & Custom Blocks */
+.assistant-panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-soft);
+  background: rgba(10, 15, 30, 0.85);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* Pulsing typing indicator */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  margin-top: 4px;
+}
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background: #ffd200;
+  border-radius: 50%;
+  animation: typingBounce 1.4s infinite ease-in-out both;
+}
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0.3); opacity: 0.3; }
+  40% { transform: scale(1.1); opacity: 1; }
+}
+
+/* Insight Highlight boxes */
+.insight-box {
+  border-left: 3px solid transparent;
+  padding: 10px 14px;
+  border-radius: 0 8px 8px 0;
+  margin: 12px 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+.insight-box.oportunidade {
+  background: rgba(16, 185, 129, 0.08) !important;
+  border-color: #10B981 !important;
+  color: #7cf7be !important;
+}
+.insight-box.desperdicio {
+  background: rgba(239, 68, 68, 0.08) !important;
+  border-color: #ef4444 !important;
+  color: #ff7d8f !important;
+}
+.insight-box.alerta {
+  background: rgba(245, 158, 11, 0.08) !important;
+  border-color: #f59e0b !important;
+  color: #ffd481 !important;
+}
+
+/* Copy floating button */
+.copy-insight-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--hover-bg);
+  border: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 7px;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  opacity: 0;
+  transition: opacity 0.2s ease, background 0.2s ease;
+  z-index: 10;
+}
+.message.ai:hover .copy-insight-btn {
+  opacity: 1;
+}
+.copy-insight-btn:hover {
+  background: var(--border-soft);
+  color: var(--text-primary);
+}
+
 

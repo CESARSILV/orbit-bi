@@ -281,12 +281,46 @@ export default function HistoricalChart({ timeline }) {
       <article
         className="chart-panel wide"
         id="comparacao"
-        style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem", padding: "2.5rem", minHeight: 280, opacity: 0.5 }}
+        style={{ 
+          display: "flex", 
+          flexDirection: "column", 
+          alignItems: "center", 
+          justifyContent: "center", 
+          gap: "1.2rem", 
+          padding: "3rem 2rem", 
+          minHeight: 320,
+          background: "linear-gradient(135deg, rgba(15, 20, 32, 0.4) 0%, rgba(5, 7, 13, 0.6) 100%)",
+          border: "1px solid var(--border-soft)",
+          borderRadius: 16
+        }}
       >
-        <div style={{ fontSize: 32, opacity: 0.4 }}>📊</div>
-        <p style={{ color: C.muted, fontSize: "var(--fs-secondary)", margin: 0, textAlign: "center" }}>
-          Nenhum dado importado ainda.<br />Importe um relatório para visualizar o histórico de investimento.
-        </p>
+        {/* SVG Ilustrativo de Histórico Vazio */}
+        <svg width="140" height="70" viewBox="0 0 140 70" fill="none" style={{ opacity: 0.35, overflow: "visible" }}>
+          <defs>
+            <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ffd200" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#ffd200" stopOpacity="0.0" />
+            </linearGradient>
+          </defs>
+          {/* Linhas de Grade */}
+          <line x1="0" y1="10" x2="140" y2="10" stroke="var(--border-soft)" strokeDasharray="3 3" />
+          <line x1="0" y1="35" x2="140" y2="35" stroke="var(--border-soft)" strokeDasharray="3 3" />
+          <line x1="0" y1="60" x2="140" y2="60" stroke="var(--border-soft)" />
+          {/* Área sombreada */}
+          <path d="M 0 60 Q 25 45 45 48 T 90 25 T 140 15 L 140 60 Z" fill="url(#chartGrad)" />
+          {/* Linha de Tendência */}
+          <path d="M 0 60 Q 25 45 45 48 T 90 25 T 140 15" stroke="#ffd200" strokeWidth="2" strokeLinecap="round" />
+          {/* Pontos */}
+          <circle cx="45" cy="48" r="3" fill="#ffd200" />
+          <circle cx="90" cy="25" r="3" fill="#ffd200" />
+          <circle cx="140" cy="15" r="4" fill="#ffffff" stroke="#ffd200" strokeWidth="2" />
+        </svg>
+        <div style={{ textAlign: "center", maxWidth: "340px" }}>
+          <h3 style={{ margin: "0 0 6px", fontSize: "1rem", color: "var(--text-primary)", fontWeight: 700 }}>Histórico de Desempenho</h3>
+          <p style={{ color: C.muted, fontSize: "var(--fs-secondary)", margin: 0, lineHeight: 1.45 }}>
+            Nenhum dado importado ainda. Faça upload de um relatório do Google Ads ou Meta Ads para liberar o gráfico temporal.
+          </p>
+        </div>
       </article>
     );
   }

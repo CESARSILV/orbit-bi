@@ -362,12 +362,27 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
       <article className="chart-panel" style={{
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        gap: "var(--space-sm)", minHeight: 200, opacity: 0.5,
+        gap: "1.2rem", minHeight: 320,
+        background: "linear-gradient(135deg, rgba(15, 20, 32, 0.4) 0%, rgba(5, 7, 13, 0.6) 100%)",
+        border: "1px solid var(--border-soft)",
+        borderRadius: 16
       }}>
-        <div style={{ fontSize: 28, opacity: 0.4 }}>🍩</div>
-        <p style={{ color: "var(--text-muted)", fontSize: "var(--fs-secondary)", margin: 0, textAlign: "center" }}>
-          Nenhum dado de plataforma.<br />Importe relatórios para ver a distribuição.
-        </p>
+        {/* SVG Ilustrativo de Distribuição Vazia */}
+        <svg width="100" height="100" viewBox="0 0 100 100" fill="none" style={{ opacity: 0.35 }}>
+          {/* Círculo externo */}
+          <circle cx="50" cy="50" r="40" stroke="var(--border-soft)" strokeWidth="6" />
+          {/* Arcos pontilhados simbolizando fatias */}
+          <circle cx="50" cy="50" r="40" stroke="#ffd200" strokeWidth="6" strokeDasharray="30 250" strokeLinecap="round" />
+          <circle cx="50" cy="50" r="40" stroke="#0866FF" strokeWidth="6" strokeDasharray="60 250" strokeDashoffset="-40" strokeLinecap="round" />
+          {/* Círculo central do donut */}
+          <circle cx="50" cy="50" r="24" fill="none" />
+        </svg>
+        <div style={{ textAlign: "center", maxWidth: "260px" }}>
+          <h3 style={{ margin: "0 0 6px", fontSize: "1rem", color: "var(--text-primary)", fontWeight: 700 }}>Distribuição de Canais</h3>
+          <p style={{ color: "var(--text-muted)", fontSize: "var(--fs-secondary)", margin: 0, lineHeight: 1.45 }}>
+            Nenhum dado de investimento disponível. Importe planilhas para comparar o share de verba.
+          </p>
+        </div>
       </article>
     );
   }
