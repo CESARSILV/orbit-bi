@@ -3888,11 +3888,31 @@ html[data-theme="light"] .topbar-title-highlight {
   border: 1px solid rgba(24,119,242,0.22);
   color: #7bb7ff;
 }
+.platform-pill.bitrix {
+  background: rgba(47,198,246,0.10);
+  border: 1px solid rgba(47,198,246,0.22);
+  color: #2fc6f6;
+}
+.platform-pill.doitsa {
+  background: rgba(16,185,129,0.10);
+  border: 1px solid rgba(16,185,129,0.22);
+  color: #34d399;
+}
 html[data-theme="light"] .platform-pill.google,
 html[data-theme="light"] .platform-pill.meta {
   color: #3b82f6;
   background: rgba(59,130,246,0.08);
   border-color: rgba(59,130,246,0.22);
+}
+html[data-theme="light"] .platform-pill.bitrix {
+  color: #0284c7;
+  background: rgba(2,132,199,0.08);
+  border-color: rgba(2,132,199,0.22);
+}
+html[data-theme="light"] .platform-pill.doitsa {
+  color: #059669;
+  background: rgba(5,150,105,0.08);
+  border-color: rgba(5,150,105,0.22);
 }
 .topbar-actions-premium {
   display: flex;
