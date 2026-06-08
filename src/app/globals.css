@@ -623,11 +623,22 @@ td,
 }
 
 .nav-item.active {
-  border-color: rgba(123, 183, 255, 0.16) !important;
-  background: linear-gradient(135deg, rgba(123, 183, 255, 0.12), rgba(91, 156, 246, 0.06)) !important;
-  color: var(--blue) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 210, 0, 0.22) !important;
+  background: linear-gradient(135deg, rgba(255, 210, 0, 0.15), rgba(255, 210, 0, 0.03)) !important;
+  color: #ffd200 !important;
+  box-shadow: 0 4px 12px rgba(255, 210, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
   font-weight: 600;
+}
+
+/* Tabular Nums para alinhamento perfeito de valores numéricos nas tabelas e KPIs */
+.kpi-value,
+.metric-value,
+.table-cell-number,
+.table-data-row td,
+.chart-tooltip-value,
+.stat-val {
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" on !important;
 }
 
 .sidebar-card {
@@ -3982,6 +3993,18 @@ html[data-theme="light"] .action-btn--ghost:hover {
 .action-btn--primary:hover {
   background: linear-gradient(135deg,#60a5fa 0%,#3b82f6 100%);
   box-shadow: 0 6px 28px rgba(59,130,246,0.45);
+}
+
+html[data-theme="dark"] .action-btn--primary {
+  background: linear-gradient(135deg, #ffd200 0%, #f5be00 100%) !important;
+  border-color: rgba(255, 210, 0, 0.40) !important;
+  color: #000000 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 20px rgba(255, 210, 0, 0.20) !important;
+}
+html[data-theme="dark"] .action-btn--primary:hover {
+  background: linear-gradient(135deg, #ffe033 0%, #ffd200 100%) !important;
+  box-shadow: 0 6px 28px rgba(255, 210, 0, 0.35) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
