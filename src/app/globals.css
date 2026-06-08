@@ -4843,4 +4843,15 @@ html[data-theme="light"] .filter-shell--compact .filter-advanced-row--open {
   color: var(--text-primary);
 }
 
+/* Classes de alinhamento de dados */
+.text-right {
+  text-align: right !important;
+}
+.text-center {
+  text-align: center !important;
+}
+.text-left {
+  text-align: left !important;
+}
+
 

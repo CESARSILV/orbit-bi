@@ -51,12 +51,12 @@ export default function CampaignTable({ campaigns }) {
         <table>
           <thead>
             <tr>
-              <th>Campanha</th>
-              <th>Plataforma</th>
-              <th>Investimento</th>
-              <th>Cliques</th>
-              <th>CPA</th>
-              <th>Status IA</th>
+              <th className="text-left">Campanha</th>
+              <th className="text-left">Plataforma</th>
+              <th className="text-right">Investimento</th>
+              <th className="text-right">Cliques</th>
+              <th className="text-right">CPA</th>
+              <th className="text-center">Status IA</th>
             </tr>
           </thead>
           <tbody>
@@ -78,14 +78,14 @@ export default function CampaignTable({ campaigns }) {
                       animationDelay: expanded && idx >= INITIAL_VISIBLE ? `${(idx - INITIAL_VISIBLE) * 40}ms` : "0ms",
                     }}
                   >
-                    <td>
+                    <td className="text-left">
                       <strong>{item.nome}</strong>
                     </td>
-                    <td>{item.plataforma}</td>
-                    <td>{brl.format(item.investimento)}</td>
-                    <td>{item.nome && item.cliques !== undefined ? new Intl.NumberFormat("pt-BR").format(item.cliques) : "—"}</td>
-                    <td>{brl.format(item.cpa)}</td>
-                    <td>
+                    <td className="text-left">{item.plataforma}</td>
+                    <td className="text-right">{brl.format(item.investimento)}</td>
+                    <td className="text-right">{item.nome && item.cliques !== undefined ? new Intl.NumberFormat("pt-BR").format(item.cliques) : "—"}</td>
+                    <td className="text-right">{brl.format(item.cpa)}</td>
+                    <td className="text-center">
                       <span style={{
                         display: "inline-block",
                         padding: "4px 10px",
