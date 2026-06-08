@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useTheme } from "@/lib/ThemeContext";
 
 // ─── Chave de persistência ────────────────────────────────────────────────────
 const PREFS_KEY = "doit-report-prefs";
@@ -212,6 +213,8 @@ export default function ReportBuilder({
   endDate,
 }) {
   const printRef = useRef(null);
+  const { theme } = useTheme();
+  const isLight = theme === "light";
 
   // Controle de largura de colunas para ajuste manual
   const [colWidths, setColWidths] = useState(() => {
@@ -704,11 +707,30 @@ export default function ReportBuilder({
                 display: "flex", alignItems: "center", justifyContent: "center",
                 flexShrink: 0,
               }}>
-                <img
-                  src="https://www.doit.com.br/wp-content/uploads/2025/06/favicon.png"
-                  alt="DOit"
-                  style={{ width: "36px", height: "36px", objectFit: "contain" }}
-                />
+                {isLight ? (
+                  <img
+                    src="https://www.doit.com.br/wp-content/uploads/2025/06/favicon.png"
+                    alt="DOit"
+                    style={{ width: "36px", height: "36px", objectFit: "contain" }}
+                  />
+                ) : (
+                  <div style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "50%",
+                    background: "#ffd200",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: "900",
+                    fontSize: "11px",
+                    letterSpacing: "-0.5px",
+                    fontFamily: "sans-serif"
+                  }}>
+                    <span style={{ color: "#000000" }}>DO</span>
+                    <span style={{ color: "#ffffff" }}>ït</span>
+                  </div>
+                )}
               </div>
               <div>
                 <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>

@@ -90,11 +90,31 @@ export default function Sidebar({
         {/* ── Brand ────────────────────────────────────────────────── */}
         <div className="brand">
           <div className="brand-mark" style={{ background: "transparent", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <img
-              src="https://www.doit.com.br/wp-content/uploads/2025/06/favicon.png"
-              alt="DOit"
-              style={{ width: "38px", height: "38px", objectFit: "contain" }}
-            />
+            {isLight ? (
+              <img
+                src="https://www.doit.com.br/wp-content/uploads/2025/06/favicon.png"
+                alt="DOit"
+                style={{ width: "38px", height: "38px", objectFit: "contain" }}
+              />
+            ) : (
+              <div style={{
+                width: "38px",
+                height: "38px",
+                borderRadius: "50%",
+                background: "#ffd200", // Amarelo vibrante pedido
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "900",
+                fontSize: "12px",
+                letterSpacing: "-0.5px",
+                fontFamily: "var(--font-sans), sans-serif",
+                boxShadow: "0 2px 10px rgba(255, 210, 0, 0.2)"
+              }}>
+                <span style={{ color: "#000000" }}>DO</span>
+                <span style={{ color: "#ffffff" }}>ït</span>
+              </div>
+            )}
           </div>
           {!isCollapsed && (
             <div className="brand-text">
