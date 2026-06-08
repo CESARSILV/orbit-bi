@@ -722,7 +722,7 @@ export const SYNONYMS = {
     "ID", "id", "Lead ID", "lead_id", "id_lead"
   ],
   client_name: [
-    "Nome", "nome", "Nome do Lead", "nome do lead", "Nome Completo", "nome completo", "Cliente", "cliente", "Client Name", "client name", "Lead Name", "lead name", "Nome do contato", "nome do contato"
+    "Nome", "nome", "Nome do Lead", "nome do lead", "Nome Completo", "nome completo", "Cliente", "cliente", "Client Name", "client name", "Lead Name", "lead name", "Nome do contato", "nome do contato", "Nome do negócio", "nome do negócio", "Nome do Negócio", "nome do negocio", "Nome do negocio"
   ],
   phone: [
     "Telefone", "telefone", "Celular", "celular", "Contato", "contato", "Phone", "phone", "Telephone", "telephone", "Telefone de contato", "telefone de contato", "Telefone de trab", "telefone de trab"

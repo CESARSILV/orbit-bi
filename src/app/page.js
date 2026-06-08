@@ -1274,6 +1274,11 @@ export default function Home() {
         if (headers.includes("Cliente")) initialMapping.client_name = "Cliente";
         if (headers.includes("Telefone do Cliente")) initialMapping.phone = "Telefone do Cliente";
         if (headers.includes("Cód")) initialMapping.lead_id = "Cód";
+      } else if (detectedPlatform === "bitrix") {
+        const foundBiz = headers.find(h => h.trim().toLowerCase() === "nome do negocio" || h.trim().toLowerCase() === "nome do negócio");
+        if (foundBiz) {
+          initialMapping.client_name = foundBiz;
+        }
       }
 
       // Check if there is an existing import template matching the headers to prefill
