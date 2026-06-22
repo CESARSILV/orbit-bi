@@ -791,57 +791,15 @@ export default function ReportBuilder({
 
                 <div className="report-table-wrap">
                   <table className="report-table">
-                    <colgroup>
-                      <col style={{ width: colWidths.mes || 140 }} />
-                      {orderedKpis.map(kpi => (
-                        <col key={kpi.key} style={{ width: colWidths[kpi.key] || 120 }} />
-                      ))}
-                    </colgroup>
                     <thead>
                       <tr>
-                        <th className="report-th report-th-mes" style={{ position: "relative" }}>
+                        <th className="report-th report-th-mes">
                           Mês
-                          <div
-                            className="col-resize-handle"
-                            onMouseDown={(e) => handleMouseDown("mes", e)}
-                            style={{
-                              position: "absolute",
-                              top: 0,
-                              right: 0,
-                              bottom: 0,
-                              width: "6px",
-                              cursor: "col-resize",
-                              userSelect: "none",
-                              zIndex: 10,
-                              background: "transparent",
-                              transition: "background 0.2s",
-                            }}
-                            onMouseEnter={(e) => e.target.style.background = "rgba(91,156,246,0.3)"}
-                            onMouseLeave={(e) => e.target.style.background = "transparent"}
-                          />
                         </th>
                         {orderedKpis.map(kpi => (
-                          <th key={kpi.key} className="report-th report-th-num" style={{ position: "relative" }}>
+                          <th key={kpi.key} className="report-th report-th-num">
                             <span className="kpi-icon">{kpi.icon}</span>
                             {kpi.label}
-                            <div
-                              className="col-resize-handle"
-                              onMouseDown={(e) => handleMouseDown(kpi.key, e)}
-                              style={{
-                                position: "absolute",
-                                top: 0,
-                                right: 0,
-                                bottom: 0,
-                                width: "6px",
-                                cursor: "col-resize",
-                                userSelect: "none",
-                                zIndex: 10,
-                                background: "transparent",
-                                transition: "background 0.2s",
-                              }}
-                              onMouseEnter={(e) => e.target.style.background = "rgba(91,156,246,0.3)"}
-                              onMouseLeave={(e) => e.target.style.background = "transparent"}
-                            />
                           </th>
                         ))}
                       </tr>
