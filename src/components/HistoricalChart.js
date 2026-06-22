@@ -195,6 +195,7 @@ export default function HistoricalChart({ timeline }) {
       animationDelay: (idx) => idx * 60,
       tooltip: {
         trigger: "axis",
+        appendToBody: true,
         axisPointer: {
           type: "cross",
           crossStyle: { color: C.border, width: 1 },
@@ -351,7 +352,7 @@ export default function HistoricalChart({ timeline }) {
       className="chart-panel wide"
       id="comparacao"
       ref={containerRef}
-      style={{ display: "flex", flexDirection: "column", gap: "1.25rem", padding: "1.5rem 1.6rem", minWidth: 0, overflow: "hidden" }}
+      style={{ display: "flex", flexDirection: "column", gap: "1.25rem", padding: "1.5rem 1.6rem", minWidth: 0, overflow: "visible" }}
     >
       {/* ── Cabeçalho ────────────────────────────────────────────────────── */}
       <div className="panel-heading" style={{ marginBottom: 0 }}>
