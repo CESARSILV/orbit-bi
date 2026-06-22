@@ -462,8 +462,9 @@ html[data-theme="light"] .report-header-block {
 }
 
 html[data-theme="light"] .report-th {
-  color: #64748b !important;
+  color: #475569 !important;
   border-bottom-color: rgba(15, 23, 42, 0.10) !important;
+  background: rgba(15, 23, 42, 0.03) !important;
 }
 
 html[data-theme="light"] .report-td {
@@ -471,9 +472,28 @@ html[data-theme="light"] .report-td {
   border-bottom-color: rgba(15, 23, 42, 0.06) !important;
 }
 
+html[data-theme="light"] .report-td-mes {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .report-tr-alt {
+  background: rgba(15, 23, 42, 0.02) !important;
+}
+
+html[data-theme="light"] .report-tr:hover td {
+  background: rgba(59, 130, 246, 0.05) !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .report-tr-best td {
+  background: rgba(252, 211, 77, 0.15) !important;
+  color: #92400e !important;
+}
+
 html[data-theme="light"] .report-tr-total td {
   background: rgba(59, 130, 246, 0.06) !important;
   border-top-color: rgba(59, 130, 246, 0.25) !important;
+  color: #1e3a8a !important;
 }
 
 html[data-theme="light"] .report-insight-chip {
@@ -3438,7 +3458,7 @@ td {
   border-collapse: collapse;
   font-size: 0.83rem;
   min-width: 500px;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .report-th {
