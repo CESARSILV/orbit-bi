@@ -8,7 +8,7 @@ body {
   width: 100%;
   min-height: 100vh;
   overflow-x: clip;
-   background-color: var(--bg);
+  background-color: var(--bg);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -5055,4 +5055,238 @@ html[data-theme="light"] .filter-shell--compact .filter-advanced-row--open {
   min-width: 0;
 }
 
-/* deploy: responsividade mobile/tablet — 2026-06-22 */
+/* ═══════════════════════════════════════════════════════════════════════
+   MODO CLARO — VISIBILIDADE COMPLETA DE DADOS, KPIs E NÚMEROS
+   Garante legibilidade total em todas as telas e componentes
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── KPI Values: legibilidade no modo claro ─── */
+html[data-theme="light"] .kpi-value {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .kpi-label {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .kpi-meta {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .kpi-meta .delta.up {
+  color: #059669 !important;
+}
+
+html[data-theme="light"] .kpi-meta .delta.down {
+  color: #dc2626 !important;
+}
+
+/* ─── Heatmap: legibilidade no modo claro ─── */
+html[data-theme="light"] .heatmap-card {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+  box-shadow: 0 2px 16px rgba(15, 23, 42, 0.06) !important;
+}
+
+html[data-theme="light"] .heatmap-container {
+  background: transparent !important;
+}
+
+html[data-theme="light"] .heatmap-cell {
+  border-color: rgba(15, 23, 42, 0.06) !important;
+}
+
+html[data-theme="light"] .heatmap-legend span {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .heatmap-tooltip {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #0f172a !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12) !important;
+}
+
+/* ─── Device Chart: legibilidade no modo claro ─── */
+html[data-theme="light"] .device-card,
+html[data-theme="light"] .device-panel {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+  box-shadow: 0 2px 16px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* ─── Donut Chart: legibilidade no modo claro ─── */
+html[data-theme="light"] .donut-card {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+  box-shadow: 0 2px 16px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* ─── Regional Map: legibilidade no modo claro ─── */
+html[data-theme="light"] .regional-card,
+html[data-theme="light"] .regional-panel {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+  box-shadow: 0 2px 16px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* ─── Segmentation cards: legibilidade no modo claro ─── */
+html[data-theme="light"] .segmentation-grid article {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+}
+
+/* ─── Upload Zone: legibilidade no modo claro ─── */
+html[data-theme="light"] .upload-zone,
+html[data-theme="light"] .upload-panel {
+  background: rgba(255, 255, 255, 0.90) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #334155 !important;
+}
+
+html[data-theme="light"] .upload-zone h3,
+html[data-theme="light"] .upload-panel h3 {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .upload-zone p,
+html[data-theme="light"] .upload-panel p {
+  color: #64748b !important;
+}
+
+/* ─── Chat Assistant: legibilidade no modo claro ─── */
+html[data-theme="light"] .chat-container {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.15) !important;
+}
+
+html[data-theme="light"] .chat-header {
+  background: rgba(248, 250, 252, 0.98) !important;
+  border-bottom-color: rgba(15, 23, 42, 0.08) !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .chat-message {
+  color: #1e293b !important;
+}
+
+html[data-theme="light"] .chat-message.ai {
+  background: rgba(248, 250, 252, 0.95) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme="light"] .chat-message.user {
+  background: rgba(59, 130, 246, 0.08) !important;
+  border-color: rgba(59, 130, 246, 0.15) !important;
+  color: #1e293b !important;
+}
+
+html[data-theme="light"] .chat-input,
+html[data-theme="light"] .chat-form input {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .chat-form input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* ─── Tooltips genéricos: legibilidade no modo claro ─── */
+html[data-theme="light"] .tooltip,
+html[data-theme="light"] [class*="tooltip"] {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #1e293b !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.10) !important;
+}
+
+/* ─── Report Builder: legibilidade no modo claro ─── */
+html[data-theme="light"] .report-config,
+html[data-theme="light"] .report-config-inner {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+  color: #1e293b !important;
+}
+
+html[data-theme="light"] .report-config h2,
+html[data-theme="light"] .report-config h3,
+html[data-theme="light"] .report-config label {
+  color: #0f172a !important;
+}
+
+/* ─── Badges e tags: legibilidade no modo claro ─── */
+html[data-theme="light"] .filter-badge {
+  background: rgba(59, 130, 246, 0.10) !important;
+  border-color: rgba(59, 130, 246, 0.25) !important;
+  color: #1d4ed8 !important;
+}
+
+/* ─── Headings e subheadings globais ─── */
+html[data-theme="light"] h1,
+html[data-theme="light"] h2 {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .eyebrow {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] p {
+  color: #334155;
+}
+
+/* ─── Panel headings e section titles ─── */
+html[data-theme="light"] .panel-heading,
+html[data-theme="light"] .section-title {
+  color: #0f172a !important;
+}
+
+/* ─── Gráficos ECharts: fundo claro ─── */
+html[data-theme="light"] [class*="echarts"],
+html[data-theme="light"] .chart-container canvas {
+  filter: none !important;
+}
+
+/* ─── Estados vazios: legibilidade ─── */
+html[data-theme="light"] .empty-state,
+html[data-theme="light"] .no-data {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .empty-state svg {
+  opacity: 0.6;
+}
+
+/* ─── Scrollbar: tema claro ─── */
+html[data-theme="light"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html[data-theme="light"] ::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+html[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.15);
+  border-radius: 4px;
+}
+
+html[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.25);
+}
+
+/* ─── Aurora Background: ajuste para modo claro ─── */
+html[data-theme="light"] #aurora {
+  opacity: 0.7;
+}
+
+/* ─── Garantir que todos os números e dados financeiros sejam legíveis ─── */
+html[data-theme="light"] [style*="fontWeight: 800"],
+html[data-theme="light"] [style*="fontWeight: 900"],
+html[data-theme="light"] [style*="fontWeight:800"],
+html[data-theme="light"] [style*="fontWeight:900"] {
+  color: inherit;
+}
