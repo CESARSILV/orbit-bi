@@ -4855,3 +4855,202 @@ html[data-theme="light"] .filter-shell--compact .filter-advanced-row--open {
 }
 
 
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RESPONSIVIDADE MOBILE & TABLET — MELHORIAS ADICIONAIS
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Sidebar: melhoria mobile ≤ 768px ─── */
+@media (max-width: 768px) {
+  .sidebar {
+    width: clamp(220px, 75vw, 280px) !important;
+  }
+
+  .sidebar .nav-item {
+    padding: 10px 12px;
+    font-size: var(--fs-secondary);
+  }
+}
+
+/* ─── KPI Grid: melhor adaptação em telas pequenas ─── */
+@media (max-width: 500px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .kpi-card {
+    min-height: 100px;
+    padding: 12px;
+  }
+
+  .kpi-value {
+    font-size: clamp(1.1rem, 4.5vw, 1.6rem) !important;
+  }
+
+  .kpi-label {
+    font-size: 0.6rem;
+  }
+
+  .kpi-meta {
+    font-size: 0.65rem;
+  }
+}
+
+/* ─── Topbar: wrap correto dos botões em mobile ─── */
+@media (max-width: 480px) {
+  .topbar-premium {
+    gap: 12px !important;
+  }
+
+  .topbar-left {
+    width: 100%;
+  }
+
+  .topbar-actions-premium {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .topbar-actions-premium .action-btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .topbar-subtitle {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* ─── Filtros: full width em mobile pequeno ─── */
+@media (max-width: 480px) {
+  .filter-primary-row {
+    gap: 8px !important;
+    padding: 10px 12px !important;
+  }
+
+  .filter-chip-label {
+    flex: 1 1 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+
+  .filter-chip-label select,
+  .filter-chip-label input[type="date"] {
+    height: 38px;
+    font-size: var(--fs-body);
+  }
+
+  .filter-toprow {
+    padding: 8px 10px;
+  }
+
+  .filter-expand-btn {
+    font-size: 0.65rem !important;
+    padding: 4px 8px !important;
+  }
+}
+
+/* ─── Tabelas: scroll horizontal suave em mobile ─── */
+@media (max-width: 768px) {
+  .table-wrap {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  th, td {
+    padding: 8px 8px;
+    font-size: var(--fs-secondary);
+  }
+}
+
+/* ─── Gráficos: limitar altura em mobile ─── */
+@media (max-width: 600px) {
+  canvas {
+    max-height: 220px;
+  }
+
+  .hero-grid .panel,
+  .analytics-grid .panel {
+    border-radius: 10px;
+  }
+}
+
+/* ─── Chat: responsivo em mobile ─── */
+@media (max-width: 600px) {
+  .chat-container {
+    width: calc(100vw - 24px) !important;
+    max-width: none !important;
+    height: 60vh !important;
+    border-radius: 14px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+  }
+
+  .chat-toggle {
+    bottom: 12px !important;
+    right: 12px !important;
+  }
+}
+
+/* ─── Segmentação: 1 coluna em mobile ─── */
+@media (max-width: 600px) {
+  .segmentation-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  .device-metrics-grid {
+    grid-template-columns: 1fr !important;
+    gap: 6px;
+  }
+}
+
+/* ─── Heatmap: scroll horizontal em mobile ─── */
+@media (max-width: 768px) {
+  .heatmap-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .heatmap-hours-header,
+  .heatmap-rows {
+    min-width: 500px;
+  }
+}
+
+/* ─── Touch targets: áreas de toque adequadas ─── */
+@media (max-width: 768px) {
+  button,
+  select,
+  a.nav-item,
+  .action-btn,
+  .filter-expand-btn,
+  .filter-reset-btn,
+  .filter-export-btn {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}
+
+/* ─── Safe area para dispositivos com notch ─── */
+@supports (padding: max(0px)) {
+  .workspace {
+    padding-bottom: max(env(safe-area-inset-bottom), 12px);
+  }
+}
+
+/* ─── Texto: prevenção de overflow em flex ─── */
+.kpi-value,
+.topbar-title,
+.nav-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
