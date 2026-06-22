@@ -5203,7 +5203,8 @@ html[data-theme="light"] .chat-form input::placeholder {
 
 /* ─── Tooltips genéricos: legibilidade no modo claro ─── */
 html[data-theme="light"] .tooltip,
-html[data-theme="light"] [class*="tooltip"] {
+html[data-theme="light"] .tooltip:not([style*="position: absolute"]),
+html[data-theme="light"] .custom-tooltip {
   background: rgba(255, 255, 255, 0.98) !important;
   border-color: rgba(15, 23, 42, 0.12) !important;
   color: #1e293b !important;
