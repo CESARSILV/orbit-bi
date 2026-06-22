@@ -5046,13 +5046,21 @@ html[data-theme="light"] .filter-shell--compact .filter-advanced-row--open {
 }
 
 /* ─── Texto: prevenção de overflow em flex ─── */
-.kpi-value,
 .topbar-title,
 .nav-item-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+
+/* KPI Value: garantir que nunca seja cortado, adaptar ao espaço */
+.kpi-value {
+  overflow: visible !important;
+  text-overflow: unset !important;
+  white-space: nowrap;
+  font-size: clamp(1.1rem, 1.6vw + 0.5rem, 2.2rem) !important;
+  word-break: keep-all;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
