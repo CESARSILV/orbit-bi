@@ -242,7 +242,19 @@ export default function HistoricalChart({ timeline }) {
         data: months,
         axisLine:  { lineStyle: { color: C.border } },
         axisTick:  { show: false },
-        axisLabel: { color: C.muted, fontFamily: "Inter, sans-serif", fontSize: chartFontSize, margin: 14, interval: 0 },
+        axisLabel: {
+          color: C.muted, fontFamily: "Inter, sans-serif", fontSize: chartFontSize, margin: 14, interval: 0,
+          formatter: (val) => {
+            if (!val) return val;
+            const parts = val.split("/");
+            if (parts.length === 2) {
+              const monthName = parts[0].substring(0, 3);
+              const year = parts[1].substring(2);
+              return `${monthName}/${year}`;
+            }
+            return val;
+          }
+        },
         splitLine: { show: false },
       },
       yAxis: [
