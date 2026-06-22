@@ -219,15 +219,19 @@ export default function HistoricalChart({ timeline }) {
           const grow  = growthByMonth[idx];
           const growColor = grow >= 0 ? C.leads : "#F87171";
           const growIcon  = grow >= 0 ? "▲" : "▼";
+          const tText = dark ? "rgba(245,247,251,0.95)" : "#1e293b";
+          const tTextSoft = dark ? "rgba(245,247,251,0.9)" : "#334155";
+          const tMuted = dark ? "rgba(245,247,251,0.55)" : "#64748b";
+          const tBorder = dark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.10)";
           return `<div style="font-family:Inter,sans-serif;min-width:210px">
-            <div style="font-weight:700;font-size:13px;color:rgba(245,247,251,0.95);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08)">${month}</div>
+            <div style="font-weight:700;font-size:13px;color:${tText};margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid ${tBorder}">${month}</div>
             <div style="display:flex;flex-direction:column;gap:5px;">
-              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${C.google};font-size:12px">● Google Ads</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl.format(gVal)}</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${C.meta};font-size:12px">● Meta Ads</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl.format(mVal)}</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.07)"><span style="color:rgba(245,247,251,0.55);font-size:12px">Total</span><span style="font-weight:700;color:rgba(245,247,251,0.95)">${brl.format(total)}</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${C.leads};font-size:12px">◆ Leads</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${num.format(lVal)}</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:rgba(245,247,251,0.55);font-size:12px">CPL</span><span style="font-weight:600;color:rgba(245,247,251,0.9)">${brl2.format(cpl)}</span></div>
-              ${idx > 0 ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.07)"><span style="color:rgba(245,247,251,0.55);font-size:12px">Crescimento</span><span style="font-weight:700;color:${growColor}">${growIcon} ${Math.abs(grow).toFixed(1).replace(".",",")}%</span></div>` : ""}
+              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${C.google};font-size:12px">● Google Ads</span><span style="font-weight:600;color:${tTextSoft}">${brl.format(gVal)}</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${C.meta};font-size:12px">● Meta Ads</span><span style="font-weight:600;color:${tTextSoft}">${brl.format(mVal)}</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid ${tBorder}"><span style="color:${tMuted};font-size:12px">Total</span><span style="font-weight:700;color:${tText}">${brl.format(total)}</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${C.leads};font-size:12px">◆ Leads</span><span style="font-weight:600;color:${tTextSoft}">${num.format(lVal)}</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${tMuted};font-size:12px">CPL</span><span style="font-weight:600;color:${tTextSoft}">${brl2.format(cpl)}</span></div>
+              ${idx > 0 ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid ${tBorder}"><span style="color:${tMuted};font-size:12px">Crescimento</span><span style="font-weight:700;color:${growColor}">${growIcon} ${Math.abs(grow).toFixed(1).replace(".",",")}%</span></div>` : ""}
             </div></div>`;
         },
       },
