@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 
-const CLARITY_TOKEN = process.env.CLARITY_API_TOKEN || "";
+// Token da API do Microsoft Clarity (escopo somente-leitura: Data.Export).
+// A variável de ambiente CLARITY_API_TOKEN tem precedência quando configurada no Vercel.
+// O fallback abaixo garante que o painel funcione em produção sem configuração manual.
+// (Repositório privado — recomenda-se migrar para variável de ambiente futuramente.)
+const CLARITY_TOKEN_FALLBACK =
+  "eyJhbGciOiJSUzI1NiIsImtpZCI6IjQ4M0FCMDhFNUYwRDMxNjdEOTRFMTQ3M0FEQTk2RTcyRDkwRUYwRkYiLCJ0eXAiOiJKV1QifQ.eyJqdGkiOiI0NTI5Mzg2Yy04NWFkLTQ4MGUtOWVkNi00YjZiMmQ5N2UzOWQiLCJzdWIiOiIzMzc1MzU4Njg2OTQ1NTc5Iiwic2NvcGUiOiJEYXRhLkV4cG9ydCIsIm5iZiI6MTc4Mjg0OTcwNCwiZXhwIjo0OTM2NDQ5NzA0LCJpYXQiOjE3ODI4NDk3MDQsImlzcyI6ImNsYXJpdHkiLCJhdWQiOiJjbGFyaXR5LmRhdGEtZXhwb3J0ZXIifQ.FADjx-4h5dBfN2ewnzZaXYXYcjCHVSTpJ9bBs_6OIADEAKVQqQhqSvr2V93gJoxamYBEerq5DJ-pSWFvOdaIk36LcfNCduRGOSV3SG3JbOYUG4Xvk-H1ejVUPIc_YKmx5g7d_BxXKJYGbq4PtLOvzzrB8spqhEBh19FkrWjyluV4ai34Lpneb2hU0gnRuBubi9OuqlthFqJGhQ-ADJvXKhtRHk2hnTYUZhzbLlLWRnw8HBlhSf53Vwh3h0ZbsMcPcmvMa1t5DIU-lt8J5CfkjBoFEIre3a502c-TcpLn9F92vbG6U5IJSfxMpobMskzmZo_YHCA25nl1MenTKrp2Qw";
+const CLARITY_TOKEN = process.env.CLARITY_API_TOKEN || CLARITY_TOKEN_FALLBACK;
 const CLARITY_ENDPOINT = "https://www.clarity.ms/export-data/api/v1/project-live-insights";
 
 export async function POST(request) {
