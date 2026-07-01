@@ -13,7 +13,7 @@ import CampaignTable from "@/components/CampaignTable";
 import ChatAssistant from "@/components/ChatAssistant";
 import UploadZone from "@/components/UploadZone";
 import AuthModal from "@/components/AuthModal";
-import DeviceChart from "@/components/DeviceChart";
+import AIVisibilityChart from "@/components/AIVisibilityChart";
 import TimeHeatmap from "@/components/TimeHeatmap";
 import RegionalMap from "@/components/RegionalMap";
 import ReportBuilder from "@/components/ReportBuilder";
@@ -2506,7 +2506,7 @@ export default function Home() {
           </section>
 
           <section className="segmentation-grid">
-            <DeviceChart key={`device-${dashboardResetKey}`} deviceData={deviceData} />
+            <AIVisibilityChart key={`ai-${dashboardResetKey}`} startDate={startDate} endDate={endDate} />
           </section>
 
           <section className="analytics-grid operations-grid">
