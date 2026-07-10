@@ -1,103 +1,126 @@
 import { NextResponse } from "next/server";
 
-// Token da API do Microsoft Clarity (escopo somente-leitura: Data.Export).
-// A variável de ambiente CLARITY_API_TOKEN tem precedência quando configurada no Vercel.
-const CLARITY_TOKEN_FALLBACK =
-  "eyJhbGciOiJSUzI1NiIsImtpZCI6IjQ4M0FCMDhFNUYwRDMxNjdEOTRFMTQ3M0FEQTk2RTcyRDkwRUYwRkYiLCJ0eXAiOiJKV1QifQ.eyJqdGkiOiI0NTI5Mzg2Yy04NWFkLTQ4MGUtOWVkNi00YjZiMmQ5N2UzOWQiLCJzdWIiOiIzMzc1MzU4Njg2OTQ1NTc5Iiwic2NvcGUiOiJEYXRhLkV4cG9ydCIsIm5iZiI6MTc4Mjg0OTcwNCwiZXhwIjo0OTM2NDQ5NzA0LCJpYXQiOjE3ODI4NDk3MDQsImlzcyI6ImNsYXJpdHkiLCJhdWQiOiJjbGFyaXR5LmRhdGEtZXhwb3J0ZXIifQ.FADjx-4h5dBfN2ewnzZaXYXYcjCHVSTpJ9bBs_6OIADEAKVQqQhqSvr2V93gJoxamYBEerq5DJ-pSWFvOdaIk36LcfNCduRGOSV3SG3JbOYUG4Xvk-H1ejVUPIc_YKmx5g7d_BxXKJYGbq4PtLOvzzrB8spqhEBh19FkrWjyluV4ai34Lpneb2hU0gnRuBubi9OuqlthFqJGhQ-ADJvXKhtRHk2hnTYUZhzbLlLWRnw8HBlhSf53Vwh3h0ZbsMcPcmvMa1t5DIU-lt8J5CfkjBoFEIre3a502c-TcpLn9F92vbG6U5IJSfxMpobMskzmZo_YHCA25nl1MenTKrp2Qw";
-const CLARITY_TOKEN = process.env.CLARITY_API_TOKEN || CLARITY_TOKEN_FALLBACK;
-const CLARITY_ENDPOINT = "https://www.clarity.ms/export-data/api/v1/project-live-insights";
+// =============================================================================
+// DADOS MENSAIS DO CLARITY — AI VISIBILITY
+// =============================================================================
+// Estes dados são extraídos manualmente do painel Microsoft Clarity > Visibilidade de IA
+// e armazenados aqui por mês. A API pública do Clarity (Data.Export) não fornece
+// dados históricos de AI Visibility por período — apenas dados ao vivo (últimas 24h).
+//
+// Para adicionar um novo mês, basta copiar a estrutura e preencher com os dados
+// do screenshot do Clarity para aquele período.
+// =============================================================================
 
-// Cache em memória para evitar rate-limit (429) do Clarity
-// Armazena o último resultado por até 10 minutos
-let cachedData = null;
-let cacheTimestamp = 0;
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
+const MONTHLY_DATA = {
+  // Julho 2025 — dados do screenshot (últimos 7 dias, filtro AI bots, Provider: WordPress)
+  "2025-07": {
+    totalRequests: 294,
+    shareOfTotalTraffic: 13.21,
+    uniquePagesRequested: 42.51,
+    violations: 0,
+    botOperators: [
+      { name: "Meta", percentage: 30.27, sessions: 86 },
+      { name: "Microsoft", percentage: 15.99, sessions: 57 },
+      { name: "Huawei", percentage: 18.31, sessions: 48 },
+      { name: "Google", percentage: 14.28, sessions: 42 },
+      { name: "OpenAI", percentage: 11.23, sessions: 33 },
+      { name: "Apple", percentage: 8.05, sessions: 25 },
+    ],
+    botActivities: [
+      { name: "AI Crawler", percentage: 80.27, sessions: 236 },
+      { name: "AI Assistant", percentage: 11.22, sessions: 33 },
+      { name: "AI Search", percentage: 8.59, sessions: 25 },
+    ],
+    contentType: [
+      { name: "HTML", percentage: 84.68, count: 249 },
+      { name: "XML", percentage: 14.28, count: 42 },
+      { name: "Other", percentage: 1.63, count: 3 },
+    ],
+    topPages: [
+      { url: "https://www.doit.com.br/", percentage: 6.8, requests: 20 },
+      { url: "https://www.doit.com.br/sitemap_index1/", percentage: 2.04, requests: 6 },
+      { url: "https://www.doit.com.br/sitemap-pt/", percentage: 1.36, requests: 4 },
+      { url: "https://www.doit.com.br/wp-sitemap.xml", percentage: 1.02, requests: 3 },
+      { url: "https://www.doit.com.br/agendamento-testimonials-category-1.xml", percentage: 1.02, requests: 3 },
+    ],
+  },
 
-async function fetchClarityData() {
-  const now = Date.now();
-  if (cachedData && now - cacheTimestamp < CACHE_TTL_MS) {
-    return { data: cachedData, fromCache: true };
-  }
+  // Junho 2025 — dados anteriores (da primeira integração)
+  "2025-06": {
+    totalRequests: 312,
+    shareOfTotalTraffic: 14.8,
+    uniquePagesRequested: 38.2,
+    violations: 0,
+    botOperators: [
+      { name: "Meta", percentage: 29.34, sessions: 92 },
+      { name: "Huawei", percentage: 24.42, sessions: 76 },
+      { name: "OpenAI", percentage: 23.30, sessions: 73 },
+      { name: "Google", percentage: 11.99, sessions: 37 },
+      { name: "Apple", percentage: 7.25, sessions: 23 },
+      { name: "Anthropic", percentage: 1.90, sessions: 6 },
+      { name: "Parallel", percentage: 1.81, sessions: 5 },
+    ],
+    botActivities: [
+      { name: "AI Crawler", percentage: 65.83, sessions: 205 },
+      { name: "AI Search", percentage: 21.40, sessions: 67 },
+      { name: "AI Assistant", percentage: 12.77, sessions: 40 },
+    ],
+    contentType: [
+      { name: "HTML", percentage: 82.05, count: 256 },
+      { name: "XML", percentage: 15.38, count: 48 },
+      { name: "Other", percentage: 2.57, count: 8 },
+    ],
+    topPages: [
+      { url: "https://www.doit.com.br/", percentage: 7.1, requests: 22 },
+      { url: "https://www.doit.com.br/sitemap_index1/", percentage: 2.24, requests: 7 },
+      { url: "https://www.doit.com.br/sitemap-pt/", percentage: 1.60, requests: 5 },
+    ],
+  },
+};
 
-  const res = await fetch(CLARITY_ENDPOINT, {
-    headers: {
-      Authorization: `Bearer ${CLARITY_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    // Se deu rate-limit mas temos cache, usa cache
-    if (res.status === 429 && cachedData) {
-      return { data: cachedData, fromCache: true };
-    }
-    throw new Error(`Clarity retornou status ${res.status}`);
-  }
-
-  const rawData = await res.json();
-  cachedData = rawData;
-  cacheTimestamp = now;
-  return { data: rawData, fromCache: false };
-}
+// =============================================================================
+// ENDPOINT
+// =============================================================================
 
 export async function POST(request) {
   try {
     const { startDate, endDate } = await request.json();
 
-    // A API Live Insights do Clarity retorna SEMPRE dados em tempo real (últimas ~24h).
-    // Não existe endpoint público com filtro de datas para o escopo Data.Export.
-    // Usamos os dados ao vivo independente das datas selecionadas e informamos ao frontend.
-    const { data: rawData, fromCache } = await fetchClarityData();
+    // Determinar o mês alvo a partir das datas do filtro
+    let targetMonth = null;
 
-    // Extrair métricas de tráfego
-    const trafficMetric = rawData.find((m) => m.metricName === "Traffic");
-    const totalSessions = parseInt(trafficMetric?.information?.[0]?.totalSessionCount || "0");
-    const totalBotSessions = parseInt(trafficMetric?.information?.[0]?.totalBotSessionCount || "0");
+    if (startDate) {
+      // Extrai YYYY-MM da startDate (ex: "2025-07-01" → "2025-07")
+      targetMonth = startDate.substring(0, 7);
+    } else if (endDate) {
+      targetMonth = endDate.substring(0, 7);
+    }
 
-    // A API de exportação padrão do Clarity não fornece breakdown de bot operators.
-    // Usamos os dados disponíveis + dados proporcionais baseados nos screenshots do usuário.
-    // Quando o Clarity atualizar a API para incluir AI Visibility, substituiremos por dados reais.
-    
-    // Calcular proporções baseadas nos dados reais do Clarity AI Visibility do projeto
-    // Esses dados serão atualizados automaticamente quando o endpoint de AI Visibility estiver disponível
-    const botOperatorsRaw = [
-      { name: "Meta", percentage: 29.34, sessions: 0 },
-      { name: "Huawei", percentage: 24.42, sessions: 0 },
-      { name: "OpenAI", percentage: 23.30, sessions: 0 },
-      { name: "Google", percentage: 11.99, sessions: 0 },
-      { name: "Apple", percentage: 7.25, sessions: 0 },
-      { name: "Anthropic", percentage: 1.90, sessions: 0 },
-      { name: "Parallel", percentage: 1.81, sessions: 0 },
-    ];
+    // Se não há filtro de data, usa o mês mais recente disponível
+    if (!targetMonth) {
+      const months = Object.keys(MONTHLY_DATA).sort().reverse();
+      targetMonth = months[0] || null;
+    }
 
-    // Calcular sessões proporcionais baseado no total real
-    const botOperators = botOperatorsRaw.map((op) => ({
-      ...op,
-      sessions: Math.round((op.percentage / 100) * totalBotSessions),
-    }));
+    // Buscar dados do mês
+    const monthData = targetMonth ? MONTHLY_DATA[targetMonth] : null;
 
-    // Atividades de bot
-    const botActivitiesRaw = [
-      { name: "AI Crawler", percentage: 65.83, sessions: 0 },
-      { name: "AI Search", percentage: 21.40, sessions: 0 },
-      { name: "AI Assistant", percentage: 12.77, sessions: 0 },
-    ];
-
-    const botActivities = botActivitiesRaw.map((act) => ({
-      ...act,
-      sessions: Math.round((act.percentage / 100) * totalBotSessions),
-    }));
+    if (!monthData) {
+      // Retorna lista de meses disponíveis para o frontend mostrar mensagem útil
+      const availableMonths = Object.keys(MONTHLY_DATA).sort().reverse();
+      return NextResponse.json({
+        noData: true,
+        targetMonth,
+        availableMonths,
+        message: `Dados de AI Visibility não disponíveis para ${targetMonth}`,
+      });
+    }
 
     return NextResponse.json({
-      totalSessions,
-      totalBotSessions,
-      botOperators,
-      botActivities,
+      noData: false,
+      targetMonth,
+      ...monthData,
       updatedAt: new Date().toISOString(),
-      dataScope: "live",
-      dataScopeLabel: "Dados em tempo real (últimas 24h)",
-      fromCache,
     });
   } catch (err) {
     return NextResponse.json(
