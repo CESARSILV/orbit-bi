@@ -320,29 +320,6 @@ export default function AIVisibilityChart({ startDate, endDate }) {
         </div>
       </div>
 
-      {/* Top Pages */}
-      {topPages && topPages.length > 0 && (
-        <div>
-          <SectionTitle icon="🔗" label="Páginas Mais Solicitadas por IA" C={C} />
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.74rem" }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 700, color: C.muted, fontSize: "0.68rem", textTransform: "uppercase" }}>Caminho</th>
-                  <th style={{ textAlign: "right", padding: "6px 8px", fontWeight: 700, color: C.muted, fontSize: "0.68rem", textTransform: "uppercase", width: 60 }}>%</th>
-                  <th style={{ textAlign: "right", padding: "6px 8px", fontWeight: 700, color: C.muted, fontSize: "0.68rem", textTransform: "uppercase", width: 70 }}>Requests</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topPages.map((p, i) => (
-                  <TableRow key={i} page={p} C={C} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {/* Insight */}
       <div style={{
         marginTop: 16, padding: "12px 14px",
@@ -420,27 +397,3 @@ function SectionTitle({ icon, label, C }) {
   );
 }
 
-function TableRow({ page, C }) {
-  const [hovered, setHovered] = useState(false);
-  const shortUrl = page.url.replace("https://www.doit.com.br", "");
-  return (
-    <tr
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: hovered ? C.hoverBg : "transparent",
-        transition: "background 0.15s ease",
-      }}
-    >
-      <td style={{ padding: "7px 8px", color: C.textSoft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 300 }} title={page.url}>
-        {shortUrl || "/"}
-      </td>
-      <td style={{ padding: "7px 8px", textAlign: "right", fontWeight: 600, color: C.textSoft }}>
-        {pct(page.percentage)}
-      </td>
-      <td style={{ padding: "7px 8px", textAlign: "right", color: C.muted }}>
-        {page.requests}
-      </td>
-    </tr>
-  );
-}
