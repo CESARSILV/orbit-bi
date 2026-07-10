@@ -4,19 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useTheme } from "@/lib/ThemeContext";
 
 const num = new Intl.NumberFormat("pt-BR");
-
-// Ícones dos operadores de IA
-const BOT_ICONS = {
-  Meta: "🟦",
-  Huawei: "🔴",
-  OpenAI: "🤖",
-  Google: "🟢",
-  Apple: "🍎",
-  Anthropic: "🟠",
-  Parallel: "⚪",
-  Microsoft: "🔵",
-  Unknown: "❓",
-};
+const pct = (v) => v.toFixed(2).replace(".", ",") + "%";
 
 // Cores dos operadores
 const BOT_COLORS = {
@@ -31,12 +19,38 @@ const BOT_COLORS = {
   Unknown: "#9ca3af",
 };
 
-// Tipos de atividade
+// Ícones dos operadores
+const BOT_ICONS = {
+  Meta: "🟦",
+  Huawei: "🔴",
+  OpenAI: "🤖",
+  Google: "🟢",
+  Apple: "🍎",
+  Anthropic: "🟠",
+  Parallel: "⚪",
+  Microsoft: "🔵",
+  Unknown: "❓",
+};
+
+// Labels PT-BR para atividades
 const ACTIVITY_LABELS = {
   "AI Crawler": "Rastreador IA",
   "AI Search": "Busca IA",
   "AI Assistant": "Assistente IA",
 };
+
+// Meses em PT-BR
+const MONTH_NAMES = {
+  "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril",
+  "05": "Maio", "06": "Junho", "07": "Julho", "08": "Agosto",
+  "09": "Setembro", "10": "Outubro", "11": "Novembro", "12": "Dezembro",
+};
+
+function formatMonth(ym) {
+  if (!ym) return "";
+  const [year, month] = ym.split("-");
+  return `${MONTH_NAMES[month] || month}/${year}`;
+}
 
 export default function AIVisibilityChart({ startDate, endDate }) {
   const { theme } = useTheme();
@@ -44,9 +58,8 @@ export default function AIVisibilityChart({ startDate, endDate }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [dataScope, setDataScope] = useState(null);
 
-  // Buscar dados da API do Clarity (sempre retorna dados ao vivo)
+  // Buscar dados do mês selecionado
   useEffect(() => {
     let active = true;
 
@@ -62,12 +75,9 @@ export default function AIVisibilityChart({ startDate, endDate }) {
         });
 
         if (!res.ok) throw new Error("Falha ao buscar dados do Clarity");
-        
+
         const json = await res.json();
-        if (active) {
-          setData(json);
-          setDataScope(json.dataScopeLabel || null);
-        }
+        if (active) setData(json);
       } catch (err) {
         if (active) setError(err.message);
       } finally {
@@ -90,18 +100,13 @@ export default function AIVisibilityChart({ startDate, endDate }) {
     cardBg: isLight ? "rgba(248,250,252,0.95)" : "rgba(255,255,255,0.03)",
   }), [isLight]);
 
-  // Estado de loading
+  // Loading
   if (loading) {
     return (
       <article style={{
-        background: C.bg,
-        border: `1px solid ${C.border}`,
-        borderRadius: 16,
-        padding: "1.5rem",
-        minHeight: 320,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        background: C.bg, border: `1px solid ${C.border}`,
+        borderRadius: 16, padding: "1.5rem", minHeight: 320,
+        display: "flex", alignItems: "center", justifyContent: "center",
       }}>
         <div style={{ textAlign: "center", color: C.muted }}>
           <div style={{ fontSize: 32, marginBottom: 12, animation: "pulse 1.5s infinite" }}>🤖</div>
@@ -112,49 +117,61 @@ export default function AIVisibilityChart({ startDate, endDate }) {
   }
 
   // Erro
-  if (error || !data) {
+  if (error) {
     return (
       <article style={{
-        background: C.bg,
-        border: `1px solid ${C.border}`,
-        borderRadius: 16,
-        padding: "1.5rem",
-        minHeight: 320,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        background: C.bg, border: `1px solid ${C.border}`,
+        borderRadius: 16, padding: "1.5rem", minHeight: 320,
+        display: "flex", alignItems: "center", justifyContent: "center",
       }}>
         <div style={{ textAlign: "center", color: C.muted }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
-          <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>Erro ao carregar dados do Clarity</div>
+          <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>Erro ao carregar dados</div>
           <div style={{ fontSize: "0.75rem", marginTop: 4 }}>{error}</div>
         </div>
       </article>
     );
   }
 
-  const { botOperators, botActivities, totalBotSessions, totalSessions } = data;
-  const botPercentage = totalSessions > 0 ? ((totalBotSessions / totalSessions) * 100).toFixed(1) : "0";
+  // Sem dados para o mês selecionado
+  if (!data || data.noData) {
+    const availableLabel = (data?.availableMonths || []).map(formatMonth).join(", ");
+    return (
+      <article style={{
+        background: C.bg, border: `1px solid ${C.border}`,
+        borderRadius: 16, padding: "1.5rem", minHeight: 320,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <div style={{ textAlign: "center", color: C.muted, maxWidth: 360 }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
+          <div style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: 8 }}>
+            Dados de IA não disponíveis para {formatMonth(data?.targetMonth)}
+          </div>
+          {availableLabel && (
+            <div style={{ fontSize: "0.75rem", lineHeight: 1.5 }}>
+              Meses com dados: <strong>{availableLabel}</strong>
+            </div>
+          )}
+        </div>
+      </article>
+    );
+  }
+
+  const { botOperators, botActivities, totalRequests, shareOfTotalTraffic, uniquePagesRequested, violations, contentType, topPages, targetMonth } = data;
 
   return (
     <article style={{
-      background: C.bg,
-      border: `1px solid ${C.border}`,
-      borderRadius: 16,
-      padding: "1.5rem 1.6rem",
-      overflow: "hidden",
-      position: "relative",
+      background: C.bg, border: `1px solid ${C.border}`,
+      borderRadius: 16, padding: "1.5rem 1.6rem", overflow: "hidden", position: "relative",
     }}>
       {/* Header */}
       <div className="panel-heading" style={{ marginBottom: "1.2rem" }}>
         <div>
           <p className="eyebrow">VISIBILIDADE DA IA</p>
           <h2 style={{ margin: 0 }}>Indicações & Citações de IA</h2>
-          {dataScope && (
-            <p style={{ margin: "4px 0 0", fontSize: "0.68rem", color: C.muted, fontWeight: 500 }}>
-              📡 {dataScope}
-            </p>
-          )}
+          <p style={{ margin: "4px 0 0", fontSize: "0.7rem", color: C.muted, fontWeight: 500 }}>
+            📅 {formatMonth(targetMonth)}
+          </p>
         </div>
         <div style={{
           display: "flex", alignItems: "center", gap: 8,
@@ -167,154 +184,159 @@ export default function AIVisibilityChart({ startDate, endDate }) {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: "1.4rem" }}>
-        <div style={{
-          background: C.cardBg,
-          border: `1px solid ${C.border}`,
-          borderRadius: 12, padding: "14px 16px",
-          borderTop: "2px solid #10a37f",
-        }}>
-          <div style={{ fontSize: "0.68rem", fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-            Sessões de Bots IA
-          </div>
-          <div style={{ fontSize: "1.4rem", fontWeight: 900, color: C.text }}>
-            {num.format(totalBotSessions)}
-          </div>
-          <div style={{ fontSize: "0.68rem", color: "#10a37f", fontWeight: 600, marginTop: 4 }}>
-            {botPercentage}% do tráfego total
-          </div>
-        </div>
-
-        <div style={{
-          background: C.cardBg,
-          border: `1px solid ${C.border}`,
-          borderRadius: 12, padding: "14px 16px",
-          borderTop: "2px solid #0668E1",
-        }}>
-          <div style={{ fontSize: "0.68rem", fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-            Operadores Detectados
-          </div>
-          <div style={{ fontSize: "1.4rem", fontWeight: 900, color: C.text }}>
-            {botOperators.length}
-          </div>
-          <div style={{ fontSize: "0.68rem", color: "#0668E1", fontWeight: 600, marginTop: 4 }}>
-            Plataformas de IA distintas
-          </div>
-        </div>
-
-        <div style={{
-          background: C.cardBg,
-          border: `1px solid ${C.border}`,
-          borderRadius: 12, padding: "14px 16px",
-          borderTop: "2px solid #f59e0b",
-        }}>
-          <div style={{ fontSize: "0.68rem", fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-            Sessões Totais
-          </div>
-          <div style={{ fontSize: "1.4rem", fontWeight: 900, color: C.text }}>
-            {num.format(totalSessions)}
-          </div>
-          <div style={{ fontSize: "0.68rem", color: "#f59e0b", fontWeight: 600, marginTop: 4 }}>
-            Humanos + IA combinados
-          </div>
-        </div>
+      {/* KPI Cards — 4 colunas */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: "1.4rem" }}>
+        <KpiCard label="Requisições de IA" value={num.format(totalRequests)} sub={`${botOperators.length} operadores`} color="#10a37f" C={C} />
+        <KpiCard label="% do Tráfego Total" value={pct(shareOfTotalTraffic)} sub="tráfego de bots IA" color="#0668E1" C={C} />
+        <KpiCard label="Páginas Únicas" value={pct(uniquePagesRequested)} sub="das páginas rastreadas" color="#8b5cf6" C={C} />
+        <KpiCard label="Violações" value={pct(violations)} sub="sem violações" color={violations > 0 ? "#ef4444" : "#10b981"} C={C} />
       </div>
 
-      {/* Two columns: Bot Operators + Bot Activities */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        
-        {/* Operadores de Bot */}
+      {/* Duas colunas: Operadores + Atividade */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: "1.4rem" }}>
+        {/* Operadores */}
         <div>
-          <div style={{ fontSize: "0.72rem", fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12, paddingBottom: 8, borderBottom: `1px solid ${C.border}` }}>
-            🤖 Operadores de IA
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {botOperators.map((op, i) => {
+          <SectionTitle icon="🤖" label="Operador de Bot" C={C} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+            {botOperators.map((op) => {
               const color = BOT_COLORS[op.name] || BOT_COLORS.Unknown;
               const icon = BOT_ICONS[op.name] || BOT_ICONS.Unknown;
               return (
-                <div key={op.name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 14, width: 20, textAlign: "center" }}>{icon}</span>
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: C.textSoft, minWidth: 80 }}>
-                    {op.name}
-                  </span>
-                  <div style={{ flex: 1, height: 6, background: C.barBg, borderRadius: 99, overflow: "hidden" }}>
-                    <div style={{
-                      width: `${op.percentage}%`,
-                      height: "100%",
-                      background: color,
-                      borderRadius: 99,
-                      boxShadow: `0 0 6px ${color}44`,
-                      transition: "width 0.8s ease",
-                    }} />
-                  </div>
-                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: C.textSoft, minWidth: 42, textAlign: "right" }}>
-                    {op.percentage.toFixed(1).replace(".", ",")}%
-                  </span>
-                  <span style={{ fontSize: "0.72rem", color: C.muted, minWidth: 30, textAlign: "right" }}>
-                    {num.format(op.sessions)}
-                  </span>
-                </div>
+                <BarRow key={op.name} icon={icon} label={op.name} percentage={op.percentage} value={num.format(op.sessions)} color={color} C={C} />
               );
             })}
           </div>
         </div>
 
-        {/* Atividade de Bot */}
+        {/* Atividade */}
         <div>
-          <div style={{ fontSize: "0.72rem", fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12, paddingBottom: 8, borderBottom: `1px solid ${C.border}` }}>
-            ⚡ Tipo de Atividade
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <SectionTitle icon="⚡" label="Atividade do Bot" C={C} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
             {botActivities.map((act, i) => {
               const colors = ["#8b5cf6", "#3b82f6", "#10b981"];
-              const color = colors[i % colors.length];
               const label = ACTIVITY_LABELS[act.name] || act.name;
               return (
-                <div key={act.name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: C.textSoft, minWidth: 110 }}>
-                    {label}
-                  </span>
-                  <div style={{ flex: 1, height: 6, background: C.barBg, borderRadius: 99, overflow: "hidden" }}>
-                    <div style={{
-                      width: `${act.percentage}%`,
-                      height: "100%",
-                      background: color,
-                      borderRadius: 99,
-                      boxShadow: `0 0 6px ${color}44`,
-                      transition: "width 0.8s ease",
-                    }} />
-                  </div>
-                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: C.textSoft, minWidth: 42, textAlign: "right" }}>
-                    {act.percentage.toFixed(1).replace(".", ",")}%
-                  </span>
-                  <span style={{ fontSize: "0.72rem", color: C.muted, minWidth: 30, textAlign: "right" }}>
-                    {num.format(act.sessions)}
-                  </span>
-                </div>
+                <BarRow key={act.name} label={label} percentage={act.percentage} value={num.format(act.sessions)} color={colors[i % colors.length]} C={C} />
               );
             })}
           </div>
 
-          {/* Insight */}
-          <div style={{
-            marginTop: 20,
-            padding: "12px 14px",
-            background: "rgba(16,163,127,0.06)",
-            border: "1px solid rgba(16,163,127,0.20)",
-            borderRadius: 10,
-            fontSize: "0.78rem",
-            color: C.textSoft,
-            lineHeight: 1.5,
-          }}>
-            <strong style={{ color: "#10a37f" }}>💡 Insight:</strong> Seu site está sendo citado e rastreado por{" "}
-            <strong>{botOperators.length} plataformas de IA</strong> distintas, com destaque para{" "}
-            <strong style={{ color: BOT_COLORS[botOperators[0]?.name] || "#10a37f" }}>{botOperators[0]?.name}</strong>{" "}
-            ({botOperators[0]?.percentage.toFixed(1).replace(".", ",")}% das visitas de IA).
-          </div>
+          {/* Tipo de conteúdo */}
+          {contentType && contentType.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <SectionTitle icon="📄" label="Tipo de Conteúdo" C={C} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {contentType.map((ct, i) => {
+                  const colors = ["#e91e8c", "#f59e0b", "#6b7280"];
+                  return (
+                    <BarRow key={ct.name} label={ct.name} percentage={ct.percentage} value={num.format(ct.count)} color={colors[i % colors.length]} C={C} />
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Solicitações de Caminho (top pages) */}
+      {topPages && topPages.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <SectionTitle icon="🔗" label="Solicitações de Caminho" C={C} />
+          <div style={{
+            display: "grid", gridTemplateColumns: "1fr auto auto",
+            gap: "6px 16px", fontSize: "0.75rem", color: C.textSoft,
+          }}>
+            <span style={{ fontWeight: 700, color: C.muted, fontSize: "0.68rem", textTransform: "uppercase" }}>Caminho</span>
+            <span style={{ fontWeight: 700, color: C.muted, fontSize: "0.68rem", textTransform: "uppercase", textAlign: "right" }}>%</span>
+            <span style={{ fontWeight: 700, color: C.muted, fontSize: "0.68rem", textTransform: "uppercase", textAlign: "right" }}>Requests</span>
+            {topPages.map((p) => (
+              <>
+                <span key={p.url} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p.url}>
+                  {p.url.replace("https://www.doit.com.br", "")}
+                </span>
+                <span style={{ textAlign: "right", fontWeight: 600 }}>{pct(p.percentage)}</span>
+                <span style={{ textAlign: "right" }}>{p.requests}</span>
+              </>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Insight */}
+      <div style={{
+        marginTop: 16, padding: "12px 14px",
+        background: "rgba(16,163,127,0.06)",
+        border: "1px solid rgba(16,163,127,0.20)",
+        borderRadius: 10, fontSize: "0.78rem",
+        color: C.textSoft, lineHeight: 1.5,
+      }}>
+        <strong style={{ color: "#10a37f" }}>💡 Insight:</strong> Em {formatMonth(targetMonth)}, seu site recebeu{" "}
+        <strong>{num.format(totalRequests)} requisições de IA</strong> de{" "}
+        <strong>{botOperators.length} plataformas</strong> distintas, representando{" "}
+        <strong>{pct(shareOfTotalTraffic)}</strong> do tráfego total.{" "}
+        O principal operador é <strong style={{ color: BOT_COLORS[botOperators[0]?.name] || "#10a37f" }}>
+          {botOperators[0]?.name}
+        </strong> ({pct(botOperators[0]?.percentage)}).
+      </div>
     </article>
+  );
+}
+
+// ======================== Sub-componentes ========================
+
+function KpiCard({ label, value, sub, color, C }) {
+  return (
+    <div style={{
+      background: C.cardBg, border: `1px solid ${C.border}`,
+      borderRadius: 12, padding: "14px 16px",
+      borderTop: `2px solid ${color}`,
+    }}>
+      <div style={{ fontSize: "0.66rem", fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: "1.3rem", fontWeight: 900, color: C.text }}>
+        {value}
+      </div>
+      <div style={{ fontSize: "0.66rem", color, fontWeight: 600, marginTop: 4 }}>
+        {sub}
+      </div>
+    </div>
+  );
+}
+
+function SectionTitle({ icon, label, C }) {
+  return (
+    <div style={{
+      fontSize: "0.72rem", fontWeight: 700, color: C.muted,
+      textTransform: "uppercase", letterSpacing: "0.07em",
+      marginBottom: 12, paddingBottom: 8, borderBottom: `1px solid ${C.border}`,
+    }}>
+      {icon} {label}
+    </div>
+  );
+}
+
+function BarRow({ icon, label, percentage, value, color, C }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      {icon && <span style={{ fontSize: 14, width: 20, textAlign: "center" }}>{icon}</span>}
+      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: C.textSoft, minWidth: 80 }}>
+        {label}
+      </span>
+      <div style={{ flex: 1, height: 6, background: C.barBg, borderRadius: 99, overflow: "hidden" }}>
+        <div style={{
+          width: `${percentage}%`, height: "100%",
+          background: color, borderRadius: 99,
+          boxShadow: `0 0 6px ${color}44`,
+          transition: "width 0.8s ease",
+        }} />
+      </div>
+      <span style={{ fontSize: "0.75rem", fontWeight: 700, color: C.textSoft, minWidth: 48, textAlign: "right" }}>
+        {pct(percentage)}
+      </span>
+      <span style={{ fontSize: "0.72rem", color: C.muted, minWidth: 30, textAlign: "right" }}>
+        {value}
+      </span>
+    </div>
   );
 }
