@@ -1,45 +1,40 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useTheme } from "@/lib/ThemeContext";
 
 const num = new Intl.NumberFormat("pt-BR");
 const pct = (v) => v.toFixed(2).replace(".", ",") + "%";
 
-// Cores dos operadores
 const BOT_COLORS = {
-  Meta: "#0668E1",
-  Huawei: "#CF0A2C",
-  OpenAI: "#10a37f",
-  Google: "#4285F4",
-  Apple: "#555555",
-  Anthropic: "#d97706",
-  Parallel: "#6b7280",
-  Microsoft: "#0078D4",
-  Unknown: "#9ca3af",
+  Meta: "#0668E1", Huawei: "#CF0A2C", OpenAI: "#10a37f",
+  Google: "#4285F4", Apple: "#555555", Anthropic: "#d97706",
+  Parallel: "#6b7280", Microsoft: "#0078D4", Unknown: "#9ca3af",
 };
 
-// Ícones dos operadores
 const BOT_ICONS = {
-  Meta: "🟦",
-  Huawei: "🔴",
-  OpenAI: "🤖",
-  Google: "🟢",
-  Apple: "🍎",
-  Anthropic: "🟠",
-  Parallel: "⚪",
-  Microsoft: "🔵",
-  Unknown: "❓",
+  Meta: "🟦", Huawei: "🔴", OpenAI: "🤖", Google: "🟢",
+  Apple: "🍎", Anthropic: "🟠", Parallel: "⚪", Microsoft: "🔵", Unknown: "❓",
 };
 
-// Labels PT-BR para atividades
-const ACTIVITY_LABELS = {
-  "AI Crawler": "Rastreador IA",
-  "AI Search": "Busca IA",
-  "AI Assistant": "Assistente IA",
+const BOT_DESCRIPTIONS = {
+  Meta: "Rastreia páginas para indexação no Facebook e Instagram (AI features).",
+  Huawei: "Bot de IA da Huawei para pesquisa e serviços móveis.",
+  OpenAI: "Rastreia conteúdo para treinamento e busca do ChatGPT.",
+  Google: "Bot de IA do Google para Gemini e AI Overviews.",
+  Apple: "Rastreia conteúdo para Siri e Apple Intelligence.",
+  Anthropic: "Bot do Claude AI para pesquisa e respostas.",
+  Parallel: "Serviço paralelo de rastreamento de IA.",
+  Microsoft: "Bot do Copilot/Bing AI para respostas e busca.",
 };
 
-// Meses em PT-BR
+const ACTIVITY_LABELS = { "AI Crawler": "Rastreador IA", "AI Search": "Busca IA", "AI Assistant": "Assistente IA" };
+const ACTIVITY_DESC = {
+  "AI Crawler": "Bots rastreando páginas para indexar conteúdo em modelos de IA.",
+  "AI Search": "Buscas feitas por assistentes de IA citando seu conteúdo.",
+  "AI Assistant": "Assistentes respondendo com base no seu site.",
+};
+
 const MONTH_NAMES = {
   "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril",
   "05": "Maio", "06": "Junho", "07": "Julho", "08": "Agosto",
@@ -58,38 +53,40 @@ export default function AIVisibilityChart({ startDate, endDate }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [hoveredOp, setHoveredOp] = useState(null);
+  const [selectedOp, setSelectedOp] = useState(null);
+  const [hoveredAct, setHoveredAct] = useState(null);
+  const [animate, setAnimate] = useState(false);
 
-  // Buscar dados do mês selecionado
   useEffect(() => {
     let active = true;
-
     async function fetchClarity() {
       setLoading(true);
       setError(null);
-
+      setAnimate(false);
       try {
         const res = await fetch("/api/clarity-ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ startDate, endDate }),
         });
-
-        if (!res.ok) throw new Error("Falha ao buscar dados do Clarity");
-
+        if (!res.ok) throw new Error("Falha ao buscar dados");
         const json = await res.json();
-        if (active) setData(json);
+        if (active) {
+          setData(json);
+          setSelectedOp(null);
+          setTimeout(() => setAnimate(true), 50);
+        }
       } catch (err) {
         if (active) setError(err.message);
       } finally {
         if (active) setLoading(false);
       }
     }
-
     fetchClarity();
     return () => { active = false; };
   }, [startDate, endDate]);
 
-  // Cores do tema
   const C = useMemo(() => ({
     text: isLight ? "#0f172a" : "rgba(245,247,251,0.92)",
     textSoft: isLight ? "#334155" : "rgba(245,247,251,0.72)",
@@ -98,16 +95,14 @@ export default function AIVisibilityChart({ startDate, endDate }) {
     border: isLight ? "rgba(15,23,42,0.10)" : "var(--line)",
     barBg: isLight ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.06)",
     cardBg: isLight ? "rgba(248,250,252,0.95)" : "rgba(255,255,255,0.03)",
+    hoverBg: isLight ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.04)",
+    tooltipBg: isLight ? "#1e293b" : "#f8fafc",
+    tooltipText: isLight ? "#f8fafc" : "#0f172a",
   }), [isLight]);
 
-  // Loading
   if (loading) {
     return (
-      <article style={{
-        background: C.bg, border: `1px solid ${C.border}`,
-        borderRadius: 16, padding: "1.5rem", minHeight: 320,
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
+      <article style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16, padding: "1.5rem", minHeight: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ textAlign: "center", color: C.muted }}>
           <div style={{ fontSize: 32, marginBottom: 12, animation: "pulse 1.5s infinite" }}>🤖</div>
           <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>Carregando dados de IA...</div>
@@ -116,14 +111,9 @@ export default function AIVisibilityChart({ startDate, endDate }) {
     );
   }
 
-  // Erro
   if (error) {
     return (
-      <article style={{
-        background: C.bg, border: `1px solid ${C.border}`,
-        borderRadius: 16, padding: "1.5rem", minHeight: 320,
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
+      <article style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16, padding: "1.5rem", minHeight: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ textAlign: "center", color: C.muted }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
           <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>Erro ao carregar dados</div>
@@ -133,15 +123,10 @@ export default function AIVisibilityChart({ startDate, endDate }) {
     );
   }
 
-  // Sem dados para o mês selecionado
   if (!data || data.noData) {
     const availableLabel = (data?.availableMonths || []).map(formatMonth).join(", ");
     return (
-      <article style={{
-        background: C.bg, border: `1px solid ${C.border}`,
-        borderRadius: 16, padding: "1.5rem", minHeight: 320,
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
+      <article style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16, padding: "1.5rem", minHeight: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ textAlign: "center", color: C.muted, maxWidth: 360 }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
           <div style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: 8 }}>
@@ -149,7 +134,7 @@ export default function AIVisibilityChart({ startDate, endDate }) {
           </div>
           {availableLabel && (
             <div style={{ fontSize: "0.75rem", lineHeight: 1.5 }}>
-              Meses com dados: <strong>{availableLabel}</strong>
+              Meses disponíveis: <strong>{availableLabel}</strong>
             </div>
           )}
         </div>
@@ -160,36 +145,28 @@ export default function AIVisibilityChart({ startDate, endDate }) {
   const { botOperators, botActivities, totalRequests, shareOfTotalTraffic, uniquePagesRequested, violations, contentType, topPages, targetMonth } = data;
 
   return (
-    <article style={{
-      background: C.bg, border: `1px solid ${C.border}`,
-      borderRadius: 16, padding: "1.5rem 1.6rem", overflow: "hidden", position: "relative",
-    }}>
+    <article style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 16, padding: "1.5rem 1.6rem", overflow: "hidden", position: "relative" }}>
       {/* Header */}
       <div className="panel-heading" style={{ marginBottom: "1.2rem" }}>
         <div>
           <p className="eyebrow">VISIBILIDADE DA IA</p>
           <h2 style={{ margin: 0 }}>Indicações & Citações de IA</h2>
           <p style={{ margin: "4px 0 0", fontSize: "0.7rem", color: C.muted, fontWeight: 500 }}>
-            📅 {formatMonth(targetMonth)}
+            📅 {formatMonth(targetMonth)} • Fonte: Microsoft Clarity
           </p>
         </div>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          background: "rgba(16,163,127,0.1)",
-          border: "1px solid rgba(16,163,127,0.25)",
-          borderRadius: 99, padding: "4px 12px",
-        }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(16,163,127,0.1)", border: "1px solid rgba(16,163,127,0.25)", borderRadius: 99, padding: "4px 12px" }}>
           <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#10a37f", boxShadow: "0 0 6px #10a37f" }} />
-          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#10a37f" }}>Microsoft Clarity</span>
+          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#10a37f" }}>Clarity</span>
         </div>
       </div>
 
-      {/* KPI Cards — 4 colunas */}
+      {/* KPI Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: "1.4rem" }}>
-        <KpiCard label="Requisições de IA" value={num.format(totalRequests)} sub={`${botOperators.length} operadores`} color="#10a37f" C={C} />
-        <KpiCard label="% do Tráfego Total" value={pct(shareOfTotalTraffic)} sub="tráfego de bots IA" color="#0668E1" C={C} />
-        <KpiCard label="Páginas Únicas" value={pct(uniquePagesRequested)} sub="das páginas rastreadas" color="#8b5cf6" C={C} />
-        <KpiCard label="Violações" value={pct(violations)} sub="sem violações" color={violations > 0 ? "#ef4444" : "#10b981"} C={C} />
+        <KpiCard label="Requisições de IA" value={num.format(totalRequests)} sub={`${botOperators.length} operadores`} color="#10a37f" C={C} tooltip="Total de requisições feitas por bots de inteligência artificial ao seu site neste período." />
+        <KpiCard label="% do Tráfego Total" value={pct(shareOfTotalTraffic)} sub="vindo de bots IA" color="#0668E1" C={C} tooltip="Percentual do tráfego total do site que veio de bots de IA (rastreadores, buscas, assistentes)." />
+        <KpiCard label="Páginas Únicas" value={pct(uniquePagesRequested)} sub="das páginas rastreadas" color="#8b5cf6" C={C} tooltip="Percentual de páginas HTML únicas do seu site que foram acessadas por bots de IA." />
+        <KpiCard label="Violações" value={pct(violations)} sub="sem violações" color={violations > 0 ? "#ef4444" : "#10b981"} C={C} tooltip="Violações de robots.txt ou regras de acesso. 0% significa que todos os bots respeitaram as regras." />
       </div>
 
       {/* Duas colunas: Operadores + Atividade */}
@@ -197,26 +174,116 @@ export default function AIVisibilityChart({ startDate, endDate }) {
         {/* Operadores */}
         <div>
           <SectionTitle icon="🤖" label="Operador de Bot" C={C} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {botOperators.map((op) => {
               const color = BOT_COLORS[op.name] || BOT_COLORS.Unknown;
               const icon = BOT_ICONS[op.name] || BOT_ICONS.Unknown;
+              const isHovered = hoveredOp === op.name;
+              const isSelected = selectedOp === op.name;
+              const dimmed = (hoveredOp || selectedOp) && !isHovered && !isSelected;
               return (
-                <BarRow key={op.name} icon={icon} label={op.name} percentage={op.percentage} value={num.format(op.sessions)} color={color} C={C} />
+                <div
+                  key={op.name}
+                  onMouseEnter={() => setHoveredOp(op.name)}
+                  onMouseLeave={() => setHoveredOp(null)}
+                  onClick={() => setSelectedOp(selectedOp === op.name ? null : op.name)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "6px 8px", borderRadius: 8,
+                    background: (isHovered || isSelected) ? C.hoverBg : "transparent",
+                    opacity: dimmed ? 0.4 : 1,
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    border: isSelected ? `1px solid ${color}33` : "1px solid transparent",
+                  }}
+                >
+                  <span style={{ fontSize: 14, width: 20, textAlign: "center" }}>{icon}</span>
+                  <span style={{ fontSize: "0.8rem", fontWeight: 600, color: C.textSoft, minWidth: 72 }}>{op.name}</span>
+                  <div style={{ flex: 1, height: 7, background: C.barBg, borderRadius: 99, overflow: "hidden" }}>
+                    <div style={{
+                      width: animate ? `${op.percentage}%` : "0%",
+                      height: "100%", background: color, borderRadius: 99,
+                      boxShadow: isHovered ? `0 0 10px ${color}66` : `0 0 4px ${color}33`,
+                      transition: "width 1s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s",
+                    }} />
+                  </div>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: C.textSoft, minWidth: 48, textAlign: "right" }}>
+                    {pct(op.percentage)}
+                  </span>
+                  <span style={{ fontSize: "0.72rem", color: C.muted, minWidth: 32, textAlign: "right" }}>
+                    {num.format(op.sessions)}
+                  </span>
+                </div>
               );
             })}
           </div>
+
+          {/* Detalhe do operador selecionado */}
+          {selectedOp && (
+            <div style={{
+              marginTop: 12, padding: "10px 14px",
+              background: `${BOT_COLORS[selectedOp] || "#666"}11`,
+              border: `1px solid ${BOT_COLORS[selectedOp] || "#666"}33`,
+              borderRadius: 10, fontSize: "0.76rem", color: C.textSoft, lineHeight: 1.5,
+              animation: "fadeIn 0.2s ease",
+            }}>
+              <strong style={{ color: BOT_COLORS[selectedOp] }}>{BOT_ICONS[selectedOp]} {selectedOp}</strong>
+              <p style={{ margin: "4px 0 0" }}>{BOT_DESCRIPTIONS[selectedOp] || "Operador de bot de inteligência artificial."}</p>
+            </div>
+          )}
         </div>
 
         {/* Atividade */}
         <div>
           <SectionTitle icon="⚡" label="Atividade do Bot" C={C} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {botActivities.map((act, i) => {
               const colors = ["#8b5cf6", "#3b82f6", "#10b981"];
+              const color = colors[i % colors.length];
               const label = ACTIVITY_LABELS[act.name] || act.name;
+              const isHovered = hoveredAct === act.name;
               return (
-                <BarRow key={act.name} label={label} percentage={act.percentage} value={num.format(act.sessions)} color={colors[i % colors.length]} C={C} />
+                <div
+                  key={act.name}
+                  onMouseEnter={() => setHoveredAct(act.name)}
+                  onMouseLeave={() => setHoveredAct(null)}
+                  style={{
+                    position: "relative",
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "6px 8px", borderRadius: 8,
+                    background: isHovered ? C.hoverBg : "transparent",
+                    cursor: "default", transition: "all 0.2s ease",
+                  }}
+                >
+                  <span style={{ fontSize: "0.8rem", fontWeight: 600, color: C.textSoft, minWidth: 100 }}>{label}</span>
+                  <div style={{ flex: 1, height: 7, background: C.barBg, borderRadius: 99, overflow: "hidden" }}>
+                    <div style={{
+                      width: animate ? `${act.percentage}%` : "0%",
+                      height: "100%", background: color, borderRadius: 99,
+                      boxShadow: isHovered ? `0 0 10px ${color}66` : `0 0 4px ${color}33`,
+                      transition: "width 1s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s",
+                    }} />
+                  </div>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: C.textSoft, minWidth: 48, textAlign: "right" }}>
+                    {pct(act.percentage)}
+                  </span>
+                  <span style={{ fontSize: "0.72rem", color: C.muted, minWidth: 32, textAlign: "right" }}>
+                    {num.format(act.sessions)}
+                  </span>
+                  {/* Tooltip */}
+                  {isHovered && (
+                    <div style={{
+                      position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
+                      background: C.tooltipBg, color: C.tooltipText,
+                      padding: "8px 12px", borderRadius: 8, fontSize: "0.72rem",
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.15)", zIndex: 20,
+                      whiteSpace: "nowrap", pointerEvents: "none",
+                      animation: "fadeIn 0.15s ease",
+                    }}>
+                      {ACTIVITY_DESC[act.name] || act.name}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -225,11 +292,26 @@ export default function AIVisibilityChart({ startDate, endDate }) {
           {contentType && contentType.length > 0 && (
             <div style={{ marginTop: 20 }}>
               <SectionTitle icon="📄" label="Tipo de Conteúdo" C={C} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {contentType.map((ct, i) => {
-                  const colors = ["#e91e8c", "#f59e0b", "#6b7280"];
+                  const colors = ["#e91e8c", "#f59e0b", "#3b82f6", "#6b7280"];
                   return (
-                    <BarRow key={ct.name} label={ct.name} percentage={ct.percentage} value={num.format(ct.count)} color={colors[i % colors.length]} C={C} />
+                    <div key={ct.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 8px" }}>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: C.textSoft, minWidth: 50 }}>{ct.name}</span>
+                      <div style={{ flex: 1, height: 6, background: C.barBg, borderRadius: 99, overflow: "hidden" }}>
+                        <div style={{
+                          width: animate ? `${ct.percentage}%` : "0%",
+                          height: "100%", background: colors[i % colors.length], borderRadius: 99,
+                          transition: "width 1s cubic-bezier(0.4,0,0.2,1)",
+                        }} />
+                      </div>
+                      <span style={{ fontSize: "0.73rem", fontWeight: 700, color: C.textSoft, minWidth: 48, textAlign: "right" }}>
+                        {pct(ct.percentage)}
+                      </span>
+                      <span style={{ fontSize: "0.7rem", color: C.muted, minWidth: 26, textAlign: "right" }}>
+                        {num.format(ct.count)}
+                      </span>
+                    </div>
                   );
                 })}
               </div>
@@ -238,26 +320,25 @@ export default function AIVisibilityChart({ startDate, endDate }) {
         </div>
       </div>
 
-      {/* Solicitações de Caminho (top pages) */}
+      {/* Top Pages */}
       {topPages && topPages.length > 0 && (
-        <div style={{ marginTop: 4 }}>
-          <SectionTitle icon="🔗" label="Solicitações de Caminho" C={C} />
-          <div style={{
-            display: "grid", gridTemplateColumns: "1fr auto auto",
-            gap: "6px 16px", fontSize: "0.75rem", color: C.textSoft,
-          }}>
-            <span style={{ fontWeight: 700, color: C.muted, fontSize: "0.68rem", textTransform: "uppercase" }}>Caminho</span>
-            <span style={{ fontWeight: 700, color: C.muted, fontSize: "0.68rem", textTransform: "uppercase", textAlign: "right" }}>%</span>
-            <span style={{ fontWeight: 700, color: C.muted, fontSize: "0.68rem", textTransform: "uppercase", textAlign: "right" }}>Requests</span>
-            {topPages.map((p) => (
-              <>
-                <span key={p.url} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p.url}>
-                  {p.url.replace("https://www.doit.com.br", "")}
-                </span>
-                <span style={{ textAlign: "right", fontWeight: 600 }}>{pct(p.percentage)}</span>
-                <span style={{ textAlign: "right" }}>{p.requests}</span>
-              </>
-            ))}
+        <div>
+          <SectionTitle icon="🔗" label="Páginas Mais Solicitadas por IA" C={C} />
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.74rem" }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 700, color: C.muted, fontSize: "0.68rem", textTransform: "uppercase" }}>Caminho</th>
+                  <th style={{ textAlign: "right", padding: "6px 8px", fontWeight: 700, color: C.muted, fontSize: "0.68rem", textTransform: "uppercase", width: 60 }}>%</th>
+                  <th style={{ textAlign: "right", padding: "6px 8px", fontWeight: 700, color: C.muted, fontSize: "0.68rem", textTransform: "uppercase", width: 70 }}>Requests</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topPages.map((p, i) => (
+                  <TableRow key={i} page={p} C={C} />
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -265,41 +346,64 @@ export default function AIVisibilityChart({ startDate, endDate }) {
       {/* Insight */}
       <div style={{
         marginTop: 16, padding: "12px 14px",
-        background: "rgba(16,163,127,0.06)",
-        border: "1px solid rgba(16,163,127,0.20)",
-        borderRadius: 10, fontSize: "0.78rem",
-        color: C.textSoft, lineHeight: 1.5,
+        background: "rgba(16,163,127,0.06)", border: "1px solid rgba(16,163,127,0.20)",
+        borderRadius: 10, fontSize: "0.78rem", color: C.textSoft, lineHeight: 1.5,
       }}>
         <strong style={{ color: "#10a37f" }}>💡 Insight:</strong> Em {formatMonth(targetMonth)}, seu site recebeu{" "}
         <strong>{num.format(totalRequests)} requisições de IA</strong> de{" "}
-        <strong>{botOperators.length} plataformas</strong> distintas, representando{" "}
-        <strong>{pct(shareOfTotalTraffic)}</strong> do tráfego total.{" "}
-        O principal operador é <strong style={{ color: BOT_COLORS[botOperators[0]?.name] || "#10a37f" }}>
-          {botOperators[0]?.name}
-        </strong> ({pct(botOperators[0]?.percentage)}).
+        <strong>{botOperators.length} plataformas</strong> distintas ({pct(shareOfTotalTraffic)} do tráfego total).{" "}
+        Principal operador: <strong style={{ color: BOT_COLORS[botOperators[0]?.name] }}>{botOperators[0]?.name}</strong> ({pct(botOperators[0]?.percentage)}).{" "}
+        A atividade dominante é <strong>{ACTIVITY_LABELS[botActivities[0]?.name]}</strong> com {pct(botActivities[0]?.percentage)} das interações.
       </div>
+
+      {/* CSS animations */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </article>
   );
 }
 
 // ======================== Sub-componentes ========================
 
-function KpiCard({ label, value, sub, color, C }) {
+function KpiCard({ label, value, sub, color, C, tooltip }) {
+  const [hovered, setHovered] = useState(false);
   return (
-    <div style={{
-      background: C.cardBg, border: `1px solid ${C.border}`,
-      borderRadius: 12, padding: "14px 16px",
-      borderTop: `2px solid ${color}`,
-    }}>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: "relative",
+        background: C.cardBg, border: `1px solid ${C.border}`,
+        borderRadius: 12, padding: "14px 16px",
+        borderTop: `2px solid ${color}`,
+        cursor: "default",
+        transform: hovered ? "translateY(-2px)" : "none",
+        boxShadow: hovered ? `0 4px 16px ${color}22` : "none",
+        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+      }}
+    >
       <div style={{ fontSize: "0.66rem", fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
         {label}
       </div>
-      <div style={{ fontSize: "1.3rem", fontWeight: 900, color: C.text }}>
-        {value}
-      </div>
-      <div style={{ fontSize: "0.66rem", color, fontWeight: 600, marginTop: 4 }}>
-        {sub}
-      </div>
+      <div style={{ fontSize: "1.3rem", fontWeight: 900, color: C.text }}>{value}</div>
+      <div style={{ fontSize: "0.66rem", color, fontWeight: 600, marginTop: 4 }}>{sub}</div>
+      {/* Tooltip */}
+      {hovered && tooltip && (
+        <div style={{
+          position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)",
+          background: C.tooltipBg, color: C.tooltipText,
+          padding: "8px 12px", borderRadius: 8, fontSize: "0.7rem",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.18)", zIndex: 30,
+          width: 200, lineHeight: 1.4, pointerEvents: "none",
+          animation: "fadeIn 0.15s ease",
+        }}>
+          {tooltip}
+        </div>
+      )}
     </div>
   );
 }
@@ -316,27 +420,27 @@ function SectionTitle({ icon, label, C }) {
   );
 }
 
-function BarRow({ icon, label, percentage, value, color, C }) {
+function TableRow({ page, C }) {
+  const [hovered, setHovered] = useState(false);
+  const shortUrl = page.url.replace("https://www.doit.com.br", "");
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      {icon && <span style={{ fontSize: 14, width: 20, textAlign: "center" }}>{icon}</span>}
-      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: C.textSoft, minWidth: 80 }}>
-        {label}
-      </span>
-      <div style={{ flex: 1, height: 6, background: C.barBg, borderRadius: 99, overflow: "hidden" }}>
-        <div style={{
-          width: `${percentage}%`, height: "100%",
-          background: color, borderRadius: 99,
-          boxShadow: `0 0 6px ${color}44`,
-          transition: "width 0.8s ease",
-        }} />
-      </div>
-      <span style={{ fontSize: "0.75rem", fontWeight: 700, color: C.textSoft, minWidth: 48, textAlign: "right" }}>
-        {pct(percentage)}
-      </span>
-      <span style={{ fontSize: "0.72rem", color: C.muted, minWidth: 30, textAlign: "right" }}>
-        {value}
-      </span>
-    </div>
+    <tr
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: hovered ? C.hoverBg : "transparent",
+        transition: "background 0.15s ease",
+      }}
+    >
+      <td style={{ padding: "7px 8px", color: C.textSoft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 300 }} title={page.url}>
+        {shortUrl || "/"}
+      </td>
+      <td style={{ padding: "7px 8px", textAlign: "right", fontWeight: 600, color: C.textSoft }}>
+        {pct(page.percentage)}
+      </td>
+      <td style={{ padding: "7px 8px", textAlign: "right", color: C.muted }}>
+        {page.requests}
+      </td>
+    </tr>
   );
 }
