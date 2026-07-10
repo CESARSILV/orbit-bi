@@ -3929,6 +3929,11 @@ html[data-theme="light"] .topbar-title-highlight {
   border: 1px solid rgba(16,185,129,0.22);
   color: #34d399;
 }
+.platform-pill.bing {
+  background: rgba(0,168,115,0.10);
+  border: 1px solid rgba(0,168,115,0.22);
+  color: #00c9a7;
+}
 html[data-theme="light"] .platform-pill.google,
 html[data-theme="light"] .platform-pill.meta {
   color: #3b82f6;
@@ -3944,6 +3949,11 @@ html[data-theme="light"] .platform-pill.doitsa {
   color: #059669;
   background: rgba(5,150,105,0.08);
   border-color: rgba(5,150,105,0.22);
+}
+html[data-theme="light"] .platform-pill.bing {
+  color: #008373;
+  background: rgba(0,131,115,0.08);
+  border-color: rgba(0,131,115,0.22);
 }
 .topbar-actions-premium {
   display: flex;
