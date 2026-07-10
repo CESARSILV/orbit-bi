@@ -21,7 +21,7 @@ export default function Topbar({ onRefresh, onGenerateReport, onClearData, isScr
         </h1>
 
         <p className="topbar-subtitle">
-          Google Ads, Meta Ads, Bitrix24 &amp; DOitSA — análise em tempo real com IA
+          Google Ads, Meta Ads, Bitrix24, DOitSA &amp; Bing — análise em tempo real com IA
         </p>
 
         {/* Pills de plataforma decorativas */}
@@ -55,6 +55,14 @@ export default function Topbar({ onRefresh, onGenerateReport, onClearData, isScr
               style={{ width: "12px", height: "12px", objectFit: "contain", filter: theme === "light" ? "none" : "brightness(1.2)" }} 
             />
             DOitSA
+          </span>
+          <span className="platform-pill bing">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+              <path d="M5 3v18l4.5-2.5 7 4L20 21V7l-3.5 1.5-7-4L5 3z" fill="#008373"/>
+              <path d="M5 3l4.5 1.5v12l7 4L20 18.5V7l-3.5 1.5-7-4L5 3z" fill="#00a68e"/>
+              <path d="M9.5 4.5v12l7 4L20 18.5V7l-3.5 1.5-7-4z" fill="#00c9a7" opacity="0.8"/>
+            </svg>
+            Bing
           </span>
         </div>
       </div>
