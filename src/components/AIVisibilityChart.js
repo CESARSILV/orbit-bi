@@ -44,8 +44,9 @@ export default function AIVisibilityChart({ startDate, endDate }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [dataScope, setDataScope] = useState(null);
 
-  // Buscar dados da API do Clarity
+  // Buscar dados da API do Clarity (sempre retorna dados ao vivo)
   useEffect(() => {
     let active = true;
 
@@ -63,7 +64,10 @@ export default function AIVisibilityChart({ startDate, endDate }) {
         if (!res.ok) throw new Error("Falha ao buscar dados do Clarity");
         
         const json = await res.json();
-        if (active) setData(json);
+        if (active) {
+          setData(json);
+          setDataScope(json.dataScopeLabel || null);
+        }
       } catch (err) {
         if (active) setError(err.message);
       } finally {
@@ -146,6 +150,11 @@ export default function AIVisibilityChart({ startDate, endDate }) {
         <div>
           <p className="eyebrow">VISIBILIDADE DA IA</p>
           <h2 style={{ margin: 0 }}>Indicações & Citações de IA</h2>
+          {dataScope && (
+            <p style={{ margin: "4px 0 0", fontSize: "0.68rem", color: C.muted, fontWeight: 500 }}>
+              📡 {dataScope}
+            </p>
+          )}
         </div>
         <div style={{
           display: "flex", alignItems: "center", gap: 8,
