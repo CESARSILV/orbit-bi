@@ -2,34 +2,53 @@ import { NextResponse } from "next/server";
 
 // Token da API do Microsoft Clarity (escopo somente-leitura: Data.Export).
 // A variável de ambiente CLARITY_API_TOKEN tem precedência quando configurada no Vercel.
-// O fallback abaixo garante que o painel funcione em produção sem configuração manual.
-// (Repositório privado — recomenda-se migrar para variável de ambiente futuramente.)
 const CLARITY_TOKEN_FALLBACK =
   "eyJhbGciOiJSUzI1NiIsImtpZCI6IjQ4M0FCMDhFNUYwRDMxNjdEOTRFMTQ3M0FEQTk2RTcyRDkwRUYwRkYiLCJ0eXAiOiJKV1QifQ.eyJqdGkiOiI0NTI5Mzg2Yy04NWFkLTQ4MGUtOWVkNi00YjZiMmQ5N2UzOWQiLCJzdWIiOiIzMzc1MzU4Njg2OTQ1NTc5Iiwic2NvcGUiOiJEYXRhLkV4cG9ydCIsIm5iZiI6MTc4Mjg0OTcwNCwiZXhwIjo0OTM2NDQ5NzA0LCJpYXQiOjE3ODI4NDk3MDQsImlzcyI6ImNsYXJpdHkiLCJhdWQiOiJjbGFyaXR5LmRhdGEtZXhwb3J0ZXIifQ.FADjx-4h5dBfN2ewnzZaXYXYcjCHVSTpJ9bBs_6OIADEAKVQqQhqSvr2V93gJoxamYBEerq5DJ-pSWFvOdaIk36LcfNCduRGOSV3SG3JbOYUG4Xvk-H1ejVUPIc_YKmx5g7d_BxXKJYGbq4PtLOvzzrB8spqhEBh19FkrWjyluV4ai34Lpneb2hU0gnRuBubi9OuqlthFqJGhQ-ADJvXKhtRHk2hnTYUZhzbLlLWRnw8HBlhSf53Vwh3h0ZbsMcPcmvMa1t5DIU-lt8J5CfkjBoFEIre3a502c-TcpLn9F92vbG6U5IJSfxMpobMskzmZo_YHCA25nl1MenTKrp2Qw";
 const CLARITY_TOKEN = process.env.CLARITY_API_TOKEN || CLARITY_TOKEN_FALLBACK;
 const CLARITY_ENDPOINT = "https://www.clarity.ms/export-data/api/v1/project-live-insights";
 
+// Cache em memória para evitar rate-limit (429) do Clarity
+// Armazena o último resultado por até 10 minutos
+let cachedData = null;
+let cacheTimestamp = 0;
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
+
+async function fetchClarityData() {
+  const now = Date.now();
+  if (cachedData && now - cacheTimestamp < CACHE_TTL_MS) {
+    return { data: cachedData, fromCache: true };
+  }
+
+  const res = await fetch(CLARITY_ENDPOINT, {
+    headers: {
+      Authorization: `Bearer ${CLARITY_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    // Se deu rate-limit mas temos cache, usa cache
+    if (res.status === 429 && cachedData) {
+      return { data: cachedData, fromCache: true };
+    }
+    throw new Error(`Clarity retornou status ${res.status}`);
+  }
+
+  const rawData = await res.json();
+  cachedData = rawData;
+  cacheTimestamp = now;
+  return { data: rawData, fromCache: false };
+}
+
 export async function POST(request) {
   try {
     const { startDate, endDate } = await request.json();
 
-    // Buscar dados do Clarity
-    const res = await fetch(CLARITY_ENDPOINT, {
-      headers: {
-        Authorization: `Bearer ${CLARITY_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "Falha ao conectar com Microsoft Clarity" },
-        { status: res.status }
-      );
-    }
-
-    const rawData = await res.json();
+    // A API Live Insights do Clarity retorna SEMPRE dados em tempo real (últimas ~24h).
+    // Não existe endpoint público com filtro de datas para o escopo Data.Export.
+    // Usamos os dados ao vivo independente das datas selecionadas e informamos ao frontend.
+    const { data: rawData, fromCache } = await fetchClarityData();
 
     // Extrair métricas de tráfego
     const trafficMetric = rawData.find((m) => m.metricName === "Traffic");
@@ -76,6 +95,9 @@ export async function POST(request) {
       botOperators,
       botActivities,
       updatedAt: new Date().toISOString(),
+      dataScope: "live",
+      dataScopeLabel: "Dados em tempo real (últimas 24h)",
+      fromCache,
     });
   } catch (err) {
     return NextResponse.json(
