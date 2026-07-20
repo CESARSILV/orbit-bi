@@ -220,10 +220,10 @@ export default function HistoricalChart({ timeline }) {
           const grow  = growthByMonth[idx];
           const growColor = grow >= 0 ? C.leads : "#F87171";
           const growIcon  = grow >= 0 ? "▲" : "▼";
-          const tText = dark ? "rgba(245,247,251,0.95)" : "#1e293b";
-          const tTextSoft = dark ? "rgba(245,247,251,0.9)" : "#334155";
-          const tMuted = dark ? "rgba(245,247,251,0.55)" : "#64748b";
-          const tBorder = dark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.10)";
+          const tText = C.isDark ? "rgba(245,247,251,0.95)" : "#1e293b";
+          const tTextSoft = C.isDark ? "rgba(245,247,251,0.9)" : "#334155";
+          const tMuted = C.isDark ? "rgba(245,247,251,0.55)" : "#64748b";
+          const tBorder = C.isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.10)";
           return `<div style="font-family:Inter,sans-serif;min-width:210px">
             <div style="font-weight:700;font-size:13px;color:${tText};margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid ${tBorder}">${month}</div>
             <div style="display:flex;flex-direction:column;gap:5px;">
