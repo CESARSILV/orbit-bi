@@ -76,11 +76,12 @@ function buildGeminiParts(systemPrompt, userText, uploadedFiles = []) {
   return [{ role: "user", parts }];
 }
 
-async function callOpenAI({ apiKey, systemPrompt, userText, uploadedFiles }) {
+async function callOpenAI({ apiKey, systemPrompt, userText, uploadedFiles, wantsJson }) {
   const client = new OpenAI({ apiKey });
   const response = await client.responses.create({
     model: DEFAULT_OPENAI_MODEL,
     input: buildOpenAIInput(systemPrompt, userText, uploadedFiles),
+    ...(wantsJson ? { text: { format: { type: "json_object" } } } : {}),
   });
 
   return response.output_text || "";
