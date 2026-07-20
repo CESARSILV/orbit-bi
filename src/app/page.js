@@ -539,7 +539,7 @@ export default function Home() {
         value: val,
         label
       }))
-      .filter(m => m.value >= "2025-10" && m.value <= currentYearMonth) // Limite absoluto: de Outubro/2025 até o mês atual
+      .filter(m => m.value <= currentYearMonth) // Exibe todos os meses com dados até o mês atual
       .sort((a, b) => a.value.localeCompare(b.value));
 
     const campaigns = [...new Set(marketingDb.fact_marketing_summary.map(s => s.campaign_name))].filter(Boolean);
@@ -598,8 +598,6 @@ export default function Home() {
   };
 
   const matchesCoreFilters = (row) => {
-    // Restrição absoluta: nunca mostrar dados anteriores a Outubro de 2025
-    if (row.reference_month && row.reference_month < "2025-10") return false;
 
     if (platform === "bitrix") {
       if (!row.is_crm || (row.crm_demos || 0) === 0) return false;
@@ -809,47 +807,6 @@ export default function Home() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketingDb, platform, period, startDate, endDate, campaign]);
-
-  // Dynamic Device Chart Data
-  const getDeviceChartData = () => {
-    const list = marketingDb.fact_devices.filter(d => {
-      if (!matchesCoreFilters(d)) return false;
-      if (device !== "todos" && d.device !== device) return false;
-      return true;
-    });
-
-    if (list.length === 0) return null;
-
-    let mobile = { percent: 0, invest: 0, conv: 0, cpa: 0 };
-    let desktop = { percent: 0, invest: 0, conv: 0, cpa: 0 };
-
-    list.forEach(row => {
-      const devVal = String(row.device || "").toLowerCase();
-      const investVal = row.spend || 0;
-      const convVal = row.conversions || 0;
-      
-      if (devVal.includes("mob") || devVal.includes("cel") || devVal.includes("phone")) {
-        mobile.invest += investVal;
-        mobile.conv += convVal;
-      } else if (devVal.includes("desk") || devVal.includes("comp") || devVal.includes("pc") || devVal.includes("tv")) {
-        desktop.invest += investVal;
-        desktop.conv += convVal;
-      }
-    });
-
-    const totalInvest = mobile.invest + desktop.invest;
-    if (totalInvest > 0) {
-      mobile.percent = (mobile.invest / totalInvest) * 100;
-      desktop.percent = (desktop.invest / totalInvest) * 100;
-    } else {
-      mobile.percent = 50;
-      desktop.percent = 50;
-    }
-    mobile.cpa = mobile.conv > 0 ? mobile.invest / mobile.conv : 0;
-    desktop.cpa = desktop.conv > 0 ? desktop.invest / desktop.conv : 0;
-
-    return { mobile, desktop };
-  };
 
   const deviceData = useMemo(() => {
     const list = marketingDb.fact_devices.filter(d => {
