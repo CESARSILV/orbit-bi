@@ -22,6 +22,7 @@ import ReportBuilder from "@/components/ReportBuilder";
 import { parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticValue, parseDate, inferReferenceMonth, isTotalOrMetadata, applyTemporalIntelligence, parseFormattedFloat, sanitizeMojibake, SYNONYMS, detectFileDateFormat } from "@/lib/etl";
 import { getDatabase, saveDatabase, insertDataset, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary } from "@/lib/db";
 import { clearAnalyticsSystem } from "@/lib/clearAnalyticsSystem";
+import { useMarketingData } from "@/lib/useMarketingData";
 
 // Formatting helpers
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -48,8 +49,20 @@ export default function Home() {
   const [authBypassed, setAuthBypassed] = useState(false);
   const [authChecking, setAuthChecking] = useState(isSupabaseConfigured);
 
-  // Consolidated Relational Database State (Starts with empty initial state for SSR/hydration safety)
-  const [marketingDb, setMarketingDb] = useState(createInitialDb());
+  // Consolidated Relational Database State — powered by useMarketingData hook
+  // Supports both Supabase-first (when configured) and localStorage fallback
+  const {
+    marketingDb, setMarketingDb,
+    importData: dalImportData,
+    clearData: dalClearData,
+    refresh: dalRefresh,
+    resetOnLogout: dalResetOnLogout,
+    isLoading: isDataLoading,
+    dataSource,
+    isSupabaseMode,
+    orgId: currentOrgId,
+    userId: currentUserId,
+  } = useMarketingData();
 
   // Advanced Global Filtering State
   const [platform, setPlatform] = useState("todas");
@@ -270,7 +283,12 @@ export default function Home() {
   }, [wizardStep]);
 
   // Load database from localStorage after initial hydration and run auto-cleanup if necessary
+  // NOTA: Em modo Supabase, o hook useMarketingData já carrega os dados.
+  // Este useEffect só executa a limpeza de duplicatas no modo local (fallback).
   useEffect(() => {
+    // Se em modo Supabase, o hook já cuidou do carregamento — skip
+    if (isSupabaseMode) return;
+
     const loadedDb = getDatabase();
     const campaigns = loadedDb.fact_campaigns || [];
     
@@ -318,7 +336,7 @@ export default function Home() {
         setMarketingDb(loadedDb);
       }, 0);
     }
-  }, []); // roda APENAS no mount inicial
+  }, [isSupabaseMode]); // roda no mount e quando isSupabaseMode é definido
 
   useEffect(() => {
     const timerStart = setTimeout(() => setIsIntelligenceUpdating(true), 0);
@@ -1388,11 +1406,32 @@ export default function Home() {
       // ─── CAMINHO CRM (BITRIX24 & DOITSA) ───────────────────────────────────
       // Processamento separado para relatórios do Bitrix24 e DOitSA.
       if (wizardPlatform === "bitrix" || wizardPlatform === "doitsa") {
-        const crmRows = wizardRawRows
-          .filter(row => {
-            // Ignora linhas totalmente vazias
-            return Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== "");
-          })
+
+        // ─── DEDUPLICAÇÃO POR ID DO NEGÓCIO ──────────────────────────────────
+        // O Bitrix24 exporta múltiplas linhas por negócio (uma por produto/item).
+        // Ex: "Implantação" + "Usuários" = 2 linhas com mesmo ID.
+        // Para Leads Qualificados, cada negócio ÚNICO deve contar apenas 1x.
+        // Agrupamos por lead_id e mantemos apenas a primeira ocorrência.
+        const seenLeadIds = new Set();
+        const dedupedRows = wizardRawRows.filter(row => {
+          // Ignora linhas totalmente vazias
+          const hasContent = Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== "");
+          if (!hasContent) return false;
+
+          // Deduplicação: se o lead_id já foi visto, pula esta linha
+          if (wizardPlatform === "bitrix" && wizardMapping.lead_id) {
+            const rawId = String(row[wizardMapping.lead_id] || "").trim();
+            if (rawId && rawId !== "") {
+              if (seenLeadIds.has(rawId)) return false;
+              seenLeadIds.add(rawId);
+            }
+          }
+          return true;
+        });
+
+        console.log(`[CRM DEDUP] ${wizardPlatform}: ${wizardRawRows.length} linhas brutas → ${dedupedRows.length} negócios únicos (${wizardRawRows.length - dedupedRows.length} duplicatas de produto removidas)`);
+
+        const crmRows = dedupedRows
           .map((row, idx) => {
             const leadId = wizardMapping.lead_id ? String(row[wizardMapping.lead_id] || "").trim() : String(idx);
             const clientName = wizardMapping.client_name ? String(row[wizardMapping.client_name] || "").trim() : "";
@@ -1403,9 +1442,22 @@ export default function Home() {
             const leadCampaign = wizardMapping.lead_campaign ? String(row[wizardMapping.lead_campaign] || "").trim() : "";
             const leadIndustry = wizardMapping.lead_industry ? String(row[wizardMapping.lead_industry] || "").trim() : "";
 
+            // ─── DATA POR LINHA: usa a coluna "Criado" de cada registro ──────
+            // Formato esperado: "DD/MM/YYYY HH:MM:SS" (ex: "21/07/2026 16:06:41")
+            // Cada negócio recebe o reference_month da SUA data de criação,
+            // NÃO o mês inferido do nome do arquivo.
             let dateVal = wizardMapping.date ? row[wizardMapping.date] : undefined;
             if (!dateVal) dateVal = getSemanticValue(row, "date");
-            const enrichedDate = applyTemporalIntelligence(dateVal || `${reference_month}-01`, finalDateFormat);
+            
+            // Limpa timestamp (remove hora) antes de parsear se formato DD/MM/YYYY HH:MM:SS
+            let cleanDateVal = dateVal;
+            if (cleanDateVal && typeof cleanDateVal === "string") {
+              // Remove parte da hora para evitar confusão no parser
+              const dtMatch = cleanDateVal.match(/^(\d{1,2}\/\d{1,2}\/\d{4})/);
+              if (dtMatch) cleanDateVal = dtMatch[1];
+            }
+            
+            const enrichedDate = applyTemporalIntelligence(cleanDateVal || `${reference_month}-01`, finalDateFormat);
 
             // Bitrix: todos os registros contam como Leads Qualificados (is_demo = true)
             // DOitSA: todos os registros contam como Agendados (conversions = 1)
@@ -1413,7 +1465,7 @@ export default function Home() {
             const isScheduled = wizardPlatform === "doitsa";
 
             return {
-              id: `crm_${wizardPlatform}_${reference_month}_${leadId}_${idx}`,
+              id: `crm_${wizardPlatform}_${enrichedDate.reference_month || reference_month}_${leadId}_${idx}`,
               platform: wizardPlatform,
               crm_platform: wizardPlatform,
               dataset_type: "crm_leads",
@@ -1461,7 +1513,7 @@ export default function Home() {
         setWizardResultCount(crmRows.length);
         setWizardStep("success");
         updateFileStatus(wizardFile.name, "sucesso", `Sincronizado ${wizardPlatform === "bitrix" ? "Bitrix24" : "DOitSA"}`);
-        triggerToast(`${wizardPlatform === "bitrix" ? "Bitrix24 CRM" : "DOitSA"}: ${crmRows.length} registros processados.`);
+        triggerToast(`${wizardPlatform === "bitrix" ? "Bitrix24 CRM" : "DOitSA"}: ${crmRows.length} negócios únicos processados (${wizardRawRows.length} linhas brutas deduplificadas).`);
         return;
       }
       // ─────────────────────────────────────────────────────────────────────────
