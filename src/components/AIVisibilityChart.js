@@ -9,12 +9,14 @@ const pct = (v) => v.toFixed(2).replace(".", ",") + "%";
 const BOT_COLORS = {
   Meta: "#0668E1", Huawei: "#CF0A2C", OpenAI: "#10a37f",
   Google: "#4285F4", Apple: "#555555", Anthropic: "#d97706",
-  Parallel: "#6b7280", Microsoft: "#0078D4", Unknown: "#9ca3af",
+  Parallel: "#6b7280", Microsoft: "#0078D4", "Mistral AI": "#FF7000",
+  Unknown: "#9ca3af",
 };
 
 const BOT_ICONS = {
   Meta: "🟦", Huawei: "🔴", OpenAI: "🤖", Google: "🟢",
-  Apple: "🍎", Anthropic: "🟠", Parallel: "⚪", Microsoft: "🔵", Unknown: "❓",
+  Apple: "🍎", Anthropic: "🟠", Parallel: "⚪", Microsoft: "🔵",
+  "Mistral AI": "🟧", Unknown: "❓",
 };
 
 const BOT_DESCRIPTIONS = {
@@ -26,6 +28,7 @@ const BOT_DESCRIPTIONS = {
   Anthropic: "Bot do Claude AI para pesquisa e respostas.",
   Parallel: "Serviço paralelo de rastreamento de IA.",
   Microsoft: "Bot do Copilot/Bing AI para respostas e busca.",
+  "Mistral AI": "Bot da Mistral AI (Le Chat) para rastreamento e busca.",
 };
 
 const ACTIVITY_LABELS = { "AI Crawler": "Rastreador IA", "AI Search": "Busca IA", "AI Assistant": "Assistente IA" };
