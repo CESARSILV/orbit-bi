@@ -120,7 +120,7 @@ export function useMarketingData() {
       });
 
       // 2. Executar import no Supabase
-      const result = await executeImport(orgId, userId, fileMeta, rows, onProgress);
+      const result = await executeImport(orgId, userId, fileMeta, rows, action, onProgress);
 
       if (result.success) {
         // 3. Limpar staging

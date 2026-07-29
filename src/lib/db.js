@@ -630,58 +630,46 @@ export function consolidateSummary(db) {
     });
   }
 
-  const mergedCrmRows = [];
-  const matchedDoitsaIds = new Set();
+  const mergedCrmRows = bitrixRows.map(b => ({
+    ...b,
+    conversions: 0,
+    is_demo: true,
+    crm_platform: "bitrix",
+  }));
 
-  bitrixRows.forEach(b => {
-    const bName = cleanNameForMatch(b.client_name);
-    const bPhone = cleanPhoneForMatch(b.phone);
-    const bLeadId = b.lead_id ? String(b.lead_id).trim() : "";
+  // O DOitSA confirma o agendamento, mas nunca cria um Lead Qualificado.
+  // Mantemos o registro DOitSA separado para preservar o mês real do agendamento;
+  // o match com o Bitrix serve somente para herdar a origem Meta/Google.
+  doitsaRows.forEach((d, dIndex) => {
+    const dName = cleanNameForMatch(d.client_name);
+    const dPhone = cleanPhoneForMatch(d.phone);
+    const dLeadId = d.lead_id ? String(d.lead_id).trim() : "";
 
-    const match = doitsaRows.find(d => {
-      if (matchedDoitsaIds.has(d.id)) return false;
-
-      const dName = cleanNameForMatch(d.client_name);
-      const dPhone = cleanPhoneForMatch(d.phone);
-      const dLeadId = d.lead_id ? String(d.lead_id).trim() : "";
+    const match = bitrixRows.find(b => {
+      const bName = cleanNameForMatch(b.client_name);
+      const bPhone = cleanPhoneForMatch(b.phone);
+      const bLeadId = b.lead_id ? String(b.lead_id).trim() : "";
 
       if (bLeadId && dLeadId && bLeadId === dLeadId) return true;
       if (bPhone && dPhone && bPhone === dPhone) return true;
       if (bName && dName && bName === dName) return true;
-      if (bName && dName && b.date === d.date && dName.includes(bName)) return true;
+      if (bName && dName && b.date === d.date && (dName.includes(bName) || bName.includes(dName))) return true;
 
       return false;
     });
 
-    if (match) {
-      matchedDoitsaIds.add(match.id);
-      mergedCrmRows.push({
-        ...b,
-        conversions: match.conversions || 1,
-        is_demo: b.is_demo,
-        crm_platform: "bitrix",
-        doitsa_matched: true,
-        client_name: b.client_name || match.client_name,
-        phone: b.phone || match.phone,
-        lead_id: b.lead_id || match.lead_id,
-      });
-    } else {
-      mergedCrmRows.push({
-        ...b,
-        conversions: 0,
-        crm_platform: "bitrix",
-      });
-    }
-  });
-
-  doitsaRows.forEach(d => {
-    if (!matchedDoitsaIds.has(d.id)) {
-      mergedCrmRows.push({
-        ...d,
-        is_demo: true,  // DOitSA sem match = lead qualificado que agendou (confirmado pelo DOitSA)
-        crm_platform: "doitsa",
-      });
-    }
+    mergedCrmRows.push({
+      ...d,
+      id: d.id || `doitsa_${d.lead_id || dIndex}_${d.date || "sem-data"}`,
+      conversions: d.conversions || 1,
+      is_demo: false,
+      crm_platform: "doitsa",
+      doitsa_matched: Boolean(match),
+      lead_source: match?.lead_source || d.lead_source || "",
+      lead_medium: match?.lead_medium || d.lead_medium || "",
+      lead_campaign: match?.lead_campaign || d.lead_campaign || "",
+      lead_industry: match?.lead_industry || d.lead_industry || "",
+    });
   });
 
   if (mergedCrmRows.length > 0) {
@@ -727,7 +715,7 @@ export function consolidateSummary(db) {
       }
 
       const g = groups[crmGroupKey];
-      g.crm_leads += 1;
+      g.crm_leads += (r.is_demo === true || r.is_demo === 1) ? 1 : 0;
       g.conversions += r.conversions || 0;
       g.crm_demos += (r.is_demo === true || r.is_demo === 1) ? 1 : 0;
     });

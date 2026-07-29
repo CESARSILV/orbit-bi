@@ -20,7 +20,7 @@ import ReportBuilder from "@/components/ReportBuilder";
 
 // Custom ETL & DB Ingestion Imports
 import { parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticValue, parseDate, inferReferenceMonth, isTotalOrMetadata, applyTemporalIntelligence, parseFormattedFloat, sanitizeMojibake, SYNONYMS, detectFileDateFormat } from "@/lib/etl";
-import { getDatabase, saveDatabase, insertDataset, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary } from "@/lib/db";
+import { getDatabase, saveDatabase, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary } from "@/lib/db";
 import { clearAnalyticsSystem } from "@/lib/clearAnalyticsSystem";
 import { useMarketingData } from "@/lib/useMarketingData";
 
@@ -63,6 +63,14 @@ export default function Home() {
     orgId: currentOrgId,
     userId: currentUserId,
   } = useMarketingData();
+
+  const persistImport = async (metadata, rows, action = "replace") => {
+    const result = await dalImportData(metadata, rows, action);
+    if (!result.success || !result.db) {
+      throw new Error(result.error || "Não foi possível persistir os dados importados.");
+    }
+    return result;
+  };
 
   // Advanced Global Filtering State
   const [platform, setPlatform] = useState("todas");
@@ -1407,24 +1415,31 @@ export default function Home() {
       // Processamento separado para relatórios do Bitrix24 e DOitSA.
       if (wizardPlatform === "bitrix" || wizardPlatform === "doitsa") {
 
-        // ─── DEDUPLICAÇÃO POR ID DO NEGÓCIO ──────────────────────────────────
-        // O Bitrix24 exporta múltiplas linhas por negócio (uma por produto/item).
-        // Ex: "Implantação" + "Usuários" = 2 linhas com mesmo ID.
-        // Para Leads Qualificados, cada negócio ÚNICO deve contar apenas 1x.
-        // Agrupamos por lead_id e mantemos apenas a primeira ocorrência.
-        const seenLeadIds = new Set();
+        // Bitrix pode repetir o mesmo negócio por produto; DOitSA pode repetir
+        // a mesma linha de agendamento. Reagendamentos em datas diferentes são preservados.
+        const seenCrmKeys = new Set();
         const dedupedRows = wizardRawRows.filter(row => {
-          // Ignora linhas totalmente vazias
           const hasContent = Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== "");
           if (!hasContent) return false;
 
-          // Deduplicação: se o lead_id já foi visto, pula esta linha
-          if (wizardPlatform === "bitrix" && wizardMapping.lead_id) {
-            const rawId = String(row[wizardMapping.lead_id] || "").trim();
-            if (rawId && rawId !== "") {
-              if (seenLeadIds.has(rawId)) return false;
-              seenLeadIds.add(rawId);
-            }
+          const normalizeMatchValue = (value) => String(value || "")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+          const rawId = wizardMapping.lead_id ? normalizeMatchValue(row[wizardMapping.lead_id]) : "";
+          const rawDate = wizardMapping.date ? normalizeMatchValue(row[wizardMapping.date]) : "";
+          const rawPhone = wizardMapping.phone ? String(row[wizardMapping.phone] || "").replace(/\D/g, "") : "";
+          const rawName = wizardMapping.client_name ? normalizeMatchValue(row[wizardMapping.client_name]) : "";
+
+          const crmKey = wizardPlatform === "bitrix"
+            ? (rawId ? `id:${rawId}` : (rawPhone || rawName) ? `contato:${rawPhone}|${rawName}|${rawDate}` : "")
+            : (rawId || rawPhone || rawName) ? `agendamento:${rawId}|${rawPhone}|${rawName}|${rawDate}` : "";
+
+          if (crmKey) {
+            if (seenCrmKeys.has(crmKey)) return false;
+            seenCrmKeys.add(crmKey);
           }
           return true;
         });
@@ -1446,7 +1461,7 @@ export default function Home() {
 
         const crmRows = dedupedRows
           .map((row, idx) => {
-            const leadId = wizardMapping.lead_id ? String(row[wizardMapping.lead_id] || "").trim() : String(idx);
+            const leadId = wizardMapping.lead_id ? String(row[wizardMapping.lead_id] || "").trim() : "";
             const clientName = wizardMapping.client_name ? String(row[wizardMapping.client_name] || "").trim() : "";
             const phone = wizardMapping.phone ? String(row[wizardMapping.phone] || "").trim() : "";
             const leadStatus = wizardMapping.lead_status ? String(row[wizardMapping.lead_status] || "").trim() : "";
@@ -1529,7 +1544,7 @@ export default function Home() {
 
         const dup = checkFileDuplicate(marketingDb, metadata);
         const action = dup ? "replace" : "replace";
-        const result = await insertDataset(marketingDb, metadata, crmRows, action);
+        const result = await persistImport(metadata, crmRows, action);
         setMarketingDb(result.db);
 
         setWizardProgress(100);
@@ -1812,7 +1827,7 @@ export default function Home() {
           setWizardStep("processing");
           setWizardProgress(95);
           setWizardStatusText("Concluindo salvamento dos registros...");
-          const result = await insertDataset(marketingDb, metadata, finalRows, action);
+          const result = await persistImport(metadata, finalRows, action);
           setMarketingDb(result.db);
 
           // Step 10 & 11: System recalculates KPIs & updates dashboard in realtime
@@ -1831,7 +1846,7 @@ export default function Home() {
           }
         });
       } else {
-        const result = await insertDataset(marketingDb, metadata, finalRows, "replace");
+        const result = await persistImport(metadata, finalRows, "replace");
         setMarketingDb(result.db);
 
         // Step 10 & 11: System recalculates KPIs & updates dashboard in realtime

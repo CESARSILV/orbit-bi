@@ -22,6 +22,25 @@ const DRIFT_TOLERANCE = 0.005; // 0,5%
 //    diferentes (2025-10-01 vs 2025-10) produzam a mesma chave.
 // ----------------------------------------------------
 export function buildRowKey(row) {
+  // CRM exige identidade própria: métricas de mídia não distinguem dois leads
+  // da mesma plataforma e data. A data permanece na chave para permitir
+  // reagendamentos legítimos do mesmo lead em dias diferentes.
+  const crmPlatform = String(row.crm_platform || "").toLowerCase().trim();
+  if (crmPlatform || row.dataset_type === "crm_leads") {
+    const normalizeText = (value) => String(value || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const dateKey = String(row.date || row.reference_month || "").trim();
+    const leadId = normalizeText(row.lead_id);
+    const phone = String(row.phone || "").replace(/\D/g, "");
+    const clientName = normalizeText(row.client_name);
+
+    return ["crm", crmPlatform || row.platform || "", dateKey, leadId, phone, clientName].join("|");
+  }
+
   // IMPORTANTE: usa a data COMPLETA (não truncada para YYYY-MM).
   //
   // Bug anterior: rawDate.slice(0, 7) normalizava "2025-10-15" para "2025-10".

@@ -17,6 +17,7 @@
 
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { buildRowKey } from "./data-validator";
+import { consolidateSummary } from "./db";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const BATCH_SIZE = 500;
@@ -578,6 +579,25 @@ function buildTableRow(table, row, orgId, userId, importJobId, sourceFileId, row
 // CONSOLIDATION — Rebuild marketing summary in Supabase
 // ============================================================
 
+async function fetchAllOrganizationRows(table, orgId) {
+  const rows = [];
+  const pageSize = 1000;
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .eq("organization_id", orgId)
+      .range(from, from + pageSize - 1);
+
+    if (error) throw new Error(`Falha ao carregar ${table}: ${error.message}`);
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+
+  return rows;
+}
+
 /**
  * Rebuild fact_marketing_summary for an organization.
  * Deletes existing summary rows and reinserts aggregated data.
@@ -586,82 +606,63 @@ function buildTableRow(table, row, orgId, userId, importJobId, sourceFileId, row
 export async function rebuildMarketingSummary(orgId) {
   if (!isSupabaseConfigured || !supabase || !orgId) return;
 
-  // Delete existing summary for this org
-  await supabase
+  const { error: deleteError } = await supabase
     .from("fact_marketing_summary")
     .delete()
     .eq("organization_id", orgId);
 
-  // Fetch fact_campaigns grouped
-  const { data: campaigns } = await supabase
-    .from("fact_campaigns")
-    .select("*")
-    .eq("organization_id", orgId);
+  if (deleteError) {
+    throw new Error(`Falha ao limpar o resumo de marketing: ${deleteError.message}`);
+  }
 
-  if (!campaigns || campaigns.length === 0) return;
+  // A consolidação remota deve usar as mesmas fontes e regras do modo local.
+  // Em especial, fact_crm é necessária para Leads Qualificados e Agendados.
+  const [campaigns, timeSeries, crmRows] = await Promise.all([
+    fetchAllOrganizationRows("fact_campaigns", orgId),
+    fetchAllOrganizationRows("fact_time_series", orgId),
+    fetchAllOrganizationRows("fact_crm", orgId),
+  ]);
 
-  // Group by platform + reference_month + campaign_name + date
-  const groups = {};
-  campaigns.forEach((r) => {
-    const key = `${r.platform}_${r.reference_month}_${r.campaign_name}_${r.date || r.reference_month}`;
-    if (!groups[key]) {
-      groups[key] = {
-        organization_id: orgId,
-        platform: r.platform,
-        campaign_name: r.campaign_name,
-        date: r.date,
-        reference_month: r.reference_month,
-        reference_label: r.reference_month ? formatRefLabel(r.reference_month) : "",
-        spend: 0,
-        clicks: 0,
-        impressions: 0,
-        conversions: 0,
-        leads: 0,
-        revenue: 0,
-        reach: 0,
-        status: r.status || "Ativo",
-        is_crm: false,
-        crm_leads: 0,
-        crm_demos: 0,
-      };
-    }
-    const g = groups[key];
-    g.spend += Number(r.spend) || 0;
-    g.clicks += Number(r.clicks) || 0;
-    g.impressions += Number(r.impressions) || 0;
-    g.conversions += Number(r.conversions) || 0;
-    g.leads += Number(r.leads) || 0;
-    g.revenue += Number(r.revenue) || 0;
-    g.reach += Number(r.reach) || 0;
+  const consolidated = consolidateSummary({
+    fact_campaigns: campaigns,
+    fact_time_series: timeSeries,
+    fact_crm: crmRows,
+    fact_devices: [],
   });
 
-  // Calculate derived metrics
-  const summaryRows = Object.values(groups).map((g) => ({
-    ...g,
-    ctr: g.impressions > 0 ? g.clicks / g.impressions : 0,
-    cpc: g.clicks > 0 ? g.spend / g.clicks : 0,
-    cpm: g.impressions > 0 ? (g.spend / g.impressions) * 1000 : 0,
-    cpl: g.leads > 0 ? g.spend / g.leads : 0,
-    cac: g.conversions > 0 ? g.spend / g.conversions : 0,
-    roas: g.spend > 0 ? g.revenue / g.spend : 0,
+  const summaryRows = (consolidated.fact_marketing_summary || []).map((row) => ({
+    organization_id: orgId,
+    platform: row.platform,
+    campaign_name: row.campaign_name || null,
+    date: row.date || null,
+    reference_month: row.reference_month || null,
+    reference_label: row.reference_label || "",
+    spend: row.spend || 0,
+    clicks: row.clicks || 0,
+    impressions: row.impressions || 0,
+    conversions: row.conversions || 0,
+    leads: row.leads || 0,
+    revenue: row.revenue || 0,
+    reach: row.reach || 0,
+    ctr: row.ctr || 0,
+    cpc: row.cpc || 0,
+    cpm: row.cpm || 0,
+    cpl: row.cpl || 0,
+    cac: row.cac || 0,
+    roas: row.roas || 0,
+    status: row.status || "Ativo",
+    is_crm: row.is_crm || false,
+    crm_leads: row.crm_leads || 0,
+    crm_demos: row.crm_demos || 0,
   }));
 
-  // Insert in batches
   for (let i = 0; i < summaryRows.length; i += BATCH_SIZE) {
     const batch = summaryRows.slice(i, i + BATCH_SIZE);
     const { error } = await supabase.from("fact_marketing_summary").insert(batch);
     if (error) {
-      console.error("[DAL] rebuildMarketingSummary insert error:", error);
+      throw new Error(`Falha ao reconstruir o resumo de marketing: ${error.message}`);
     }
   }
-}
-
-function formatRefLabel(refMonth) {
-  if (!refMonth) return "";
-  const MONTHS_PT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-  const [year, month] = refMonth.split("-");
-  const idx = parseInt(month, 10) - 1;
-  return `${MONTHS_PT[idx] || month}/${year}`;
 }
 
 
@@ -729,6 +730,51 @@ export async function logAudit(orgId, userId, action, entityType, entityId, deta
 // FULL IMPORT FLOW — Orchestrator
 // ============================================================
 
+async function removeStaleImportRows(orgId, fileMeta, rows) {
+  const targetTable = getTargetTable(fileMeta.dataset_type);
+  const months = [...new Set(rows.map(row => row.reference_month).filter(Boolean))];
+  if (months.length === 0 && fileMeta.reference_month) months.push(fileMeta.reference_month);
+  if (months.length === 0) return;
+
+  const incomingHashes = new Set(rows.map(buildRowKey));
+  const staleIds = [];
+  const pageSize = 1000;
+  let from = 0;
+
+  while (true) {
+    let query = supabase
+      .from(targetTable)
+      .select("id,row_hash")
+      .eq("organization_id", orgId)
+      .eq("platform", fileMeta.platform)
+      .in("reference_month", months)
+      .range(from, from + pageSize - 1);
+
+    if (targetTable === "fact_campaigns") {
+      query = query.eq("dataset_type", fileMeta.dataset_type);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(`Falha ao verificar registros antigos: ${error.message}`);
+
+    (data || []).forEach(row => {
+      if (!incomingHashes.has(row.row_hash)) staleIds.push(row.id);
+    });
+
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  for (let i = 0; i < staleIds.length; i += BATCH_SIZE) {
+    const { error } = await supabase
+      .from(targetTable)
+      .delete()
+      .eq("organization_id", orgId)
+      .in("id", staleIds.slice(i, i + BATCH_SIZE));
+    if (error) throw new Error(`Falha ao remover registros substituídos: ${error.message}`);
+  }
+}
+
 /**
  * Complete import flow: create job → upsert data → rebuild summary → log audit
  *
@@ -736,10 +782,11 @@ export async function logAudit(orgId, userId, action, entityType, entityId, deta
  * @param {string} userId
  * @param {object} fileMeta
  * @param {Array} rows - Normalized rows from ETL
+ * @param {string} action - "replace" | "merge" | "ignore"
  * @param {function} onProgress - Optional (0-100)
  * @returns {{ success: boolean, job: object, stats: object, error?: string }}
  */
-export async function executeImport(orgId, userId, fileMeta, rows, onProgress) {
+export async function executeImport(orgId, userId, fileMeta, rows, action = "replace", onProgress) {
   if (!isSupabaseConfigured || !supabase) {
     return { success: false, job: null, stats: null, error: "Supabase não configurado" };
   }
@@ -766,6 +813,12 @@ export async function executeImport(orgId, userId, fileMeta, rows, onProgress) {
       uploadedFile?.id || null,
       onProgress
     );
+
+    // Em replace, remove somente linhas antigas do mesmo escopo que não vieram
+    // no novo arquivo. A limpeza ocorre após o upsert bem-sucedido para evitar perda.
+    if (action === "replace" && stats.rejected === 0) {
+      await removeStaleImportRows(orgId, fileMeta, rows);
+    }
 
     // 5. Determine final status
     const finalStatus = stats.rejected === 0 ? "completed" :
