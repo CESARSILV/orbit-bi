@@ -678,7 +678,7 @@ export function consolidateSummary(db) {
     if (!matchedDoitsaIds.has(d.id)) {
       mergedCrmRows.push({
         ...d,
-        is_demo: false,
+        is_demo: true,  // DOitSA sem match = lead qualificado que agendou (confirmado pelo DOitSA)
         crm_platform: "doitsa",
       });
     }
