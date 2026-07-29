@@ -257,7 +257,8 @@ export default function Home() {
         { key: "client_name", label: "Nome do Cliente", required: false, description: "Nome completo do cliente para cruzamento." },
         { key: "phone", label: "Telefone", required: false, description: "Telefone de contato para cruzamento." },
         { key: "date", label: "Data do Agendamento (Obrigatório)", required: true, description: "Coluna contendo as datas dos agendamentos." },
-        { key: "conversions", label: "Demo / Agendamento (Obrigatório)", required: true, description: "Coluna contendo os agendamentos (Demo)." }
+        { key: "conversions", label: "Demo Realizada (Obrigatório)", required: true, description: "Coluna booleana que confirma se a demo foi realizada." },
+        { key: "realized_date", label: "Data da Demo Realizada", required: false, description: "Data efetiva da realização; quando vazia, usa a data agendada." }
       ];
     }
 
@@ -626,7 +627,7 @@ export default function Home() {
   const matchesCoreFilters = (row) => {
 
     if (platform === "bitrix") {
-      if (!row.is_crm || (row.crm_demos || 0) === 0) return false;
+      if (!row.is_crm || (row.crm_leads || 0) === 0) return false;
     } else if (platform === "doitsa") {
       if (!row.is_crm || (row.conversions || 0) === 0) return false;
     } else if (platform !== "todas" && row.platform !== platform) {
@@ -788,7 +789,7 @@ export default function Home() {
     if (list.length === 0) {
       return {
         investimento: 0, receita: 0, lucro: 0, cpa: 0, ctr: 0, cpc: 0,
-        conversoes: 0, cliques: 0, impressoes: 0, alcance: 0, roi: 0, ticket: 0,
+        conversoes: 0, qualificados: 0, demos: 0, cliques: 0, impressoes: 0, alcance: 0, roi: 0, ticket: 0,
         leads: 0, cpm: 0, cpl: 0, cac: 0
       };
     }
@@ -798,6 +799,7 @@ export default function Home() {
     const leads        = list.reduce((sum, item) => sum + (item.leads || 0), 0);
     const conversoes   = list.reduce((sum, item) => sum + (item.is_crm ? (item.conversions || 0) : 0), 0);
 
+    const qualificados = list.reduce((sum, item) => sum + (item.is_crm ? (item.crm_leads || 0) : 0), 0);
     const demos        = list.reduce((sum, item) => sum + (item.is_crm ? (item.crm_demos || 0) : 0), 0);
     const cliques      = list.reduce((sum, item) => sum + (item.clicks || 0), 0);
     const impressoes   = list.reduce((sum, item) => sum + (item.impressions || 0), 0);
@@ -820,6 +822,7 @@ export default function Home() {
       ctr,
       cpc,
       conversoes,
+      qualificados,
       demos,
       cliques,
       impressoes,
@@ -1012,8 +1015,9 @@ export default function Home() {
           reference_month: mKey,
           receita: 0,
           investimento: 0,
-          conversoes: 0,   // Agendamentos — SOMENTE do CRM (is_crm: true)
-          demos: 0,        // Demos realizadas — SOMENTE do CRM
+          conversoes: 0,   // Agendamentos — eventos do DOitSA
+          qualificados: 0,  // Clientes únicos no primeiro agendamento
+          demos: 0,        // Demos efetivamente realizadas
           google: 0,
           meta: 0,
           leads: 0,
@@ -1031,11 +1035,11 @@ export default function Home() {
       months[mKey].impressoes   += s.impressions  || 0;
       months[mKey].alcance      += s.reach        || 0;
 
-      // Conversões (Agendamentos) e Demos: SOMENTE de entradas CRM (is_crm === true)
-      // Isso evita que as conversões de campanhas de anúncios (Google/Meta) apareçam como Agendamentos
+      // Funil CRM: qualificados únicos, agendamentos e demos realizadas.
       if (s.is_crm) {
-        months[mKey].conversoes += s.conversions  || 0;
-        months[mKey].demos      += s.crm_demos    || 0;
+        months[mKey].conversoes   += s.conversions || 0;
+        months[mKey].qualificados += s.crm_leads   || 0;
+        months[mKey].demos        += s.crm_demos   || 0;
       }
 
       if (s.platform === "google" && !s.is_crm) months[mKey].google += spend;
@@ -1254,6 +1258,7 @@ export default function Home() {
         if (headers.includes("Demo")) initialMapping.date = "Demo";
         if (headers.includes("Demo Realizada")) initialMapping.conversions = "Demo Realizada";
         else if (headers.includes("Demo")) initialMapping.conversions = "Demo";
+        if (headers.includes("Data Realizado")) initialMapping.realized_date = "Data Realizado";
         if (headers.includes("Cliente")) initialMapping.client_name = "Cliente";
         if (headers.includes("Telefone do Cliente")) initialMapping.phone = "Telefone do Cliente";
         if (headers.includes("Cód")) initialMapping.lead_id = "Cód";
@@ -1464,7 +1469,7 @@ export default function Home() {
             const leadId = wizardMapping.lead_id ? String(row[wizardMapping.lead_id] || "").trim() : "";
             const clientName = wizardMapping.client_name ? String(row[wizardMapping.client_name] || "").trim() : "";
             const phone = wizardMapping.phone ? String(row[wizardMapping.phone] || "").trim() : "";
-            const leadStatus = wizardMapping.lead_status ? String(row[wizardMapping.lead_status] || "").trim() : "";
+            let leadStatus = wizardMapping.lead_status ? String(row[wizardMapping.lead_status] || "").trim() : "";
             const leadSource = wizardMapping.lead_source ? String(row[wizardMapping.lead_source] || "").trim() : "";
             const leadMedium = wizardMapping.lead_medium ? String(row[wizardMapping.lead_medium] || "").trim() : "";
             const leadCampaign = wizardMapping.lead_campaign ? String(row[wizardMapping.lead_campaign] || "").trim() : "";
@@ -1498,10 +1503,36 @@ export default function Home() {
             
             const enrichedDate = applyTemporalIntelligence(cleanDateVal || `${reference_month}-01`, finalDateFormat);
 
-            // Bitrix: todos os registros contam como Leads Qualificados (is_demo = true)
-            // DOitSA: todos os registros contam como Agendados (conversions = 1)
-            const isQualified = wizardPlatform === "bitrix";
+            // Regra operacional DOit:
+            // - Bitrix confirma o negócio e a origem, sem gerar contagem isolada.
+            // - DOitSA gera um agendamento por linha.
+            // - "Demo Realizada" é persistida em is_demo para consolidação posterior.
+            // A qualificação única por cliente é calculada em consolidateSummary(),
+            // que conhece todo o histórico e consegue identificar o primeiro agendamento.
             const isScheduled = wizardPlatform === "doitsa";
+            const rawDemoRealized = wizardMapping.conversions
+              ? row[wizardMapping.conversions]
+              : undefined;
+            const normalizedDemoRealized = String(rawDemoRealized ?? "")
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .trim();
+            const isDemoRealized = isScheduled && ["true", "verdadeiro", "sim", "1", "yes"].includes(normalizedDemoRealized);
+
+            if (isScheduled) {
+              let realizedDate = enrichedDate.date;
+              const rawRealizedDate = wizardMapping.realized_date
+                ? row[wizardMapping.realized_date]
+                : undefined;
+              const parsedRealizedDate = parseDate(rawRealizedDate, finalDateFormat);
+              if (parsedRealizedDate && !isNaN(parsedRealizedDate.getTime())) {
+                realizedDate = applyTemporalIntelligence(rawRealizedDate, finalDateFormat).date;
+              }
+              leadStatus = isDemoRealized
+                ? `Demo Realizada|${realizedDate}`
+                : "Demo Agendada";
+            }
 
             return {
               id: `crm_${wizardPlatform}_${enrichedDate.reference_month || reference_month}_${leadId}_${idx}`,
@@ -1516,7 +1547,7 @@ export default function Home() {
               lead_medium: leadMedium,
               lead_campaign: leadCampaign,
               lead_industry: leadIndustry,
-              is_demo: isQualified, 
+              is_demo: isDemoRealized,
               date: enrichedDate.date,
               reference_month: enrichedDate.reference_month || reference_month,
               reference_label: enrichedDate.reference_label || reference_label,
@@ -2128,13 +2159,18 @@ export default function Home() {
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Leads Qualificados</div>
-      <div class="kpi-value">${numFmt(totals.demos)}</div>
-      <div class="kpi-sub">Leads qualificados CRM</div>
+      <div class="kpi-value">${numFmt(totals.qualificados)}</div>
+      <div class="kpi-sub">Clientes únicos no primeiro agendamento</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Agendados</div>
+      <div class="kpi-label">Agendamentos</div>
       <div class="kpi-value">${numFmt(totals.conversoes)}</div>
-      <div class="kpi-sub">Agendamentos no CRM</div>
+      <div class="kpi-sub">Inclui remarcações</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Demos Realizadas</div>
+      <div class="kpi-value">${numFmt(totals.demos)}</div>
+      <div class="kpi-sub">Confirmação no DOitSA</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">CPC Médio</div>
@@ -2232,30 +2268,33 @@ export default function Home() {
       [],
       ["RESUMO DE KPIs (FÓRMULAS EXCEL)"],
       ["KPI", "Valor", "Fórmula", "Descrição"],
-      ["Investimento Total (R$)", `=SOMA(E17:E${totalRows + 16})`, "=SOMA(E17:E...)", "Soma de todo investimento em mídia paga"],
-      ["Cliques Totais", `=SOMA(F17:F${totalRows + 16})`, "=SOMA(F17:F...)", "Quantidade total de cliques recebidos"],
-      ["Impressões Totais", `=SOMA(G17:G${totalRows + 16})`, "=SOMA(G17:G...)", "Quantidade total de exibições do anúncio"],
-      ["Leads Totais", `=SOMA(H17:H${totalRows + 16})`, "=SOMA(H17:H...)", "Quantidade total de leads capturados"],
-      ["Agendados Totais", `=SOMA(J17:J${totalRows + 16})`, "=SOMA(J17:J...)", "Quantidade total de agendamentos"],
+      ["Investimento Total (R$)", `=SOMA(E19:E${totalRows + 18})`, "=SOMA(E19:E...)", "Soma de todo investimento em mídia paga"],
+      ["Cliques Totais", `=SOMA(F19:F${totalRows + 18})`, "=SOMA(F19:F...)", "Quantidade total de cliques recebidos"],
+      ["Impressões Totais", `=SOMA(G19:G${totalRows + 18})`, "=SOMA(G19:G...)", "Quantidade total de exibições do anúncio"],
+      ["Leads Totais", `=SOMA(H19:H${totalRows + 18})`, "=SOMA(H19:H...)", "Quantidade total de leads capturados"],
+      ["Leads Qualificados", `=SOMA(I19:I${totalRows + 18})`, "=SOMA(I19:I...)", "Clientes únicos no primeiro agendamento"],
+      ["Agendamentos Totais", `=SOMA(J19:J${totalRows + 18})`, "=SOMA(J19:J...)", "Agendamentos, incluindo remarcações"],
+      ["Demos Realizadas", `=SOMA(K19:K${totalRows + 18})`, "=SOMA(K19:K...)", "Demos confirmadas como realizadas"],
       ["CTR Geral", `=SEERRO(B7/B8;0)`, "=Cliques/Impressões", "Taxa média de cliques"],
       ["CPC Geral (R$)", `=SEERRO(B6/B7;0)`, "=Investimento/Cliques", "Custo médio por clique"],
       ["CPL Geral (R$)", `=SEERRO(B6/B9;0)`, "=Investimento/Leads", "Custo por lead"],
-      ["CPA Geral (R$)", `=SEERRO(B6/B10;0)`, "=Investimento/Agendados", "Custo por agendamento"],
+      ["CPA Geral (R$)", `=SEERRO(B6/B11;0)`, "=Investimento/Agendamentos", "Custo por agendamento"],
       [],
-      ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Cliques Totais", "Impressões", "Leads", "Leads Qualificados", "Agendados", "CTR", "CPC", "CPM", "CPL", "CPA", "Status"],
+      ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Cliques Totais", "Impressões", "Leads", "Leads Qualificados", "Agendamentos", "Demos Realizadas", "CTR", "CPC", "CPM", "CPL", "CPA", "Status"],
       ...listToExport.map((item, index) => {
-        const rowNum = index + 17; // starts on row 17
+        const rowNum = index + 19; // starts on row 19
         return [
           item.date,
           item.reference_label,
-          item.platform === "google" ? "Google Ads" : item.platform === "bitrix" ? "Bitrix24 CRM" : "Meta Ads",
+          item.platform === "google" ? "Google Ads" : item.platform === "meta" ? "Meta Ads" : item.platform === "doitsa" ? "DOitSA" : "Bitrix24 CRM",
           item.campaign_name,
           item.spend,
           item.clicks,
           item.impressions,
           item.leads,
-          item.is_crm ? (item.crm_demos || item.conversions || 0) : 0,
+          item.is_crm ? (item.crm_leads || 0) : 0,
           item.is_crm ? (item.conversions || 0) : 0,
+          item.is_crm ? (item.crm_demos || 0) : 0,
           `=SEERRO(F${rowNum}/G${rowNum};0)`,
           `=SEERRO(E${rowNum}/F${rowNum};0)`,
           `=SEERRO((E${rowNum}/G${rowNum})*1000;0)`,

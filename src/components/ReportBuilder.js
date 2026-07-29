@@ -26,14 +26,15 @@ const KPI_DEFS = [
   { key: "cpc",          label: "CPC",            icon: "💲", fmt: (v) => brl2.format(v), desc: "Custo por clique" },
   { key: "cpm",          label: "CPM",            icon: "📣", fmt: (v) => brl2.format(v), desc: "Custo por mil impressões" },
   { key: "leads",        label: "Leads",          icon: "🎯", fmt: (v) => num.format(v),  desc: "Leads captados" },
-  { key: "demos",        label: "Leads Qualificados", icon: "🔮", fmt: (v) => num.format(v), desc: "Leads qualificados no CRM (via CRM Bitrix)" },
-  { key: "conversoes",   label: "Agendados",      icon: "✅", fmt: (v) => num.format(v),  desc: "Agendamentos confirmados (via CRM Bitrix)" },
+  { key: "qualificados", label: "Leads Qualificados", icon: "🔮", fmt: (v) => num.format(v), desc: "Clientes únicos que chegaram ao primeiro agendamento" },
+  { key: "conversoes",   label: "Agendamentos", icon: "✅", fmt: (v) => num.format(v), desc: "Agendamentos registrados, incluindo remarcações" },
+  { key: "demos",        label: "Demos Realizadas", icon: "🎬", fmt: (v) => num.format(v), desc: "Demos confirmadas como realizadas no DOitSA" },
   { key: "cpa",          label: "CPA",            icon: "🏷️", fmt: (v) => brl2.format(v), desc: "Custo por agendamento" },
   { key: "cpl",          label: "CPL",            icon: "📋", fmt: (v) => brl2.format(v), desc: "Custo por lead" },
   { key: "alcance",      label: "Alcance",        icon: "🌐", fmt: (v) => num.format(v),  desc: "Pessoas alcançadas" },
 ];
 
-const DEFAULT_KPIS = ["investimento", "cliques", "impressoes", "ctr", "leads", "demos", "conversoes", "cpa", "cpl"];
+const DEFAULT_KPIS = ["investimento", "cliques", "impressoes", "ctr", "leads", "qualificados", "conversoes", "demos", "cpa", "cpl"];
 
 // ─── Calcula linha de dados para um mês ──────────────────────────────────────
 function calcRowKpis(row) {
@@ -41,6 +42,7 @@ function calcRowKpis(row) {
   const cliques      = row.cliques     || 0;
   const impressoes   = row.impressoes  || 0;
   const leads        = row.leads       || 0;
+  const qualificados = row.qualificados || 0;
   const conversoes   = row.conversoes  || 0;
   const alcance      = row.alcance     || 0;
   const demos        = row.demos       || 0;
@@ -53,6 +55,7 @@ function calcRowKpis(row) {
     cpc:      cliques    > 0 ? investimento / cliques    : 0,
     cpm:      impressoes > 0 ? (investimento / impressoes) * 1000 : 0,
     leads,
+    qualificados,
     conversoes,
     demos,
     cpa:      conversoes > 0 ? investimento / conversoes : 0,
@@ -65,13 +68,14 @@ function calcRowKpis(row) {
 function calcTotalRow(rows) {
   const total = {
     investimento: 0, cliques: 0, impressoes: 0,
-    leads: 0, conversoes: 0, alcance: 0, demos: 0,
+    leads: 0, qualificados: 0, conversoes: 0, alcance: 0, demos: 0,
   };
   rows.forEach(r => {
     total.investimento += r.investimento || 0;
     total.cliques      += r.cliques      || 0;
     total.impressoes   += r.impressoes   || 0;
     total.leads        += r.leads        || 0;
+    total.qualificados += r.qualificados || 0;
     total.conversoes   += r.conversoes   || 0;
     total.alcance      += r.alcance      || 0;
     total.demos        += r.demos        || 0;
@@ -260,7 +264,11 @@ export default function ReportBuilder({
     if (prefs) {
       setTimeout(() => {
         if (prefs.selectedKpis) {
-          let kpis = prefs.selectedKpis;
+          let kpis = [...prefs.selectedKpis];
+          if (!kpis.includes("qualificados")) {
+            const idx = kpis.includes("conversoes") ? kpis.indexOf("conversoes") : kpis.length;
+            kpis = [...kpis.slice(0, idx), "qualificados", ...kpis.slice(idx)];
+          }
           if (kpis.includes("conversoes") && !kpis.includes("demos")) {
             const idx = kpis.indexOf("conversoes");
             kpis = [...kpis.slice(0, idx + 1), "demos", ...kpis.slice(idx + 1)];
@@ -315,6 +323,7 @@ export default function ReportBuilder({
         cliques:      row.cliques      || 0,
         impressoes:   row.impressoes   || 0,
         leads:        row.leads        || 0,
+        qualificados: row.qualificados || 0,
         conversoes:   row.conversoes   || 0,
         alcance:      row.alcance      || 0,
         demos:        row.demos        || 0,

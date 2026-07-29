@@ -18,8 +18,9 @@ Você analisa dados de marketing digital de forma ultra-estratégica, direta e p
 Resumo dos totais atuais:
 - Investimento Total: ${brlFormat(totals.investimento)}
 - CPA Médio: ${brlFormat(totals.cpa)}
-- Total de Leads Qualificados: ${(totals.demos || 0).toLocaleString('pt-BR')}
-- Total de Agendados: ${(totals.conversoes || 0).toLocaleString('pt-BR')}
+- Total de Leads Qualificados: ${(totals.qualificados || 0).toLocaleString('pt-BR')}
+- Total de Agendamentos: ${(totals.conversoes || 0).toLocaleString('pt-BR')}
+- Total de Demos Realizadas: ${(totals.demos || 0).toLocaleString('pt-BR')}
 - CPL Médio: ${brlFormat(totals.cpl || 0)}
 - CTR Médio: ${((totals.ctr || 0) * 100).toFixed(2).replace('.', ',')}%
 

@@ -630,16 +630,33 @@ export function consolidateSummary(db) {
     });
   }
 
-  const mergedCrmRows = bitrixRows.map(b => ({
-    ...b,
-    conversions: 0,
-    is_demo: true,
-    crm_platform: "bitrix",
-  }));
+  // Regra operacional DOit:
+  // - Qualificado = cliente único que chegou ao PRIMEIRO agendamento de demo.
+  // - Remarcações preservam o agendamento, mas não geram outro qualificado.
+  // - Demo realizada = campo is_demo vindo de "Demo Realizada" no DOitSA.
+  // O Bitrix confirma o negócio e fornece atribuição; não cria a contagem sozinho.
+  const getDoitsaIdentity = (row, index) => {
+    const phone = cleanPhoneForMatch(row.phone);
+    if (phone) return `telefone:${phone}`;
 
-  // O DOitSA confirma o agendamento, mas nunca cria um Lead Qualificado.
-  // Mantemos o registro DOitSA separado para preservar o mês real do agendamento;
-  // o match com o Bitrix serve somente para herdar a origem Meta/Google.
+    const name = cleanNameForMatch(row.client_name);
+    if (name) return `nome:${name}`;
+
+    const leadId = row.lead_id ? String(row.lead_id).trim() : "";
+    return leadId ? `id:${leadId}` : `linha:${index}`;
+  };
+
+  const firstAppointmentByIdentity = new Map();
+  doitsaRows.forEach((row, index) => {
+    const identity = getDoitsaIdentity(row, index);
+    const date = String(row.date || `${row.reference_month || "9999-12"}-01`);
+    const current = firstAppointmentByIdentity.get(identity);
+    if (!current || date < current.date) {
+      firstAppointmentByIdentity.set(identity, { date, index });
+    }
+  });
+
+  const mergedCrmRows = [];
   doitsaRows.forEach((d, dIndex) => {
     const dName = cleanNameForMatch(d.client_name);
     const dPhone = cleanPhoneForMatch(d.phone);
@@ -658,18 +675,50 @@ export function consolidateSummary(db) {
       return false;
     });
 
-    mergedCrmRows.push({
-      ...d,
-      id: d.id || `doitsa_${d.lead_id || dIndex}_${d.date || "sem-data"}`,
-      conversions: d.conversions || 1,
-      is_demo: false,
+    const identity = getDoitsaIdentity(d, dIndex);
+    const firstAppointment = firstAppointmentByIdentity.get(identity);
+    const attribution = {
       crm_platform: "doitsa",
       doitsa_matched: Boolean(match),
       lead_source: match?.lead_source || d.lead_source || "",
       lead_medium: match?.lead_medium || d.lead_medium || "",
       lead_campaign: match?.lead_campaign || d.lead_campaign || "",
       lead_industry: match?.lead_industry || d.lead_industry || "",
+    };
+
+    mergedCrmRows.push({
+      ...d,
+      ...attribution,
+      id: d.id || `doitsa_${d.lead_id || dIndex}_${d.date || "sem-data"}`,
+      conversions: 1,
+      is_demo: false,
+      is_qualified: firstAppointment?.index === dIndex,
+      is_realization_event: false,
     });
+
+    const isDemoRealized = d.is_demo === true || d.is_demo === 1;
+    if (isDemoRealized) {
+      const realizedDateMatch = String(d.lead_status || "").match(/^Demo Realizada\|(\d{4}-\d{2}-\d{2})$/);
+      const realizedDate = realizedDateMatch?.[1] || d.date;
+      const realizedMonth = realizedDate ? String(realizedDate).slice(0, 7) : d.reference_month;
+      const realizedMonthIndex = realizedMonth ? parseInt(realizedMonth.split("-")[1], 10) - 1 : -1;
+
+      mergedCrmRows.push({
+        ...d,
+        ...attribution,
+        id: `${d.id || `doitsa_${d.lead_id || dIndex}`}_realizada`,
+        lead_status: "Demo Realizada",
+        date: realizedDate,
+        reference_month: realizedMonth,
+        reference_label: realizedMonthIndex >= 0
+          ? `${MONTHS_PT[realizedMonthIndex]}/${realizedMonth.split("-")[0]}`
+          : d.reference_label,
+        conversions: 0,
+        is_demo: true,
+        is_qualified: false,
+        is_realization_event: true,
+      });
+    }
   });
 
   if (mergedCrmRows.length > 0) {
@@ -677,11 +726,10 @@ export function consolidateSummary(db) {
       const refMonth = r.reference_month || (r.date && String(r.date).slice(0, 7));
       if (!refMonth) return;
 
-      // Regra de Exclusão: indicação ou Playbooks não fazem parte do marketing e devem ser ignorados
+      // A origem não exclui o cliente do funil. Indicação, Playbooks e origens
+      // não pagas continuam contando como qualificados/agendados; a origem serve
+      // apenas para atribuição de canal.
       const sourceStr = String(r.lead_source || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-      if (sourceStr.includes("indicacao") || sourceStr.includes("playbook")) {
-        return;
-      }
 
       let detectedPlatform = r.crm_platform === "doitsa" ? "doitsa" : "bitrix";
       
@@ -715,9 +763,9 @@ export function consolidateSummary(db) {
       }
 
       const g = groups[crmGroupKey];
-      g.crm_leads += (r.is_demo === true || r.is_demo === 1) ? 1 : 0;
-      g.conversions += r.conversions || 0;
-      g.crm_demos += (r.is_demo === true || r.is_demo === 1) ? 1 : 0;
+      g.crm_leads += r.is_qualified ? 1 : 0;
+      g.conversions += r.is_realization_event ? 0 : 1;
+      g.crm_demos += r.is_realization_event ? 1 : 0;
     });
   }
 

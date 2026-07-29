@@ -17,7 +17,9 @@ ${JSON.stringify(campaigns, null, 2)}
 Resumo dos totais atuais:
 - Investimento Total: ${brlFormat(totals.investimento)}
 - CPA Médio: ${brlFormat(totals.cpa)}
-- Total de Conversões: ${(totals.conversoes || 0).toLocaleString('pt-BR')}
+- Leads Qualificados: ${(totals.qualificados || 0).toLocaleString('pt-BR')}
+- Agendamentos: ${(totals.conversoes || 0).toLocaleString('pt-BR')}
+- Demos Realizadas: ${(totals.demos || 0).toLocaleString('pt-BR')}
 - CPL Médio: ${brlFormat(totals.cpl || 0)}
 - CTR Médio: ${((totals.ctr || 0) * 100).toFixed(2).replace('.', ',')}%
 
