@@ -1431,6 +1431,19 @@ export default function Home() {
 
         console.log(`[CRM DEDUP] ${wizardPlatform}: ${wizardRawRows.length} linhas brutas → ${dedupedRows.length} negócios únicos (${wizardRawRows.length - dedupedRows.length} duplicatas de produto removidas)`);
 
+        // ─── DIAGNÓSTICO: distribuição de meses ──────────────────────────────
+        const monthDistribution = {};
+        dedupedRows.forEach(row => {
+          let dv = wizardMapping.date ? row[wizardMapping.date] : undefined;
+          if (!dv) dv = "SEM_DATA";
+          const dvStr = String(dv).substring(0, 20);
+          const dtMatch = String(dv).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+          const mKey = dtMatch ? `${dtMatch[3]}-${dtMatch[2].padStart(2, "0")}` : "FALLBACK";
+          monthDistribution[mKey] = (monthDistribution[mKey] || 0) + 1;
+        });
+        console.log(`[CRM DEDUP] Distribuição de meses detectada:`, JSON.stringify(monthDistribution));
+        // ─────────────────────────────────────────────────────────────────────
+
         const crmRows = dedupedRows
           .map((row, idx) => {
             const leadId = wizardMapping.lead_id ? String(row[wizardMapping.lead_id] || "").trim() : String(idx);
@@ -1447,12 +1460,23 @@ export default function Home() {
             // Cada negócio recebe o reference_month da SUA data de criação,
             // NÃO o mês inferido do nome do arquivo.
             let dateVal = wizardMapping.date ? row[wizardMapping.date] : undefined;
+            
+            // Fallback 1: busca semântica por sinônimos de data
             if (!dateVal) dateVal = getSemanticValue(row, "date");
+            
+            // Fallback 2: se ainda não encontrou, busca qualquer valor com formato DD/MM/YYYY nas colunas
+            if (!dateVal) {
+              for (const val of Object.values(row)) {
+                if (val && /^\d{1,2}\/\d{1,2}\/\d{4}/.test(String(val))) {
+                  dateVal = val;
+                  break;
+                }
+              }
+            }
             
             // Limpa timestamp (remove hora) antes de parsear se formato DD/MM/YYYY HH:MM:SS
             let cleanDateVal = dateVal;
             if (cleanDateVal && typeof cleanDateVal === "string") {
-              // Remove parte da hora para evitar confusão no parser
               const dtMatch = cleanDateVal.match(/^(\d{1,2}\/\d{1,2}\/\d{4})/);
               if (dtMatch) cleanDateVal = dtMatch[1];
             }

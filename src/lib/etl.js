@@ -870,7 +870,35 @@ export function splitCsvLine(line, delimiter) {
 }
 
 export function parseCsv(text) {
-  const rawLines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter(line => line.trim().length > 0);
+  // ─── FIX: Handle newlines inside quoted fields (RFC 4180) ──────────
+  // Instead of splitting by \n first (which breaks multi-line fields),
+  // we parse the text respecting quoted field boundaries.
+  const cleanText = text.replace(/^\uFEFF/, "");
+  
+  // Split into logical lines respecting quotes
+  const rawLines = [];
+  let currentLine = "";
+  let inQuotes = false;
+  for (let i = 0; i < cleanText.length; i++) {
+    const char = cleanText[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      currentLine += char;
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && cleanText[i + 1] === '\n') i++; // skip \r\n
+      if (currentLine.trim().length > 0) {
+        rawLines.push(currentLine);
+      }
+      currentLine = "";
+    } else {
+      currentLine += char;
+    }
+  }
+  if (currentLine.trim().length > 0) {
+    rawLines.push(currentLine);
+  }
+  // ─────────────────────────────────────────────────────────────────────
+
   if (rawLines.length < 2) return [];
 
   // Find the header line index
