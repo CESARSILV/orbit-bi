@@ -1467,7 +1467,13 @@ export default function Home() {
         const crmRows = dedupedRows
           .map((row, idx) => {
             const leadId = wizardMapping.lead_id ? String(row[wizardMapping.lead_id] || "").trim() : "";
-            const clientName = wizardMapping.client_name ? String(row[wizardMapping.client_name] || "").trim() : "";
+            const mappedClientName = wizardMapping.client_name ? String(row[wizardMapping.client_name] || "").trim() : "";
+            const bitrixAliases = wizardPlatform === "bitrix"
+              ? [mappedClientName, row["Contato"], row["Empresa"]]
+                .map(value => String(value || "").trim())
+                .filter((value, index, values) => value && values.indexOf(value) === index)
+              : [mappedClientName];
+            const clientName = bitrixAliases.join(" | ");
             const phone = wizardMapping.phone ? String(row[wizardMapping.phone] || "").trim() : "";
             let leadStatus = wizardMapping.lead_status ? String(row[wizardMapping.lead_status] || "").trim() : "";
             const leadSource = wizardMapping.lead_source ? String(row[wizardMapping.lead_source] || "").trim() : "";
@@ -1504,11 +1510,10 @@ export default function Home() {
             const enrichedDate = applyTemporalIntelligence(cleanDateVal || `${reference_month}-01`, finalDateFormat);
 
             // Regra operacional DOit:
-            // - Bitrix confirma o negócio e a origem, sem gerar contagem isolada.
-            // - DOitSA gera um agendamento por linha.
-            // - "Demo Realizada" é persistida em is_demo para consolidação posterior.
-            // A qualificação única por cliente é calculada em consolidateSummary(),
-            // que conhece todo o histórico e consegue identificar o primeiro agendamento.
+            // - Bitrix registra negócios em fases qualificadas e fornece atribuição.
+            // - DOitSA registra agendamentos e confirma a realização da demo.
+            // - A união mensal e a deduplicação por cliente são calculadas em
+            //   consolidateSummary(), que conhece o histórico das duas fontes.
             const isScheduled = wizardPlatform === "doitsa";
             const rawDemoRealized = wizardMapping.conversions
               ? row[wizardMapping.conversions]

@@ -607,14 +607,63 @@ export function consolidateSummary(db) {
     return String(p).replace(/\D/g, "");
   };
 
-  const cleanNameForMatch = (n) => {
-    if (!n) return "";
-    return String(n)
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/\s+/g, "")
-      .trim();
+  const normalizeNameForMatch = (value) => String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\b(ltda|me|eireli|arquitetura|arquitetos|arquiteto|interiores|engenharia|construtora|studio|estudio|escritorio|design|usuarios|usuario|servicos)\b/g, " ")
+    .replace(/\d+/g, " ")
+    .replace(/[^a-z]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const getNameAliases = (value) => String(value || "")
+    .split("|")
+    .map(normalizeNameForMatch)
+    .filter(Boolean);
+
+  const editDistance = (a, b) => {
+    const row = Array.from({ length: b.length + 1 }, (_, index) => index);
+    for (let i = 1; i <= a.length; i++) {
+      let previous = row[0];
+      row[0] = i;
+      for (let j = 1; j <= b.length; j++) {
+        const current = row[j];
+        row[j] = a[i - 1] === b[j - 1]
+          ? previous
+          : Math.min(previous, row[j - 1], row[j]) + 1;
+        previous = current;
+      }
+    }
+    return row[b.length];
+  };
+
+  const namesMatch = (left, right) => {
+    const leftAliases = getNameAliases(left);
+    const rightAliases = getNameAliases(right);
+
+    return leftAliases.some(a => rightAliases.some(b => {
+      const compactA = a.replace(/\s+/g, "");
+      const compactB = b.replace(/\s+/g, "");
+      if (!compactA || !compactB) return false;
+      if (compactA === compactB) return true;
+      if (compactA.length >= 6 && compactB.length >= 6 && (compactA.includes(compactB) || compactB.includes(compactA))) return true;
+      return Math.min(compactA.length, compactB.length) >= 10 && editDistance(compactA, compactB) <= 2;
+    }));
+  };
+
+  const isQualifiedBitrixStage = (stage) => {
+    const normalized = normalizeNameForMatch(stage).replace(/\s+/g, "");
+    return [
+      "demos",
+      "reagendardemo",
+      "propostaenviada",
+      "descontoenviado",
+      "aguardandoassinatura",
+      "aguardandopagamento",
+      "aguandandopagamento",
+      "formulariodeadesao",
+    ].some(qualifiedStage => normalized.includes(qualifiedStage));
   };
 
   const bitrixRows = [];
@@ -631,16 +680,17 @@ export function consolidateSummary(db) {
   }
 
   // Regra operacional DOit:
-  // - Qualificado = cliente único que chegou ao PRIMEIRO agendamento de demo.
-  // - Remarcações preservam o agendamento, mas não geram outro qualificado.
+  // - Bitrix qualifica negócios em Demo, Reagendar, Proposta e etapas posteriores.
+  // - DOitSA qualifica o cliente no primeiro agendamento, inclusive se não realizado.
+  // - Quando ambos registram o mesmo cliente no mês, conta apenas uma vez.
+  // - Remarcações preservam o evento de agendamento, sem duplicar o qualificado.
   // - Demo realizada = campo is_demo vindo de "Demo Realizada" no DOitSA.
-  // O Bitrix confirma o negócio e fornece atribuição; não cria a contagem sozinho.
   const getDoitsaIdentity = (row, index) => {
     const phone = cleanPhoneForMatch(row.phone);
     if (phone) return `telefone:${phone}`;
 
-    const name = cleanNameForMatch(row.client_name);
-    if (name) return `nome:${name}`;
+    const name = getNameAliases(row.client_name)[0] || "";
+    if (name) return `nome:${name.replace(/\s+/g, "")}`;
 
     const leadId = row.lead_id ? String(row.lead_id).trim() : "";
     return leadId ? `id:${leadId}` : `linha:${index}`;
@@ -656,27 +706,39 @@ export function consolidateSummary(db) {
     }
   });
 
-  const mergedCrmRows = [];
+  const mergedCrmRows = bitrixRows.map((row, index) => ({
+    ...row,
+    id: row.id || `bitrix_${row.lead_id || index}_${row.date || "sem-data"}`,
+    crm_platform: "bitrix",
+    conversions: 0,
+    is_demo: false,
+    is_qualified: isQualifiedBitrixStage(row.lead_status),
+    is_realization_event: false,
+  }));
+
   doitsaRows.forEach((d, dIndex) => {
-    const dName = cleanNameForMatch(d.client_name);
     const dPhone = cleanPhoneForMatch(d.phone);
     const dLeadId = d.lead_id ? String(d.lead_id).trim() : "";
 
     const match = bitrixRows.find(b => {
-      const bName = cleanNameForMatch(b.client_name);
       const bPhone = cleanPhoneForMatch(b.phone);
       const bLeadId = b.lead_id ? String(b.lead_id).trim() : "";
 
       if (bLeadId && dLeadId && bLeadId === dLeadId) return true;
       if (bPhone && dPhone && bPhone === dPhone) return true;
-      if (bName && dName && bName === dName) return true;
-      if (bName && dName && b.date === d.date && (dName.includes(bName) || bName.includes(dName))) return true;
-
-      return false;
+      return namesMatch(b.client_name, d.client_name);
     });
 
     const identity = getDoitsaIdentity(d, dIndex);
     const firstAppointment = firstAppointmentByIdentity.get(identity);
+    const appointmentMonth = d.reference_month || (d.date && String(d.date).slice(0, 7));
+    const matchedBitrixMonth = match?.reference_month || (match?.date && String(match.date).slice(0, 7));
+    const alreadyQualifiedInBitrixThisMonth = Boolean(
+      match
+      && isQualifiedBitrixStage(match.lead_status)
+      && appointmentMonth
+      && appointmentMonth === matchedBitrixMonth
+    );
     const attribution = {
       crm_platform: "doitsa",
       doitsa_matched: Boolean(match),
@@ -692,7 +754,7 @@ export function consolidateSummary(db) {
       id: d.id || `doitsa_${d.lead_id || dIndex}_${d.date || "sem-data"}`,
       conversions: 1,
       is_demo: false,
-      is_qualified: firstAppointment?.index === dIndex,
+      is_qualified: firstAppointment?.index === dIndex && !alreadyQualifiedInBitrixThisMonth,
       is_realization_event: false,
     });
 
@@ -764,7 +826,7 @@ export function consolidateSummary(db) {
 
       const g = groups[crmGroupKey];
       g.crm_leads += r.is_qualified ? 1 : 0;
-      g.conversions += r.is_realization_event ? 0 : 1;
+      g.conversions += r.crm_platform === "doitsa" && !r.is_realization_event ? 1 : 0;
       g.crm_demos += r.is_realization_event ? 1 : 0;
     });
   }
