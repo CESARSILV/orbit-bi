@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useTheme } from "@/lib/ThemeContext";
+import ClarityExportPanel from "@/components/ClarityExportPanel";
 
 const num = new Intl.NumberFormat("pt-BR");
 const pct = (v) => v.toFixed(2).replace(".", ",") + "%";
@@ -150,6 +151,10 @@ export default function AIVisibilityChart({ startDate, endDate }) {
         </div>
       </article>
     );
+  }
+
+  if (data?.dataType === "clarity-export") {
+    return <ClarityExportPanel data={data} C={C} />;
   }
 
   const { botOperators, botActivities, totalRequests, shareOfTotalTraffic, uniquePagesRequested, violations, contentType, topPages, targetMonth } = data;
