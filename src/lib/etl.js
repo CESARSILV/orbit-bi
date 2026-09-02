@@ -731,7 +731,7 @@ export const SYNONYMS = {
     "Etapa", "etapa", "Status do Lead", "status do lead", "Fase", "fase"
   ],
   lead_source: [
-    "Fonte", "fonte", "UTM Source", "utm_source", "utm source", "UTM Source.1", "Origem",
+    "Fonte", "fonte", "Fonte de aquisição", "Fonte de aquisicao", "UTM Source", "utm_source", "utm source", "UTM Source.1", "Origem", "Origem do lead", "Origem do Lead", "Canal de aquisição", "Canal de aquisicao", "Canal", "canal",
     "Como ficou sabendo do DOit ???", "como ficou sabendo do DOit ???", "Como ficou sabendo do DOit", "como ficou sabendo do DOit", "Como ficou sabendo", "como ficou sabendo",
     "Jornada do cliente", "jornada do cliente"
   ],

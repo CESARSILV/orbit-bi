@@ -86,6 +86,7 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
     demosRealizadas: 0,
     registrosEncontrados: 0,
     registrosComOrigem: 0,
+    registrosInferidos: 0,
     hasWarning: false,
     ...breakdown,
   };
@@ -118,9 +119,9 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
         <header className="appointment-breakdown-header">
           <div>
             <p className="appointment-breakdown-eyebrow">Agendamentos</p>
-            <h2 id="appointment-breakdown-title">Detalhamento por origem</h2>
+            <h2 id="appointment-breakdown-title">Dados por plataforma</h2>
             <p id="appointment-breakdown-description">
-              Registros reais do DOitSA no período e nos filtros selecionados.
+              Registros reais do DOitSA distribuídos pela origem de aquisição no período e nos filtros selecionados.
             </p>
           </div>
           <button
@@ -153,7 +154,7 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
           <div className="appointment-breakdown-warning" role="status">
             <strong>Atenção à atribuição</strong>
             <span>
-              O card consolida {formatCount(data.total)} agendamento(s). Foram localizados {formatCount(data.registrosEncontrados)} registro(s) DOitSA neste filtro, dos quais {formatCount(data.registrosComOrigem)} têm origem preenchida. Registros antigos sem a coluna Origem aparecem em “Sem origem” e podem exigir reimportação.
+              O card consolida {formatCount(data.total)} agendamento(s). Foram localizados {formatCount(data.registrosEncontrados)} registro(s) DOitSA neste filtro, dos quais {formatCount(data.registrosComOrigem)} têm atribuição identificada por origem ou UTM. {data.registrosInferidos > 0 ? `${formatCount(data.registrosInferidos)} foram classificados por um campo auxiliar. ` : ""}Registros sem evidência de plataforma aparecem em “Sem origem” e podem exigir reimportação.
             </span>
           </div>
         )}

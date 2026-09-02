@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { buildRowKey, validateImportIntegrity, detectDuplicateRows } from "./data-validator";
+import { resolveLeadAttribution } from "./attribution";
 
 // ----------------------------------------------------
 // DB Initial State & Schema Definitions
@@ -794,8 +795,17 @@ export function consolidateSummary(db) {
       const sourceStr = String(r.lead_source || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
       let detectedPlatform = r.crm_platform === "doitsa" ? "doitsa" : "bitrix";
-      
-      if (r.crm_platform === "bitrix" || r.doitsa_matched) {
+      const attribution = resolveLeadAttribution(r);
+
+      // Quando a origem contém evidência clara, o resumo pode ser filtrado
+      // pela plataforma de aquisição sem alterar o fato de que o registro veio
+      // do DOitSA. Origem desconhecida continua como DOitSA/Outras.
+      if (attribution.category === "google") {
+        detectedPlatform = "google";
+      } else if (attribution.category === "meta") {
+        detectedPlatform = "meta";
+      } else if (r.crm_platform === "bitrix" || r.doitsa_matched) {
+        // Compatibilidade com o cruzamento legado de Bitrix/DOitSA.
         if (sourceStr.includes("google")) {
           detectedPlatform = "google";
         } else if (sourceStr.includes("instagram") || sourceStr.includes("facebook") || sourceStr.includes("meta")) {

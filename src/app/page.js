@@ -23,6 +23,7 @@ import { parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticVal
 import { getDatabase, saveDatabase, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary } from "@/lib/db";
 import { clearAnalyticsSystem } from "@/lib/clearAnalyticsSystem";
 import { useMarketingData } from "@/lib/useMarketingData";
+import { resolveLeadAttribution } from "@/lib/attribution";
 
 // Formatting helpers
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -42,24 +43,6 @@ const INITIAL_MESSAGES = [
     text: "Olá. Já analisei o painel atual e posso explicar CPA, CPL, públicos vencedores, desperdício de verba e próximos passos.",
   },
 ];
-
-// Mantém a atribuição do DOitSA independente da plataforma de mídia usada no resumo.
-// Isso permite exibir o detalhamento sem alterar o cálculo autoritativo de totals.conversoes.
-const normalizeAppointmentSource = (source) => {
-  const normalized = String(source ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-
-  if (!normalized || ["-", "n/a", "na", "null", "undefined", "sem origem", "nao informado"].includes(normalized)) {
-    return "sem_origem";
-  }
-  if (/(facebook|instagram|whatsapp|meta)/.test(normalized)) return "meta";
-  if (normalized.includes("google")) return "google";
-  if (normalized.includes("playbook")) return "playbooks";
-  return "outras";
-};
 
 export default function Home() {
   // Authentication State
@@ -275,6 +258,8 @@ export default function Home() {
         { key: "client_name", label: "Nome do Cliente", required: false, description: "Nome completo do cliente para cruzamento." },
         { key: "phone", label: "Telefone", required: false, description: "Telefone de contato para cruzamento." },
         { key: "lead_source", label: "Origem (Facebook, Instagram, Google ou Playbooks)", required: false, description: "Canal informado pelo comercial no relatório DOitSA." },
+        { key: "lead_medium", label: "UTM Medium / Meio", required: false, description: "Campo auxiliar usado somente quando identifica claramente Google, Meta ou Playbooks." },
+        { key: "lead_campaign", label: "UTM Campaign / Campanha", required: false, description: "Campo auxiliar usado somente quando o nome contém uma plataforma inequívoca." },
         { key: "date", label: "Data do Agendamento (Obrigatório)", required: true, description: "Coluna contendo as datas dos agendamentos." },
         { key: "conversions", label: "Demo Realizada (Obrigatório)", required: true, description: "Coluna booleana que confirma se a demo foi realizada." },
         { key: "realized_date", label: "Data da Demo Realizada", required: false, description: "Data efetiva da realização; quando vazia, usa a data agendada." }
@@ -901,10 +886,11 @@ export default function Home() {
     };
 
     const matchesPlatformFilter = (row) => {
-      if (platform === "todas" || platform === "doitsa") return true;
+      if (platform === "todas") return true;
       if (platform === "bitrix") return false;
 
-      const source = normalizeAppointmentSource(row.lead_source);
+      const source = resolveLeadAttribution(row).category;
+      if (platform === "doitsa") return source !== "meta" && source !== "google";
       if (platform === "meta") return source === "meta";
       if (platform === "google") return source === "google";
       return row.platform === platform;
@@ -913,7 +899,7 @@ export default function Home() {
     const matchesCampaignFilter = (row) => {
       if (campaign === "todas") return true;
 
-      const source = normalizeAppointmentSource(row.lead_source);
+      const source = resolveLeadAttribution(row).category;
       const crmCampaign = source === "google"
         ? "Google Ads (CRM)"
         : source === "meta"
@@ -930,7 +916,7 @@ export default function Home() {
     ));
 
     const counts = selectedRows.reduce((accumulator, row) => {
-      const source = normalizeAppointmentSource(row.lead_source);
+      const source = resolveLeadAttribution(row).category;
       accumulator[source] += 1;
       return accumulator;
     }, { meta: 0, google: 0, playbooks: 0, outras: 0, sem_origem: 0 });
@@ -948,6 +934,10 @@ export default function Home() {
 
     const total = Math.round(Number(totals.conversoes || 0));
     const registrosComOrigem = selectedRows.length - counts.sem_origem;
+    const registrosInferidos = selectedRows.filter((row) => {
+      const attribution = resolveLeadAttribution(row);
+      return attribution.category !== "sem_origem" && attribution.method !== "origem declarada";
+    }).length;
 
     return {
       total,
@@ -959,6 +949,7 @@ export default function Home() {
       demosRealizadas: realizedRows.length,
       registrosEncontrados: selectedRows.length,
       registrosComOrigem,
+      registrosInferidos,
       hasWarning: selectedRows.length !== total || registrosComOrigem !== total,
     };
   }, [marketingDb, totals.conversoes, platform, period, startDate, endDate, campaign]);
@@ -1355,7 +1346,13 @@ export default function Home() {
 
       // Step 4: AI suggests automatic column mapping based on SYNONYMS
       // Normalize accents for robust matching (e.g. "Mês" matches "mes", "Mês" matches "Mes")
-      const normalizeStr = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      const normalizeStr = (s) => String(s ?? "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .replace(/\s+/g, " ");
 
       const initialMapping = {};
       const fields = getWizardFields(detectedPlatform).map(f => f.key);
@@ -1410,7 +1407,14 @@ export default function Home() {
         if (safeMapping.date && !headers.includes(safeMapping.date)) {
           delete safeMapping.date; // let auto-mapping pick the right date column
         }
-        Object.assign(initialMapping, safeMapping);
+
+        // Um modelo antigo não pode apagar um mapeamento automático válido
+        // com uma coluna vazia ou inexistente, especialmente a Origem do DOitSA.
+        Object.entries(safeMapping).forEach(([field, mappedHeader]) => {
+          if (mappedHeader && headers.includes(mappedHeader)) {
+            initialMapping[field] = mappedHeader;
+          }
+        });
         triggerToast("Modelo de importação salvo carregado automaticamente!");
       }
 
@@ -1607,10 +1611,19 @@ export default function Home() {
             const clientName = bitrixAliases.join(" | ");
             const phone = wizardMapping.phone ? String(row[wizardMapping.phone] || "").trim() : "";
             let leadStatus = wizardMapping.lead_status ? String(row[wizardMapping.lead_status] || "").trim() : "";
-            const leadSource = wizardMapping.lead_source ? String(row[wizardMapping.lead_source] || "").trim() : "";
-            const leadMedium = wizardMapping.lead_medium ? String(row[wizardMapping.lead_medium] || "").trim() : "";
-            const leadCampaign = wizardMapping.lead_campaign ? String(row[wizardMapping.lead_campaign] || "").trim() : "";
-            const leadIndustry = wizardMapping.lead_industry ? String(row[wizardMapping.lead_industry] || "").trim() : "";
+            const readCrmField = (field) => {
+              const mappedHeader = wizardMapping[field];
+              const mappedValue = mappedHeader ? row[mappedHeader] : undefined;
+              if (mappedValue !== undefined && mappedValue !== null && String(mappedValue).trim() !== "") {
+                return String(mappedValue).trim();
+              }
+              const semanticValue = getSemanticValue(row, field, "");
+              return semanticValue === undefined || semanticValue === null ? "" : String(semanticValue).trim();
+            };
+            const leadSource = readCrmField("lead_source");
+            const leadMedium = readCrmField("lead_medium");
+            const leadCampaign = readCrmField("lead_campaign");
+            const leadIndustry = readCrmField("lead_industry");
 
             // ─── DATA POR LINHA: usa a coluna "Criado" de cada registro ──────
             // Formato esperado: "DD/MM/YYYY HH:MM:SS" (ex: "21/07/2026 16:06:41")
