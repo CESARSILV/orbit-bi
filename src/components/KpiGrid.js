@@ -110,11 +110,11 @@ export default function KpiGrid({ totals }) {
     },
 
     {
-      label: "CAC Médio",
+      label: "CPA Médio",
       value: totals.cac || 0,
-      // Use brl2 (2 decimal places) so R$0,53 doesn't show as R$1
+      // O denominador de totals.cac é o total de agendamentos CRM.
       formatFn: (v) => v > 0 ? brl2.format(v) : "R$ —",
-      meta: "Custo de aquisição por cliente",
+      meta: "Custo por agendamento",
       accent: "#ffd481",
     },
     {
