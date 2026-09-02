@@ -54,11 +54,13 @@ export default function Sidebar({
         onClick={onToggle}
         aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
         aria-expanded={isOpen}
+        aria-controls="navegacao-principal"
       >
         {isOpen ? "✕" : "☰"}
       </button>
 
       <aside
+        id="navegacao-principal"
         className={`sidebar${isOpen ? " open" : ""}${isCollapsed ? " sidebar--collapsed" : ""}`}
         aria-label="Navegação principal"
       >
@@ -133,6 +135,7 @@ export default function Sidebar({
                 key={item.section}
                 className={`nav-item ${activeSection === item.section ? "active" : ""}`}
                 onClick={() => handleNavClick(item.section)}
+                aria-current={activeSection === item.section ? "page" : undefined}
                 title={isCollapsed ? item.label : undefined}
               >
                 <span className="nav-item-icon">
@@ -205,6 +208,8 @@ export default function Sidebar({
             }}>
               <button
                 onClick={() => { if (isLight) toggleTheme(); }}
+                aria-pressed={!isLight}
+                aria-label="Ativar modo escuro"
                 style={{
                   flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
                   gap: "5px", padding: "7px 6px", border: "none", borderRadius: "7px",
@@ -220,6 +225,8 @@ export default function Sidebar({
               </button>
               <button
                 onClick={() => { if (!isLight) toggleTheme(); }}
+                aria-pressed={isLight}
+                aria-label="Ativar modo claro"
                 style={{
                   flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
                   gap: "5px", padding: "7px 6px", border: "none", borderRadius: "7px",
@@ -239,6 +246,8 @@ export default function Sidebar({
           /* Collapsed: só botão de tema como ícone */
           <button
             onClick={toggleTheme}
+            aria-pressed={isLight}
+            aria-label={isLight ? "Ativar modo escuro" : "Ativar modo claro"}
             title={isLight ? "Mudar para modo escuro" : "Mudar para modo claro"}
             style={{
               marginTop: "auto", marginBottom: "12px",

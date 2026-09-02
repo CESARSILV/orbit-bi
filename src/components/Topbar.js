@@ -73,6 +73,7 @@ export default function Topbar({ onRefresh, onGenerateReport, onClearData, isScr
           className="action-btn action-btn--danger"
           id="btnClearData"
           onClick={onClearData}
+          aria-label="Limpar todos os dados importados"
           title="Limpar todos os dados importados"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -88,6 +89,7 @@ export default function Topbar({ onRefresh, onGenerateReport, onClearData, isScr
           className="action-btn action-btn--ghost"
           id="btnDemo"
           onClick={onRefresh}
+          aria-label="Sincronizar dados"
           title="Sincronizar dados"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -102,6 +104,7 @@ export default function Topbar({ onRefresh, onGenerateReport, onClearData, isScr
           className="action-btn action-btn--primary"
           id="btnReport"
           onClick={onGenerateReport}
+          aria-label="Gerar relatório executivo em PDF"
           title="Gerar relatório executivo em PDF"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

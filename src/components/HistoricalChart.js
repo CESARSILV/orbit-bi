@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { useTheme } from "@/lib/ThemeContext";
 
 // ─── Custom EChart Client-Safe Component (React 19 & SSR compatible) ─────────
-function EChart({ option, style }) {
+function EChart({ option, style, ariaLabel }) {
   const domRef = useRef(null);
   const chartRef = useRef(null);
 
@@ -13,45 +13,42 @@ function EChart({ option, style }) {
 
     let active = true;
     let resizeObserver;
+    let resizeFrame;
 
-    // Dynamically load echarts client-side to be 100% SSR-safe
     import("echarts").then((echarts) => {
       if (!active || !domRef.current) return;
 
       chartRef.current = echarts.init(domRef.current, null, {
         renderer: "canvas",
-        devicePixelRatio: typeof window !== "undefined" ? (window.devicePixelRatio || 2) : 2
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
       });
-
       chartRef.current.setOption(option);
 
-      // Listen for container resize to adjust chart layout dynamically
       resizeObserver = new ResizeObserver(() => {
-        chartRef.current?.resize();
+        window.cancelAnimationFrame(resizeFrame);
+        resizeFrame = window.requestAnimationFrame(() => chartRef.current?.resize());
       });
       resizeObserver.observe(domRef.current);
     });
 
     return () => {
       active = false;
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
-      if (chartRef.current) {
-        chartRef.current.dispose();
-      }
+      resizeObserver?.disconnect();
+      window.cancelAnimationFrame(resizeFrame);
+      chartRef.current?.dispose();
+      chartRef.current = null;
     };
+  // A instância deve ser criada apenas uma vez; as opções são atualizadas abaixo.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update options when they change (smooth animation)
   useEffect(() => {
     if (chartRef.current && option) {
       chartRef.current.setOption(option, true);
     }
   }, [option]);
 
-  return <div ref={domRef} style={style} />;
+  return <div ref={domRef} style={style} role="img" aria-label={ariaLabel} />;
 }
 
 // ─── Formatadores ─────────────────────────────────────────────────────────────
@@ -60,52 +57,49 @@ const brl2 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL"
 const pctFmt = (v) => (v >= 0 ? "+" : "") + v.toFixed(1).replace(".", ",") + "%";
 const num = new Intl.NumberFormat("pt-BR");
 
-// ─── Paleta (gerada dinamicamente pelo hook) ─────────────────────────────────
+// ─── Paleta (memoizada por tema) ──────────────────────────────────────────────
 function usePalette() {
   const { theme } = useTheme();
-  const dark = theme !== "light";
-  return {
-    google:  "#FBBC05",
-    meta:    "#0866FF",
-    leads:   "#10B981",
-    bg:      dark ? "#0A0F1E"                       : "#ffffff",
-    surface: dark ? "#0f1629"                       : "#f8fafc",
-    border:  dark ? "rgba(255,255,255,0.07)"        : "rgba(15,23,42,0.08)",
-    text:    dark ? "rgba(245,247,251,0.85)"        : "#1e293b",
-    muted:   dark ? "rgba(245,247,251,0.42)"        : "#64748b",
-    gridCol: dark ? "rgba(255,255,255,0.05)"        : "rgba(15,23,42,0.06)",
-    tooltipBg: dark ? "rgba(10,15,30,0.96)"        : "rgba(255,255,255,0.98)",
-    tooltipBorder: dark ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.12)",
-    isDark: dark,
-  };
+
+  return useMemo(() => {
+    const dark = theme !== "light";
+    return {
+      google:  "#FBBC05",
+      meta:    "#0866FF",
+      leads:   "#10B981",
+      bg:      dark ? "#0A0F1E"                       : "#ffffff",
+      surface: dark ? "#0f1629"                       : "#f8fafc",
+      border:  dark ? "rgba(255,255,255,0.07)"        : "rgba(15,23,42,0.08)",
+      text:    dark ? "rgba(245,247,251,0.85)"        : "#1e293b",
+      muted:   dark ? "rgba(245,247,251,0.42)"        : "#64748b",
+      gridCol: dark ? "rgba(255,255,255,0.05)"        : "rgba(15,23,42,0.06)",
+      tooltipBg: dark ? "rgba(10,15,30,0.98)"        : "rgba(255,255,255,0.99)",
+      tooltipBorder: dark ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.12)",
+      isDark: dark,
+    };
+  }, [theme]);
+}
+
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  return reduced;
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 function KpiMini({ label, value, accent, sub }) {
   const C = usePalette();
-  const [visible, setVisible] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setVisible(true), 80); return () => clearTimeout(t); }, []);
   return (
-    <div style={{
-      flex: "1 1 120px",
-      minWidth: 0,
-      background: "var(--hover-bg)",
-      border: "1px solid var(--border-soft)",
-      borderRadius: 14,
-      padding: "1.1rem 1.25rem",
-      display: "flex",
-      flexDirection: "column",
-      gap: "0.3rem",
-      transition: "opacity 0.45s ease, transform 0.45s ease",
-      opacity: visible ? 1 : 0,
-      transform: visible ? "translateY(0)" : "translateY(10px)",
-      position: "relative",
-      overflow: "hidden",
-    }}>
-      <div style={{
-        position: "absolute", top: 0, left: 0, right: 0, height: 1,
-        background: `linear-gradient(90deg, transparent, ${accent}55, transparent)`,
-      }} />
+    <div className="historical-kpi" style={{ "--historical-accent": accent }}>
+      <span className="historical-kpi__glow" aria-hidden="true" />
       <span style={{ fontSize: "var(--fs-caption)", fontWeight: 600, color: C.muted, letterSpacing: "0.06em", textTransform: "uppercase" }}>
         {label}
       </span>
@@ -124,20 +118,7 @@ function KpiMini({ label, value, accent, sub }) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function HistoricalChart({ timeline }) {
   const C = usePalette();
-  const containerRef = useRef(null);
-  const [width, setWidth] = useState(800);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      if (entries[0]) {
-        setWidth(entries[0].contentRect.width);
-      }
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const reducedMotion = useReducedMotion();
 
   const data = useMemo(() => {
     if (timeline && timeline.length >= 1) return timeline;
@@ -184,15 +165,13 @@ export default function HistoricalChart({ timeline }) {
     const maxInvest = Math.max(...googleV.map((g, i) => g + metaV[i]), 1) * 1.35;
     const maxLeads  = Math.max(...leadsV, 1) * 1.35;
 
-    const scale = Math.min(Math.max(width / 1200, 0.85), 1.25);
-    const chartFontSize = Math.round(10.5 * scale);
+    const chartFontSize = 11;
 
     return {
       backgroundColor: "transparent",
-      animation: true,
-      animationDuration: 900,
+      animation: !reducedMotion,
+      animationDuration: reducedMotion ? 0 : 500,
       animationEasing: "cubicOut",
-      animationDelay: (idx) => idx * 60,
       tooltip: {
         trigger: "axis",
         appendToBody: true,
@@ -208,7 +187,7 @@ export default function HistoricalChart({ timeline }) {
         borderWidth: 1,
         padding: [14, 18],
         textStyle: { color: C.text, fontFamily: "Inter, sans-serif", fontSize: 13 },
-        extraCssText: "backdrop-filter: blur(12px); box-shadow: 0 8px 32px rgba(0,0,0,0.5);",
+        extraCssText: "box-shadow: 0 8px 24px rgba(0,0,0,0.32);",
         formatter: (params) => {
           const idx   = params[0]?.dataIndex ?? 0;
           const month = months[idx];
@@ -237,7 +216,7 @@ export default function HistoricalChart({ timeline }) {
         },
       },
       legend: { show: false },
-      grid: { left: 72, right: 66, top: 24, bottom: 48, containLabel: false },
+      grid: { left: 12, right: 12, top: 24, bottom: 44, containLabel: true },
       xAxis: {
         type: "category",
         data: months,
@@ -275,23 +254,23 @@ export default function HistoricalChart({ timeline }) {
         {
           name: "Google Ads", type: "bar", yAxisIndex: 0, data: googleV, barWidth: "22%", barGap: "8%",
           itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#FBBC05" }, { offset: 1, color: "rgba(251,188,5,0.25)" }] }, borderRadius: [5, 5, 0, 0] },
-          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#FFD54F" }, { offset: 1, color: "rgba(255,213,79,0.4)" }] }, shadowBlur: 12, shadowColor: "rgba(251,188,5,0.5)" } },
+          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#FFD54F" }, { offset: 1, color: "rgba(255,213,79,0.4)" }] }, shadowBlur: 6, shadowColor: "rgba(251,188,5,0.35)" } },
         },
         {
           name: "Meta Ads", type: "bar", yAxisIndex: 0, data: metaV, barWidth: "22%",
           itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#0866FF" }, { offset: 1, color: "rgba(8,102,255,0.2)" }] }, borderRadius: [5, 5, 0, 0] },
-          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#478CFF" }, { offset: 1, color: "rgba(71,140,255,0.4)" }] }, shadowBlur: 12, shadowColor: "rgba(8,102,255,0.5)" } },
+          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#478CFF" }, { offset: 1, color: "rgba(71,140,255,0.4)" }] }, shadowBlur: 6, shadowColor: "rgba(8,102,255,0.35)" } },
         },
         {
           name: "Leads", type: "line", yAxisIndex: 1, data: leadsV, smooth: 0.55, symbol: "circle", symbolSize: 7,
-          lineStyle: { color: C.leads, width: 2.5, shadowBlur: 10, shadowColor: "rgba(16,185,129,0.45)" },
+          lineStyle: { color: C.leads, width: 2.5 },
           itemStyle: { color: C.leads, borderColor: C.bg, borderWidth: 2 },
-          emphasis: { scale: true, itemStyle: { shadowBlur: 16, shadowColor: "rgba(16,185,129,0.7)" } },
+          emphasis: { scale: true, itemStyle: { shadowBlur: 8, shadowColor: "rgba(16,185,129,0.45)" } },
           areaStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "rgba(16,185,129,0.15)" }, { offset: 1, color: "rgba(16,185,129,0.01)" }] } },
         },
       ],
     };
-  }, [data, growthByMonth, C, width]);
+  }, [data, growthByMonth, C, reducedMotion]);
 
   if (!data || data.length === 0) {
     return (
@@ -351,8 +330,7 @@ export default function HistoricalChart({ timeline }) {
     <article
       className="chart-panel wide"
       id="comparacao"
-      ref={containerRef}
-      style={{ display: "flex", flexDirection: "column", gap: "1.25rem", padding: "1.5rem 1.6rem", minWidth: 0, overflow: "visible" }}
+      style={{ display: "flex", flexDirection: "column", gap: "1.25rem", padding: "1.5rem 1.6rem", minWidth: 0, overflow: "hidden" }}
     >
       {/* ── Cabeçalho ────────────────────────────────────────────────────── */}
       <div className="panel-heading" style={{ marginBottom: 0 }}>
@@ -386,10 +364,15 @@ export default function HistoricalChart({ timeline }) {
         <KpiMini label="Eficiência CPL"  value={growthLabel}                  accent={growthColor} sub="Primeiro vs último mês" />
       </div>
 
+      <p className="sr-only" id="historical-chart-summary">
+        Histórico de {data.length} períodos, com investimento total de {brl.format(kpis.totalInvest)}, {num.format(kpis.totalLeads)} leads e CPL médio de {brl2.format(kpis.cplMedio)}.
+      </p>
+
       {/* ── Gráfico ECharts ───────────────────────────────────────────────── */}
       <div style={{ flex: 1, minHeight: 280, minWidth: 0, width: "100%" }}>
         <EChart
           option={option}
+          ariaLabel={`Gráfico de investimento em Google Ads e Meta Ads e total de leads ao longo de ${data.length} períodos. Resumo detalhado disponível antes do gráfico.`}
           style={{ height: "280px", width: "100%" }}
         />
       </div>

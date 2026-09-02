@@ -98,6 +98,7 @@ export default function ControlStrip({
             className="filter-expand-btn"
             onClick={() => setIsExpanded(v => !v)}
             aria-expanded={isExpanded}
+            aria-controls="filtros-avancados"
           >
             {isExpanded ? "▲ Recolher" : "▼ Expandir filtros"}
           </button>
@@ -132,11 +133,7 @@ export default function ControlStrip({
           <select
             id="periodFilter"
             value={period}
-            onChange={e => {
-              const val = e.target.value;
-              onPeriodChange(val);
-              if (val === "todos") resetAll();
-            }}
+            onChange={e => onPeriodChange(e.target.value)}
           >
             <option value="todos">Todos os meses</option>
             {monthsList.map(m => (
@@ -184,6 +181,7 @@ export default function ControlStrip({
             className="filter-expand-btn"
             onClick={() => setIsExpanded(v => !v)}
             aria-expanded={isExpanded}
+            aria-controls="filtros-avancados"
             style={{ display: "flex", alignItems: "center", gap: "6px" }}
           >
             <span>{isExpanded ? "▲ Recolher" : "▼ Filtros"}</span>
@@ -196,7 +194,11 @@ export default function ControlStrip({
       </div>
 
       {/* ── Filtros avançados (colapsáveis) ──────────────────────── */}
-      <div className={`filter-advanced-row ${isExpanded ? "filter-advanced-row--open" : ""}`}>
+      <div
+        id="filtros-avancados"
+        className={`filter-advanced-row ${isExpanded ? "filter-advanced-row--open" : ""}`}
+        aria-hidden={!isExpanded}
+      >
         <label className="filter-chip-label">
           <span className="fchip-name" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
             <DeviceIcon />

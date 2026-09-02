@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-
 // Formatter helper functions
 // brl: used for large monetary totals (Investimento, Receita) — no decimals
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -9,56 +7,21 @@ const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL",
 const brl2 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const number = new Intl.NumberFormat("pt-BR");
 
-function AnimatedNumber({ value, formatFn }) {
-  const [displayValue, setDisplayValue] = useState(0);
-  // A-04 FIX: Track current display value in a ref to avoid stale closure
-  const displayRef = useRef(0);
-
-  useEffect(() => {
-    let startTimestamp = null;
-    const duration = 600; // ms
-    // Read from ref so we always get the actual current animated value
-    const startValue = displayRef.current;
-    const endValue = value;
-
-    const step = (timestamp) => {
-      if (!startTimestamp) startTimestamp = timestamp;
-      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3); // Cubic ease out
-      const current = startValue + (endValue - startValue) * eased;
-      
-      displayRef.current = current;
-      setDisplayValue(current);
-
-      if (progress < 1) {
-        window.requestAnimationFrame(step);
-      } else {
-        displayRef.current = endValue;
-        setDisplayValue(endValue);
-      }
-    };
-
-    const animationId = window.requestAnimationFrame(step);
-    return () => window.cancelAnimationFrame(animationId);
-  }, [value]);
-
-  return <>{formatFn(displayValue)}</>;
-}
-
 function KpiCard({ label, value, formatFn, meta, accent, index }) {
+  const formattedValue = formatFn(value);
+
   return (
     <article
-      className="kpi-card"
+      className="kpi-card kpi-card--enter"
+      aria-label={`${label}: ${formattedValue}. ${meta}`}
       style={{
         "--accent": accent,
-        animation: `rise 420ms ease ${index * 30}ms both`,
+        "--enter-delay": `${Math.min(index, 5) * 35}ms`,
       }}
     >
       <div className="kpi-label">{label}</div>
-      <div className="kpi-value">
-        <AnimatedNumber value={value} formatFn={formatFn} />
-      </div>
-      <div className="kpi-meta">
+      <div className="kpi-value" aria-hidden="true">{formattedValue}</div>
+      <div className="kpi-meta" aria-hidden="true">
         <span>{meta}</span>
       </div>
     </article>

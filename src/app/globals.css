@@ -73,10 +73,6 @@ html[data-theme="dark"] {
   --soft:         var(--text-secondary);
   --shadow:       var(--shadow-heavy);
   --shadow-sm:    var(--shadow-soft);
-  --input-bg:     var(--input-bg);
-  --input-border: var(--input-border);
-  --hover-bg:     var(--hover-bg);
-  --sidebar-bg:   var(--sidebar-bg);
   --topbar-bg:    rgba(5, 7, 13, 0.72);
   --card-bg:      var(--bg-card);
   --table-head:   var(--table-header);
@@ -142,10 +138,6 @@ html[data-theme="light"] {
   --soft:         var(--text-secondary);
   --shadow:       var(--shadow-heavy);
   --shadow-sm:    var(--shadow-soft);
-  --input-bg:     var(--input-bg);
-  --input-border: var(--input-border);
-  --hover-bg:     var(--hover-bg);
-  --sidebar-bg:   var(--sidebar-bg);
   --topbar-bg:    rgba(255, 255, 255, 0.90);
   --card-bg:      var(--bg-card);
   --table-head:   var(--table-header);
@@ -166,22 +158,33 @@ html[data-theme="light"] {
   --grid-line:    var(--chart-grid);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   TRANSIÇÃO GLOBAL — sem flicker, suave e premium
-═══════════════════════════════════════════════════════════════ */
+/* Transições aplicadas somente a elementos interativos e superfícies relevantes. */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
-  transition:
-    background-color 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    background      0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color    0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    color           0.22s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow      0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity         0.22s ease;
 }
-/* Exceções para não atrapalhar animações de carregamento */
+
+button,
+a,
+input,
+select,
+textarea,
+.kpi-card,
+.chart-panel,
+.intelligence-panel,
+.upload-panel,
+.filter-shell,
+.topbar-premium {
+  transition:
+    background-color 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.18s ease,
+    transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 canvas, svg, video, img { transition: none; }
 
 /* ─── Aurora (fundo animado) ─────────────────────────────────── */
@@ -5328,4 +5331,278 @@ html[data-theme="light"] [style*="fontWeight: 900"],
 html[data-theme="light"] [style*="fontWeight:800"],
 html[data-theme="light"] [style*="fontWeight:900"] {
   color: inherit;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   AUDITORIA DE FRONTEND — CONTENÇÃO, FLUIDEZ E ACESSIBILIDADE
+═══════════════════════════════════════════════════════════════ */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.app-shell,
+.workspace,
+.topbar-premium,
+.hero-grid,
+.analytics-grid,
+.report-grid,
+.intelligence-panel,
+.upload-panel,
+.chart-panel,
+.table-panel,
+.filter-shell,
+.filter-primary-row,
+.filter-advanced-row,
+.kpi-grid {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.kpi-card--enter {
+  animation: kpi-enter 360ms cubic-bezier(0.22, 1, 0.36, 1) var(--enter-delay, 0ms) both;
+  will-change: opacity, transform;
+}
+
+@keyframes kpi-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.historical-kpi {
+  flex: 1 1 120px;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  overflow: hidden;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  background: var(--hover-bg);
+}
+
+.historical-kpi__glow {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--historical-accent), transparent);
+  opacity: 0.45;
+}
+
+@media (max-width: 600px) {
+  .app-shell,
+  .workspace {
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  .workspace {
+    overflow-x: hidden;
+    padding: 12px;
+  }
+
+  .topbar-premium {
+    width: 100%;
+    gap: 14px;
+    padding: 16px;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+  }
+
+  .topbar-left,
+  .topbar-actions-premium {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .topbar-title {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .topbar-subtitle {
+    overflow-wrap: anywhere;
+  }
+
+  .topbar-actions-premium {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .topbar-actions-premium .action-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+  }
+
+  .filter-shell {
+    position: relative;
+    top: auto;
+    width: 100%;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+  }
+
+  .filter-shell.filter-shell--compact {
+    top: auto;
+    margin-bottom: 12px;
+    backdrop-filter: blur(12px) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28) !important;
+  }
+
+  .filter-toprow {
+    align-items: flex-start;
+  }
+
+  .filter-toprow-left,
+  .filter-toprow-right {
+    min-width: 0;
+  }
+
+  .filter-toprow-right {
+    justify-content: flex-end;
+    margin-left: 0;
+  }
+
+  .filter-primary-row,
+  .filter-advanced-row--open,
+  .filter-shell--compact .filter-primary-row,
+  .filter-shell--compact .filter-advanced-row--open {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100%;
+    gap: 10px !important;
+    padding: 12px !important;
+    overflow: visible !important;
+    white-space: normal !important;
+  }
+
+  .filter-chip-label,
+  .filter-shell--compact .filter-chip-label,
+  .filter-shell--compact .filter-advanced-row .filter-chip-label {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .filter-shell--compact .filter-chip-label select,
+  .filter-shell--compact .filter-chip-label input,
+  .filter-chip-label select,
+  .filter-chip-label input[type="date"] {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    height: 40px !important;
+    padding: 0 30px 0 10px !important;
+    border: 1px solid var(--input-border) !important;
+    background-color: var(--input-bg) !important;
+  }
+
+  .filter-inline-actions,
+  .filter-shell--compact .filter-inline-actions {
+    display: flex;
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-left: 0 !important;
+    flex-wrap: wrap;
+  }
+
+  .filter-inline-actions button {
+    min-height: 38px;
+    flex: 1 1 auto;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .kpi-card {
+    min-height: 116px;
+    padding: 15px;
+  }
+
+  .kpi-card::after {
+    filter: blur(24px);
+    opacity: 0.28;
+  }
+
+  .intelligence-panel,
+  .upload-panel,
+  .chart-panel,
+  .table-panel,
+  .assistant-panel,
+  .report-grid article,
+  .kpi-card {
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-medium);
+  }
+
+  .panel-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 600px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-primary-row,
+  .filter-advanced-row--open,
+  .filter-shell--compact .filter-primary-row,
+  .filter-shell--compact .filter-advanced-row--open {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .kpi-card--enter {
+    opacity: 1;
+    transform: none;
+    will-change: auto;
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-shell.sidebar-collapsed {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }

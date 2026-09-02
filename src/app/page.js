@@ -278,6 +278,7 @@ export default function Home() {
   const processingFilesRef = useRef(new Set());
   // C-08 FIX: Queue for multiple files uploaded at once
   const pendingFilesQueueRef = useRef([]);
+  const launchImportWizardRef = useRef(null);
 
   // C-08 FIX: Process queued files sequentially when the wizard step is cleared (wizard closes)
   useEffect(() => {
@@ -285,7 +286,7 @@ export default function Home() {
       const nextFile = pendingFilesQueueRef.current.shift();
       if (nextFile) {
         setTimeout(() => {
-          launchImportWizard(nextFile);
+          launchImportWizardRef.current?.(nextFile);
         }, 100);
       }
     }
@@ -558,15 +559,14 @@ export default function Home() {
       }
     });
 
-    const now = new Date();
-    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
     const months = Object.entries(monthsMap)
       .map(([val, label]) => ({
         value: val,
         label
       }))
-      .filter(m => m.value <= currentYearMonth) // Exibe todos os meses com dados até o mês atual
+      // O dashboard deve exibir todos os períodos realmente importados.
+      // Não usamos a data do sistema para ocultar dados válidos, pois um
+      // relatório futuro/agendado também precisa ser auditável.
       .sort((a, b) => a.value.localeCompare(b.value));
 
     const campaigns = [...new Set(marketingDb.fact_marketing_summary.map(s => s.campaign_name))].filter(Boolean);
@@ -640,12 +640,8 @@ export default function Home() {
   };
 
   const matchesTimelineFilters = (r) => {
-    // 1. Ignorar meses futuros em relação ao calendário atual
-    const now = new Date();
-    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    if (r.reference_month && r.reference_month > currentYearMonth) return false;
-
-    // 2. Aplicar os mesmos filtros de plataforma, campanha, período e datas do dashboard
+    // Todos os períodos importados são válidos, inclusive relatórios
+    // futuros/agendados; a origem do dado é a autoridade do período.
     return matchesCoreFilters(r);
   };
 
@@ -1346,6 +1342,10 @@ export default function Home() {
       triggerToast(`Falha ao abrir wizard: ${err.message}`);
     }
   };
+
+  useEffect(() => {
+    launchImportWizardRef.current = launchImportWizard;
+  });
 
   const handleRunWizardIngestion = async () => {
     // Validate required fields are mapped
@@ -2471,6 +2471,9 @@ export default function Home() {
                 const [year, month] = value.split("-").map(Number);
                 const lastDay = new Date(year, month, 0).getDate();
                 setEndDate(`${value}-${String(lastDay).padStart(2, "0")}`);
+              } else {
+                setStartDate("");
+                setEndDate("");
               }
             }}
             startDate={startDate}
