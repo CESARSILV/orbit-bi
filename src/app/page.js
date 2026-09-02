@@ -43,6 +43,24 @@ const INITIAL_MESSAGES = [
   },
 ];
 
+// Mantém a atribuição do DOitSA independente da plataforma de mídia usada no resumo.
+// Isso permite exibir o detalhamento sem alterar o cálculo autoritativo de totals.conversoes.
+const normalizeAppointmentSource = (source) => {
+  const normalized = String(source ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+  if (!normalized || ["-", "n/a", "na", "null", "undefined", "sem origem", "nao informado"].includes(normalized)) {
+    return "sem_origem";
+  }
+  if (/(facebook|instagram|whatsapp|meta)/.test(normalized)) return "meta";
+  if (normalized.includes("google")) return "google";
+  if (normalized.includes("playbook")) return "playbooks";
+  return "outras";
+};
+
 export default function Home() {
   // Authentication State
   const [user, setUser] = useState(null);
@@ -256,6 +274,7 @@ export default function Home() {
         { key: "lead_id", label: "ID do Lead", required: false, description: "Identificador do Lead para cruzamento." },
         { key: "client_name", label: "Nome do Cliente", required: false, description: "Nome completo do cliente para cruzamento." },
         { key: "phone", label: "Telefone", required: false, description: "Telefone de contato para cruzamento." },
+        { key: "lead_source", label: "Origem (Facebook, Instagram, Google ou Playbooks)", required: false, description: "Canal informado pelo comercial no relatório DOitSA." },
         { key: "date", label: "Data do Agendamento (Obrigatório)", required: true, description: "Coluna contendo as datas dos agendamentos." },
         { key: "conversions", label: "Demo Realizada (Obrigatório)", required: true, description: "Coluna booleana que confirma se a demo foi realizada." },
         { key: "realized_date", label: "Data da Demo Realizada", required: false, description: "Data efetiva da realização; quando vazia, usa a data agendada." }
@@ -833,6 +852,117 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketingDb, platform, period, startDate, endDate, campaign]);
 
+  // O total exibido no popup continua sendo o mesmo total autoritativo do card.
+  // A divisão por origem vem somente dos registros DOitSA preservados em fact_crm.
+  const appointmentBreakdown = useMemo(() => {
+    const sourceRows = (marketingDb.fact_crm || []).filter((row) => {
+      const isDoitsa = row.crm_platform === "doitsa" || row.platform === "doitsa";
+      return isDoitsa && Number(row.conversions || 0) > 0;
+    });
+
+    const normalizeDate = (value) => {
+      const raw = String(value || "").trim();
+      if (!raw) return "";
+      if (/^\d{4}-\d{2}$/.test(raw)) return `${raw}-01`;
+      if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+
+      const brMatch = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+      if (brMatch) {
+        return `${brMatch[3]}-${String(brMatch[2]).padStart(2, "0")}-${String(brMatch[1]).padStart(2, "0")}`;
+      }
+      return raw;
+    };
+
+    const getReferenceMonth = (dateValue, fallback) => {
+      const normalizedDate = normalizeDate(dateValue);
+      if (/^\d{4}-\d{2}/.test(normalizedDate)) return normalizedDate.slice(0, 7);
+
+      const normalizedFallback = normalizeDate(fallback);
+      return /^\d{4}-\d{2}/.test(normalizedFallback)
+        ? normalizedFallback.slice(0, 7)
+        : String(fallback || "").slice(0, 7);
+    };
+
+    const getRealizedDate = (row) => {
+      if (row.realized_date) return normalizeDate(row.realized_date);
+      const statusMatch = String(row.lead_status || "").match(/Demo Realizada\|(\d{4}-\d{2}-\d{2})/);
+      return statusMatch ? statusMatch[1] : "";
+    };
+
+    const matchesDateFilters = (row, dateValue) => {
+      const date = normalizeDate(dateValue || row.date);
+      const referenceMonth = getReferenceMonth(dateValue || row.date, row.reference_month);
+
+      if (period !== "todos" && referenceMonth !== period) return false;
+      if (!date) return true;
+      if (startDate && date < startDate) return false;
+      if (endDate && date > endDate) return false;
+      return true;
+    };
+
+    const matchesPlatformFilter = (row) => {
+      if (platform === "todas" || platform === "doitsa") return true;
+      if (platform === "bitrix") return false;
+
+      const source = normalizeAppointmentSource(row.lead_source);
+      if (platform === "meta") return source === "meta";
+      if (platform === "google") return source === "google";
+      return row.platform === platform;
+    };
+
+    const matchesCampaignFilter = (row) => {
+      if (campaign === "todas") return true;
+
+      const source = normalizeAppointmentSource(row.lead_source);
+      const crmCampaign = source === "google"
+        ? "Google Ads (CRM)"
+        : source === "meta"
+          ? "Meta Ads (CRM)"
+          : "DOitSA Demos";
+
+      return row.campaign_name === campaign || crmCampaign === campaign;
+    };
+
+    const selectedRows = sourceRows.filter((row) => (
+      matchesPlatformFilter(row)
+      && matchesCampaignFilter(row)
+      && matchesDateFilters(row, row.date)
+    ));
+
+    const counts = selectedRows.reduce((accumulator, row) => {
+      const source = normalizeAppointmentSource(row.lead_source);
+      accumulator[source] += 1;
+      return accumulator;
+    }, { meta: 0, google: 0, playbooks: 0, outras: 0, sem_origem: 0 });
+
+    const realizedRows = sourceRows.filter((row) => {
+      const isDemoRealized = row.is_demo === true
+        || row.is_demo === 1
+        || ["true", "1", "sim", "verdadeiro"].includes(String(row.is_demo || "").toLowerCase());
+      if (!isDemoRealized) return false;
+
+      return matchesPlatformFilter(row)
+        && matchesCampaignFilter(row)
+        && matchesDateFilters(row, getRealizedDate(row) || row.date);
+    });
+
+    const total = Math.round(Number(totals.conversoes || 0));
+    const registrosComOrigem = selectedRows.length - counts.sem_origem;
+
+    return {
+      total,
+      meta: counts.meta,
+      google: counts.google,
+      playbooks: counts.playbooks,
+      outras: counts.outras,
+      semOrigem: counts.sem_origem,
+      demosRealizadas: realizedRows.length,
+      registrosEncontrados: selectedRows.length,
+      registrosComOrigem,
+      hasWarning: selectedRows.length !== total || registrosComOrigem !== total,
+    };
+  }, [marketingDb, totals.conversoes, platform, period, startDate, endDate, campaign]);
+
   const deviceData = useMemo(() => {
     const list = marketingDb.fact_devices.filter(d => {
       if (!matchesCoreFilters(d)) return false;
@@ -1255,6 +1385,7 @@ export default function Home() {
         if (headers.includes("Demo Realizada")) initialMapping.conversions = "Demo Realizada";
         else if (headers.includes("Demo")) initialMapping.conversions = "Demo";
         if (headers.includes("Data Realizado")) initialMapping.realized_date = "Data Realizado";
+        if (headers.includes("Origem")) initialMapping.lead_source = "Origem";
         if (headers.includes("Cliente")) initialMapping.client_name = "Cliente";
         if (headers.includes("Telefone do Cliente")) initialMapping.phone = "Telefone do Cliente";
         if (headers.includes("Cód")) initialMapping.lead_id = "Cód";
@@ -2593,7 +2724,11 @@ export default function Home() {
             </div>
           )}
 
-          <KpiGrid key={`kpi-${dashboardResetKey}`} totals={totals} />
+          <KpiGrid
+            key={`kpi-${dashboardResetKey}`}
+            totals={totals}
+            appointmentBreakdown={appointmentBreakdown}
+          />
 
           <section className="analytics-grid">
             <HistoricalChart key={`hist-${dashboardResetKey}`} timeline={timeline} />
