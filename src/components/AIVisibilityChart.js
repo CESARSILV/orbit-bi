@@ -93,7 +93,14 @@ export default function AIVisibilityChart({ startDate, endDate }) {
   const C = useMemo(() => ({
     text: isLight ? "#0f172a" : "rgba(245,247,251,0.92)",
     textSoft: isLight ? "#334155" : "rgba(245,247,251,0.72)",
-    muted: isLight ? "#64748b" : "rgba(245,247,251,0.45)",
+    muted: isLight ? "#475569" : "rgba(245,247,251,0.62)",
+    success: isLight ? "#047857" : "#10a37f",
+    successSoft: isLight ? "rgba(4,120,87,0.09)" : "rgba(16,163,127,0.1)",
+    successBorder: isLight ? "rgba(4,120,87,0.25)" : "rgba(16,163,127,0.25)",
+    info: isLight ? "#1d4ed8" : "#0668E1",
+    violet: isLight ? "#6d28d9" : "#8b5cf6",
+    warning: isLight ? "#a16207" : "#f59e0b",
+    danger: isLight ? "#b91c1c" : "#ef4444",
     bg: isLight ? "rgba(255,255,255,0.92)" : "var(--panel)",
     border: isLight ? "rgba(15,23,42,0.10)" : "var(--line)",
     barBg: isLight ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.06)",
@@ -158,18 +165,18 @@ export default function AIVisibilityChart({ startDate, endDate }) {
             📅 {formatMonth(targetMonth)} • Fonte: Microsoft Clarity
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(16,163,127,0.1)", border: "1px solid rgba(16,163,127,0.25)", borderRadius: 99, padding: "4px 12px" }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#10a37f", boxShadow: "0 0 6px #10a37f" }} />
-          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#10a37f" }}>Clarity</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.successSoft, border: `1px solid ${C.successBorder}`, borderRadius: 99, padding: "4px 12px" }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", background: C.success, boxShadow: `0 0 6px ${C.success}` }} />
+          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: C.success }}>Clarity</span>
         </div>
       </div>
 
       {/* KPI Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: "1.4rem" }}>
-        <KpiCard label="Requisições de IA" value={num.format(totalRequests)} sub={`${botOperators.length} operadores`} color="#10a37f" C={C} tooltip="Total de requisições feitas por bots de inteligência artificial ao seu site neste período." />
-        <KpiCard label="% do Tráfego Total" value={pct(shareOfTotalTraffic)} sub="vindo de bots IA" color="#0668E1" C={C} tooltip="Percentual do tráfego total do site que veio de bots de IA (rastreadores, buscas, assistentes)." />
-        <KpiCard label="Páginas Únicas" value={pct(uniquePagesRequested)} sub="das páginas rastreadas" color="#8b5cf6" C={C} tooltip="Percentual de páginas HTML únicas do seu site que foram acessadas por bots de IA." />
-        <KpiCard label="Violações" value={pct(violations)} sub="sem violações" color={violations > 0 ? "#ef4444" : "#10b981"} C={C} tooltip="Violações de robots.txt ou regras de acesso. 0% significa que todos os bots respeitaram as regras." />
+        <KpiCard label="Requisições de IA" value={num.format(totalRequests)} sub={`${botOperators.length} operadores`} color={C.success} C={C} tooltip="Total de requisições feitas por bots de inteligência artificial ao seu site neste período." />
+        <KpiCard label="% do Tráfego Total" value={pct(shareOfTotalTraffic)} sub="vindo de bots IA" color={C.info} C={C} tooltip="Percentual do tráfego total do site que veio de bots de IA (rastreadores, buscas, assistentes)." />
+        <KpiCard label="Páginas Únicas" value={pct(uniquePagesRequested)} sub="das páginas rastreadas" color={C.violet} C={C} tooltip="Percentual de páginas HTML únicas do seu site que foram acessadas por bots de IA." />
+        <KpiCard label="Violações" value={pct(violations)} sub="sem violações" color={violations > 0 ? C.danger : C.success} C={C} tooltip="Violações de robots.txt ou regras de acesso. 0% significa que todos os bots respeitaram as regras." />
       </div>
 
       {/* Duas colunas: Operadores + Atividade */}
@@ -241,7 +248,7 @@ export default function AIVisibilityChart({ startDate, endDate }) {
           <SectionTitle icon="⚡" label="Atividade do Bot" C={C} />
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {botActivities.map((act, i) => {
-              const colors = ["#8b5cf6", "#3b82f6", "#10b981"];
+              const colors = [C.violet, C.info, C.success];
               const color = colors[i % colors.length];
               const label = ACTIVITY_LABELS[act.name] || act.name;
               const isHovered = hoveredAct === act.name;
@@ -297,7 +304,7 @@ export default function AIVisibilityChart({ startDate, endDate }) {
               <SectionTitle icon="📄" label="Tipo de Conteúdo" C={C} />
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {contentType.map((ct, i) => {
-                  const colors = ["#e91e8c", "#f59e0b", "#3b82f6", "#6b7280"];
+                  const colors = [isLight ? "#be185d" : "#e91e8c", C.warning, C.info, C.muted];
                   return (
                     <div key={ct.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 8px" }}>
                       <span style={{ fontSize: "0.8rem", fontWeight: 600, color: C.textSoft, minWidth: 50 }}>{ct.name}</span>
@@ -326,10 +333,10 @@ export default function AIVisibilityChart({ startDate, endDate }) {
       {/* Insight */}
       <div style={{
         marginTop: 16, padding: "12px 14px",
-        background: "rgba(16,163,127,0.06)", border: "1px solid rgba(16,163,127,0.20)",
+        background: C.successSoft, border: `1px solid ${C.successBorder}`,
         borderRadius: 10, fontSize: "0.78rem", color: C.textSoft, lineHeight: 1.5,
       }}>
-        <strong style={{ color: "#10a37f" }}>💡 Insight:</strong> Em {formatMonth(targetMonth)}, seu site recebeu{" "}
+        <strong style={{ color: C.success }}>💡 Insight:</strong> Em {formatMonth(targetMonth)}, seu site recebeu{" "}
         <strong>{num.format(totalRequests)} requisições de IA</strong> de{" "}
         <strong>{botOperators.length} plataformas</strong> distintas ({pct(shareOfTotalTraffic)} do tráfego total).{" "}
         Principal operador: <strong style={{ color: BOT_COLORS[botOperators[0]?.name] }}>{botOperators[0]?.name}</strong> ({pct(botOperators[0]?.percentage)}).{" "}

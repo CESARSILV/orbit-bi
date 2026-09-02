@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 
 const ThemeContext = createContext({ theme: "dark", toggleTheme: () => {} });
 
@@ -17,18 +17,22 @@ function getInitialTheme() {
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState("dark"); // SSR-safe default
+  const initializedRef = useRef(false);
 
-  // Inicializa do localStorage após montar no cliente
+  // Inicializa e persiste o tema sem gravar o default dark antes de ler a preferência real.
   useEffect(() => {
-    const initial = getInitialTheme();
-    setTimeout(() => {
-      setTheme(initial);
-    }, 0);
-    document.documentElement.setAttribute("data-theme", initial);
-  }, []);
+    if (!initializedRef.current) {
+      const initial = getInitialTheme();
+      document.documentElement.setAttribute("data-theme", initial);
+      localStorage.setItem(STORAGE_KEY, initial);
+      initializedRef.current = true;
+      if (initial !== theme) {
+        const frameId = window.requestAnimationFrame(() => setTheme(initial));
+        return () => window.cancelAnimationFrame(frameId);
+      }
+      return;
+    }
 
-  // Aplica data-theme no <html> sempre que o tema mudar
-  useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);

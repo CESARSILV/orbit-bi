@@ -30,7 +30,7 @@ export default function AuthModal({ onAuthSuccess }) {
             z-index: 100;
             display: grid;
             place-items: center;
-            background: rgba(5, 7, 13, 0.86);
+            background: var(--overlay-bg);
             backdrop-filter: blur(12px);
             padding: 20px;
           }
@@ -101,9 +101,9 @@ export default function AuthModal({ onAuthSuccess }) {
               style={{
                 height: "44px",
                 padding: "0 12px",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
+                border: "1px solid var(--input-border)",
                 borderRadius: "var(--radius)",
-                background: "rgba(5, 7, 13, 0.82)",
+                background: "var(--input-bg)",
                 color: "var(--text)",
                 outline: "none",
               }}
@@ -121,9 +121,9 @@ export default function AuthModal({ onAuthSuccess }) {
               style={{
                 height: "44px",
                 padding: "0 12px",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
+                border: "1px solid var(--input-border)",
                 borderRadius: "var(--radius)",
-                background: "rgba(5, 7, 13, 0.82)",
+                background: "var(--input-bg)",
                 color: "var(--text)",
                 outline: "none",
               }}
@@ -179,7 +179,7 @@ export default function AuthModal({ onAuthSuccess }) {
           z-index: 100;
           display: grid;
           place-items: center;
-          background: rgba(5, 7, 13, 0.86);
+          background: var(--overlay-bg);
           backdrop-filter: blur(12px);
           padding: 20px;
         }

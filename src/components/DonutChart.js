@@ -8,8 +8,8 @@ const brl2 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL"
 const pct  = (v) => (v >= 0 ? "+" : "") + v.toFixed(1).replace(".", ",") + "%";
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
-const GOOGLE = { hex: "#FBBC05", rgb: "251,188,5",   name: "Google Ads" };
-const META   = { hex: "#0866FF", rgb: "8,102,255",   name: "Meta Ads"   };
+const GOOGLE = { hex: "var(--series-google)", rgb: "var(--series-google-rgb)", text: "var(--series-google-text)", name: "Google Ads" };
+const META   = { hex: "var(--series-meta)", rgb: "var(--series-meta-rgb)", text: "var(--series-meta-text)", name: "Meta Ads"   };
 
 // ─── Hook: animação numérica suave (lerp por RAF) ─────────────────────────────
 function useRollingNumber(target, duration = 700) {
@@ -74,7 +74,7 @@ function Ring({ pct: targetPct, color, size = 72, stroke = 6 }) {
         strokeWidth={stroke}
         strokeLinecap="round"
         strokeDasharray={`${dash} ${circ}`}
-        style={{ filter: `drop-shadow(0 0 6px ${color}88)`, transition: "none" }}
+        style={{ filter: "drop-shadow(0 0 6px var(--border-strong))", transition: "none" }}
       />
     </svg>
   );
@@ -101,7 +101,7 @@ function Sparkline({ values, color, width = 80, height = 28 }) {
         strokeWidth={1.5}
         strokeLinejoin="round"
         strokeLinecap="round"
-        style={{ filter: `drop-shadow(0 0 3px ${color}88)` }}
+        style={{ filter: "drop-shadow(0 0 3px var(--border-strong))" }}
       />
     </svg>
   );
@@ -137,6 +137,7 @@ function PlatformCard({ platform, value, percent, total, activeCampaigns, totalC
   const isPositive = delta >= 0;
   const color      = platform === "google" ? GOOGLE.hex : META.hex;
   const rgb        = platform === "google" ? GOOGLE.rgb : META.rgb;
+  const textColor  = platform === "google" ? GOOGLE.text : META.text;
   const label      = platform === "google" ? GOOGLE.name : META.name;
 
   const maxBarH  = 130; // px
@@ -177,9 +178,9 @@ function PlatformCard({ platform, value, percent, total, activeCampaigns, totalC
           display: "inline-flex", alignItems: "center", gap: "0.2rem",
           marginTop: "0.3rem",
           fontSize: "var(--fs-caption)", fontWeight: 700,
-          color: isPositive ? "#34D399" : "#F87171",
-          background: isPositive ? "rgba(52,211,153,0.10)" : "rgba(248,113,113,0.10)",
-          border: `1px solid ${isPositive ? "rgba(52,211,153,0.18)" : "rgba(248,113,113,0.18)"}`,
+          color: isPositive ? "var(--success)" : "var(--danger)",
+          background: isPositive ? "var(--surface-success)" : "var(--surface-danger)",
+          border: `1px solid ${isPositive ? "var(--border-success)" : "var(--border-danger)"}`,
           borderRadius: 99, padding: "0.12rem 0.5rem",
           transition: "all 0.4s ease",
         }}>
@@ -248,7 +249,7 @@ function PlatformCard({ platform, value, percent, total, activeCampaigns, totalC
       {/* ── Label inferior ──────────────────────────────────────────── */}
       <div style={{ marginTop: "var(--space-sm)", textAlign: "center" }}>
         <div style={{
-          color,
+          color: textColor,
           fontSize: "var(--fs-caption)", fontWeight: 700,
           letterSpacing: "0.07em", textTransform: "uppercase",
           textShadow: `0 0 12px rgba(${rgb},0.6)`,
@@ -294,8 +295,8 @@ function DominanceBar({ googlePct, metaPct }) {
         color: "var(--text-muted)",
         marginBottom: "0.35rem", letterSpacing: "0.04em",
       }}>
-        <span style={{ color: GOOGLE.hex }}>Google {gPct.toFixed(0)}%</span>
-        <span style={{ color: META.hex }}>Meta {(100 - gPct).toFixed(0)}%</span>
+        <span style={{ color: GOOGLE.text }}>Google {gPct.toFixed(0)}%</span>
+        <span style={{ color: META.text }}>Meta {(100 - gPct).toFixed(0)}%</span>
       </div>
       <div style={{
         height: 6, borderRadius: 99, overflow: "hidden",
@@ -363,7 +364,7 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
         gap: "1.2rem", minHeight: 320,
-        background: "linear-gradient(135deg, rgba(15, 20, 32, 0.4) 0%, rgba(5, 7, 13, 0.6) 100%)",
+        background: "var(--chart-empty-bg)",
         border: "1px solid var(--border-soft)",
         borderRadius: 16
       }}>
@@ -372,8 +373,8 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
           {/* Círculo externo */}
           <circle cx="50" cy="50" r="40" stroke="var(--border-soft)" strokeWidth="6" />
           {/* Arcos pontilhados simbolizando fatias */}
-          <circle cx="50" cy="50" r="40" stroke="#ffd200" strokeWidth="6" strokeDasharray="30 250" strokeLinecap="round" />
-          <circle cx="50" cy="50" r="40" stroke="#0866FF" strokeWidth="6" strokeDasharray="60 250" strokeDashoffset="-40" strokeLinecap="round" />
+          <circle cx="50" cy="50" r="40" stroke="var(--series-google)" strokeWidth="6" strokeDasharray="30 250" strokeLinecap="round" />
+          <circle cx="50" cy="50" r="40" stroke="var(--series-meta)" strokeWidth="6" strokeDasharray="60 250" strokeDashoffset="-40" strokeLinecap="round" />
           {/* Círculo central do donut */}
           <circle cx="50" cy="50" r="24" fill="none" />
         </svg>
@@ -463,7 +464,7 @@ export default function DonutChart({ campaigns = [], timeline = [] }) {
             {isDominantGoogle ? "Google Ads" : "Meta Ads"}
           </strong>
           {" lidera o período com "}
-          <strong style={{ color: isDominantGoogle ? GOOGLE.hex : META.hex }}>
+          <strong style={{ color: isDominantGoogle ? GOOGLE.text : META.text }}>
             {Math.round(isDominantGoogle ? googlePct : metaPct)}%
           </strong>
           {" do investimento"}

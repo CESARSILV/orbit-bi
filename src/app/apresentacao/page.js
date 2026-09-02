@@ -455,7 +455,7 @@ export default function Apresentacao() {
         style={{
           position: "fixed",
           inset: 0,
-          background: "radial-gradient(circle at 80% 20%, rgba(123, 183, 255, 0.15), transparent 40%), radial-gradient(circle at 10% 80%, rgba(124, 247, 190, 0.1), transparent 45%), #05070e",
+          background: "var(--presentation-aurora)",
           zIndex: -1
         }}
       />
@@ -508,7 +508,7 @@ export default function Apresentacao() {
             <div className="slide-content" style={{ padding: 0 }}>
               {renderSlideContent(idx)}
             </div>
-            <footer className="slide-footer" style={{ padding: "16px 0 0 0", borderTop: "1px solid rgba(255, 255, 255, 0.08)", background: "transparent", marginTop: "auto" }}>
+            <footer className="slide-footer" style={{ padding: "16px 0 0 0", borderTop: "1px solid var(--presentation-border)", background: "transparent", marginTop: "auto" }}>
               <span className="slide-footer-text" style={{ fontSize: "10px" }}>DOIT BI &bull; DOSSIÊ EXECUTIVO DE APRESENTAÇÃO</span>
               <span className="slide-footer-text" style={{ fontSize: "10px", fontWeight: "700" }}>
                 Página {idx + 1} de {totalSlides}

@@ -65,7 +65,7 @@ export default function TimeHeatmap({ timeData, onImport }) {
             </p>
           </div>
           {onImport && (
-            <button onClick={onImport} style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.35)", color: "#a78bfa", borderRadius: "8px", padding: "0.45rem 1rem", fontSize: "0.78rem", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
+            <button onClick={onImport} style={{ background: "var(--accent-violet-soft)", border: "1px solid var(--accent-violet-border)", color: "var(--accent-violet)", borderRadius: "8px", padding: "0.45rem 1rem", fontSize: "0.78rem", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
               ↑ Importar Relatório
             </button>
           )}
@@ -89,8 +89,8 @@ export default function TimeHeatmap({ timeData, onImport }) {
                     return (
                       <div key={hourIdx} className="heatmap-cell"
                         style={{
-                          backgroundColor: `rgba(66, 185, 131, ${0.1 + intensity * 0.9})`,
-                          boxShadow: intensity > 0.8 ? "0 0 10px rgba(66, 185, 131, 0.4)" : "none",
+                          backgroundColor: `rgba(var(--heatmap-rgb), ${0.1 + intensity * 0.9})`,
+                          boxShadow: intensity > 0.8 ? "0 0 10px rgba(var(--heatmap-rgb), 0.4)" : "none",
                         }}
                         onMouseEnter={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();

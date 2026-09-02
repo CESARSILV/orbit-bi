@@ -64,16 +64,20 @@ function usePalette() {
   return useMemo(() => {
     const dark = theme !== "light";
     return {
-      google:  "#FBBC05",
-      meta:    "#0866FF",
-      leads:   "#10B981",
+      google:  dark ? "#FBBC05" : "#A16207",
+      meta:    dark ? "#0866FF" : "#1D4ED8",
+      leads:   dark ? "#10B981" : "#047857",
+      danger:  dark ? "#F87171" : "#B91C1C",
+      googleFade: dark ? "rgba(251,188,5,0.25)" : "rgba(161,98,7,0.18)",
+      metaFade: dark ? "rgba(8,102,255,0.2)" : "rgba(29,78,216,0.16)",
+      leadsFade: dark ? "rgba(16,185,129,0.15)" : "rgba(4,120,87,0.13)",
       bg:      dark ? "#0A0F1E"                       : "#ffffff",
       surface: dark ? "#0f1629"                       : "#f8fafc",
       border:  dark ? "rgba(255,255,255,0.07)"        : "rgba(15,23,42,0.08)",
       text:    dark ? "rgba(245,247,251,0.85)"        : "#1e293b",
-      muted:   dark ? "rgba(245,247,251,0.42)"        : "#64748b",
+      muted:   dark ? "rgba(245,247,251,0.62)"        : "#475569",
       gridCol: dark ? "rgba(255,255,255,0.05)"        : "rgba(15,23,42,0.06)",
-      tooltipBg: dark ? "rgba(10,15,30,0.98)"        : "rgba(255,255,255,0.99)",
+      tooltipBg: dark ? "rgba(10,15,30,0.98)"         : "rgba(255,255,255,0.99)",
       tooltipBorder: dark ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.12)",
       isDark: dark,
     };
@@ -197,7 +201,7 @@ export default function HistoricalChart({ timeline }) {
           const total = gVal + mVal;
           const cpl   = lVal > 0 ? total / lVal : 0;
           const grow  = growthByMonth[idx];
-          const growColor = grow >= 0 ? C.leads : "#F87171";
+          const growColor = grow >= 0 ? C.leads : C.danger;
           const growIcon  = grow >= 0 ? "▲" : "▼";
           const tText = C.isDark ? "rgba(245,247,251,0.95)" : "#1e293b";
           const tTextSoft = C.isDark ? "rgba(245,247,251,0.9)" : "#334155";
@@ -247,26 +251,26 @@ export default function HistoricalChart({ timeline }) {
         {
           type: "value", name: "", max: maxLeads, min: 0, splitNumber: 4,
           axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
-          axisLabel: { color: "rgba(16,185,129,0.6)", fontFamily: "Inter, sans-serif", fontSize: chartFontSize, formatter: (v) => num.format(Math.round(v)) },
+          axisLabel: { color: C.leads, fontFamily: "Inter, sans-serif", fontSize: chartFontSize, formatter: (v) => num.format(Math.round(v)) },
         },
       ],
       series: [
         {
           name: "Google Ads", type: "bar", yAxisIndex: 0, data: googleV, barWidth: "22%", barGap: "8%",
-          itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#FBBC05" }, { offset: 1, color: "rgba(251,188,5,0.25)" }] }, borderRadius: [5, 5, 0, 0] },
-          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#FFD54F" }, { offset: 1, color: "rgba(255,213,79,0.4)" }] }, shadowBlur: 6, shadowColor: "rgba(251,188,5,0.35)" } },
+          itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: C.google }, { offset: 1, color: C.googleFade }] }, borderRadius: [5, 5, 0, 0] },
+          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#FFD54F" }, { offset: 1, color: C.googleFade }] }, shadowBlur: 6, shadowColor: "rgba(251,188,5,0.35)" } },
         },
         {
           name: "Meta Ads", type: "bar", yAxisIndex: 0, data: metaV, barWidth: "22%",
-          itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#0866FF" }, { offset: 1, color: "rgba(8,102,255,0.2)" }] }, borderRadius: [5, 5, 0, 0] },
-          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#478CFF" }, { offset: 1, color: "rgba(71,140,255,0.4)" }] }, shadowBlur: 6, shadowColor: "rgba(8,102,255,0.35)" } },
+          itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: C.meta }, { offset: 1, color: C.metaFade }] }, borderRadius: [5, 5, 0, 0] },
+          emphasis: { itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#478CFF" }, { offset: 1, color: C.metaFade }] }, shadowBlur: 6, shadowColor: "rgba(8,102,255,0.35)" } },
         },
         {
           name: "Leads", type: "line", yAxisIndex: 1, data: leadsV, smooth: 0.55, symbol: "circle", symbolSize: 7,
           lineStyle: { color: C.leads, width: 2.5 },
           itemStyle: { color: C.leads, borderColor: C.bg, borderWidth: 2 },
           emphasis: { scale: true, itemStyle: { shadowBlur: 8, shadowColor: "rgba(16,185,129,0.45)" } },
-          areaStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "rgba(16,185,129,0.15)" }, { offset: 1, color: "rgba(16,185,129,0.01)" }] } },
+          areaStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: C.leadsFade }, { offset: 1, color: "transparent" }] } },
         },
       ],
     };
@@ -285,7 +289,7 @@ export default function HistoricalChart({ timeline }) {
           gap: "1.2rem", 
           padding: "3rem 2rem", 
           minHeight: 320,
-          background: "linear-gradient(135deg, rgba(15, 20, 32, 0.4) 0%, rgba(5, 7, 13, 0.6) 100%)",
+          background: "var(--chart-empty-bg)",
           border: "1px solid var(--border-soft)",
           borderRadius: 16
         }}
@@ -294,8 +298,8 @@ export default function HistoricalChart({ timeline }) {
         <svg width="140" height="70" viewBox="0 0 140 70" fill="none" style={{ opacity: 0.35, overflow: "visible" }}>
           <defs>
             <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#ffd200" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#ffd200" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="var(--series-google)" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="var(--series-google)" stopOpacity="0.0" />
             </linearGradient>
           </defs>
           {/* Linhas de Grade */}
@@ -305,11 +309,11 @@ export default function HistoricalChart({ timeline }) {
           {/* Área sombreada */}
           <path d="M 0 60 Q 25 45 45 48 T 90 25 T 140 15 L 140 60 Z" fill="url(#chartGrad)" />
           {/* Linha de Tendência */}
-          <path d="M 0 60 Q 25 45 45 48 T 90 25 T 140 15" stroke="#ffd200" strokeWidth="2" strokeLinecap="round" />
+          <path d="M 0 60 Q 25 45 45 48 T 90 25 T 140 15" stroke="var(--series-google)" strokeWidth="2" strokeLinecap="round" />
           {/* Pontos */}
-          <circle cx="45" cy="48" r="3" fill="#ffd200" />
-          <circle cx="90" cy="25" r="3" fill="#ffd200" />
-          <circle cx="140" cy="15" r="4" fill="#ffffff" stroke="#ffd200" strokeWidth="2" />
+          <circle cx="45" cy="48" r="3" fill="var(--series-google)" />
+          <circle cx="90" cy="25" r="3" fill="var(--series-google)" />
+          <circle cx="140" cy="15" r="4" fill="var(--text-primary)" stroke="var(--series-google)" strokeWidth="2" />
         </svg>
         <div style={{ textAlign: "center", maxWidth: "340px" }}>
           <h3 style={{ margin: "0 0 6px", fontSize: "1rem", color: "var(--text-primary)", fontWeight: 700 }}>Histórico de Desempenho</h3>

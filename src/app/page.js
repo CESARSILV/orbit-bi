@@ -2532,7 +2532,7 @@ export default function Home() {
                   <h2>Resumo estratégico consolidado</h2>
                 </div>
                 {base64Files.length > 0 && (
-                  <span className="confidence" style={{ background: "rgba(123, 183, 255, 0.15)", color: "var(--blue)", borderColor: "rgba(123, 183, 255, 0.28)" }}>
+                  <span className="confidence" style={{ background: "var(--surface-info)", color: "var(--info)", borderColor: "var(--border-info)" }}>
                     {base64Files.length} anexo(s) carregado(s)
                   </span>
                 )}
@@ -2555,8 +2555,8 @@ export default function Home() {
           {/* ⚠️ AGGREGATE DATA WARNING BANNER */}
           {uniqueValues.isAggregate && (
             <div style={{
-              background: "linear-gradient(135deg, rgba(255,196,0,0.12) 0%, rgba(255,140,0,0.08) 100%)",
-              border: "1px solid rgba(255,196,0,0.35)",
+              background: "linear-gradient(135deg, var(--surface-warning), rgba(var(--warning-rgb), 0.04))",
+              border: "1px solid var(--border-warning)",
               borderRadius: "12px",
               padding: "16px 20px",
               marginBottom: "16px",
@@ -2566,12 +2566,12 @@ export default function Home() {
             }}>
               <span style={{ fontSize: "1.4rem", marginTop: "2px", flexShrink: 0 }}>⚠️</span>
               <div style={{ flex: 1 }}>
-                <p style={{ fontWeight: 700, color: "#ffc400", marginBottom: "6px", fontSize: "0.9rem" }}>
+                <p style={{ fontWeight: 700, color: "var(--warning)", marginBottom: "6px", fontSize: "0.9rem" }}>
                   Relatório agregado detectado — filtros por mês indisponíveis
                 </p>
                 <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", lineHeight: 1.6, marginBottom: "10px" }}>
                   O arquivo importado é um <strong style={{ color: "var(--text)" }}>relatório de período total</strong> — cada campanha tem uma única linha com os totais de&nbsp;
-                  <strong style={{ color: "#ffc400" }}>
+                  <strong style={{ color: "var(--warning)" }}>
                     {uniqueValues.startPeriod
                       ? new Date(uniqueValues.startPeriod + "T12:00:00").toLocaleDateString("pt-BR", { month: "short", year: "numeric" })
                       : "início"} até {uniqueValues.endPeriod
@@ -2586,7 +2586,7 @@ export default function Home() {
                 <ol style={{ color: "var(--text-muted)", fontSize: "0.78rem", lineHeight: 1.8, paddingLeft: "20px", margin: "4px 0 0" }}>
                   <li>Acesse o <strong style={{ color: "var(--text)" }}>Gerenciador de Anúncios do Meta</strong></li>
                   <li>Clique em <strong style={{ color: "var(--text)" }}>Relatórios</strong> → <strong style={{ color: "var(--text)" }}>Exportar tabela como CSV</strong></li>
-                  <li>Em <strong style={{ color: "var(--text)" }}>Detalhamento</strong>, selecione <strong style={{ color: "#7cf7be" }}>&quot;Tempo → Mês&quot;</strong> ou <strong style={{ color: "#7cf7be" }}>&quot;Tempo → Dia&quot;</strong></li>
+                  <li>Em <strong style={{ color: "var(--text)" }}>Detalhamento</strong>, selecione <strong style={{ color: "var(--success)" }}>&quot;Tempo → Mês&quot;</strong> ou <strong style={{ color: "var(--success)" }}>&quot;Tempo → Dia&quot;</strong></li>
                   <li>Exporte e importe aqui — cada linha terá o mês real com seus dados</li>
                 </ol>
               </div>
@@ -2682,7 +2682,7 @@ export default function Home() {
             {/* Descrição */}
             <p className="clear-modal-desc">
               Todos os relatórios importados, KPIs, gráficos, análises, filtros e
-              histórico de IA serão <strong style={{color: "#fff"}}>completamente removidos</strong> do
+              histórico de IA serão <strong style={{color: "var(--text-primary)"}}>completamente removidos</strong> do
               dashboard. O sistema voltará ao estado inicial.
             </p>
 
@@ -2806,11 +2806,11 @@ export default function Home() {
                       borderRadius: "8px",
                       marginBottom: "12px",
                       background: wizardDetectedMonths.length > 1
-                        ? "rgba(124,247,190,0.08)" : "rgba(255,196,0,0.08)",
-                      border: `1px solid ${wizardDetectedMonths.length > 1 ? "rgba(124,247,190,0.3)" : "rgba(255,196,0,0.3)"}`,
+                        ? "var(--surface-success)" : "var(--surface-warning)",
+                      border: `1px solid ${wizardDetectedMonths.length > 1 ? "var(--border-success)" : "var(--border-warning)"}`,
                     }}>
                       <p style={{ fontSize: "0.78rem", fontWeight: 700, marginBottom: "4px",
-                        color: wizardDetectedMonths.length > 1 ? "#7cf7be" : "#ffc400" }}>
+                        color: wizardDetectedMonths.length > 1 ? "var(--success)" : "var(--warning)" }}>
                         {wizardDetectedMonths.length > 1
                           ? `✅ ${wizardDetectedMonths.length} meses detectados no arquivo`
                           : wizardDetectedMonths.length === 1
@@ -2899,7 +2899,7 @@ export default function Home() {
                               ? "3px solid var(--blue)"
                               : field.required
                                 ? "3px solid #ff453a"   // Obrigatório + não mapeado → vermelho
-                                : "3px solid var(--border, #333)" // Opcional + não mapeado → cinza neutro
+                                : "3px solid var(--border-strong)" // Opcional + não mapeado → cinza neutro
                           }}>
                             <div className="wizard-mapping-label-row">
                               <span className="wizard-mapping-field-name">

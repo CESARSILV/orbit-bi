@@ -67,7 +67,7 @@ export default function RegionalMap({ geoData, onImport }) {
               </p>
             </div>
             {onImport && (
-              <button onClick={onImport} style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.35)", color: "#a78bfa", borderRadius: "8px", padding: "0.45rem 1rem", fontSize: "0.78rem", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
+              <button onClick={onImport} style={{ background: "var(--accent-violet-soft)", border: "1px solid var(--accent-violet-border)", color: "var(--accent-violet)", borderRadius: "8px", padding: "0.45rem 1rem", fontSize: "0.78rem", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
                 ↑ Importar Relatório
               </button>
             )}
@@ -77,11 +77,11 @@ export default function RegionalMap({ geoData, onImport }) {
             <div className="map-svg-container">
               <svg viewBox="0 0 400 400" className="brazil-svg">
                 <g id="regions">
-                  <path d="M 40,140 L 90,60 L 210,80 L 230,150 L 180,180 L 120,200 L 80,180 Z" className={`map-region-path Norte ${activeRegion.region === "Norte" ? "active" : ""}`} style={{ fill: `rgba(90, 160, 255, ${getRegionOpacity("Norte")})` }} onMouseEnter={() => handleMouseEnter("Norte")} />
-                  <path d="M 210,80 L 290,90 L 330,130 L 330,180 L 280,210 L 250,170 L 230,150 Z" className={`map-region-path Nordeste ${activeRegion.region === "Nordeste" ? "active" : ""}`} style={{ fill: `rgba(90, 160, 255, ${getRegionOpacity("Nordeste")})` }} onMouseEnter={() => handleMouseEnter("Nordeste")} />
-                  <path d="M 120,200 L 180,180 L 230,150 L 250,170 L 240,240 L 190,280 L 140,270 Z" className={`map-region-path Centro-Oeste ${activeRegion.region === "Centro-Oeste" ? "active" : ""}`} style={{ fill: `rgba(90, 160, 255, ${getRegionOpacity("Centro-Oeste")})` }} onMouseEnter={() => handleMouseEnter("Centro-Oeste")} />
-                  <path d="M 240,240 L 280,210 L 310,230 L 300,280 L 250,290 L 220,270 Z" className={`map-region-path Sudeste ${activeRegion.region === "Sudeste" ? "active" : ""}`} style={{ fill: `rgba(90, 160, 255, ${getRegionOpacity("Sudeste")})` }} onMouseEnter={() => handleMouseEnter("Sudeste")} />
-                  <path d="M 190,280 L 220,270 L 250,290 L 230,360 L 180,340 Z" className={`map-region-path Sul ${activeRegion.region === "Sul" ? "active" : ""}`} style={{ fill: `rgba(90, 160, 255, ${getRegionOpacity("Sul")})` }} onMouseEnter={() => handleMouseEnter("Sul")} />
+                  <path d="M 40,140 L 90,60 L 210,80 L 230,150 L 180,180 L 120,200 L 80,180 Z" className={`map-region-path Norte ${activeRegion.region === "Norte" ? "active" : ""}`} style={{ fill: `rgba(var(--map-rgb), ${getRegionOpacity("Norte")})` }} onMouseEnter={() => handleMouseEnter("Norte")} />
+                  <path d="M 210,80 L 290,90 L 330,130 L 330,180 L 280,210 L 250,170 L 230,150 Z" className={`map-region-path Nordeste ${activeRegion.region === "Nordeste" ? "active" : ""}`} style={{ fill: `rgba(var(--map-rgb), ${getRegionOpacity("Nordeste")})` }} onMouseEnter={() => handleMouseEnter("Nordeste")} />
+                  <path d="M 120,200 L 180,180 L 230,150 L 250,170 L 240,240 L 190,280 L 140,270 Z" className={`map-region-path Centro-Oeste ${activeRegion.region === "Centro-Oeste" ? "active" : ""}`} style={{ fill: `rgba(var(--map-rgb), ${getRegionOpacity("Centro-Oeste")})` }} onMouseEnter={() => handleMouseEnter("Centro-Oeste")} />
+                  <path d="M 240,240 L 280,210 L 310,230 L 300,280 L 250,290 L 220,270 Z" className={`map-region-path Sudeste ${activeRegion.region === "Sudeste" ? "active" : ""}`} style={{ fill: `rgba(var(--map-rgb), ${getRegionOpacity("Sudeste")})` }} onMouseEnter={() => handleMouseEnter("Sudeste")} />
+                  <path d="M 190,280 L 220,270 L 250,290 L 230,360 L 180,340 Z" className={`map-region-path Sul ${activeRegion.region === "Sul" ? "active" : ""}`} style={{ fill: `rgba(var(--map-rgb), ${getRegionOpacity("Sul")})` }} onMouseEnter={() => handleMouseEnter("Sul")} />
                 </g>
               </svg>
               <div className="map-hint">Passe o mouse nas regiões para inspecionar</div>

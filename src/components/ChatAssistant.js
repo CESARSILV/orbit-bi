@@ -98,7 +98,7 @@ export default function ChatAssistant({ messages, onSendMessage, isPending }) {
           <p className="eyebrow">Assistente nativo</p>
           <h2 style={{ margin: 0 }}>Copiloto de Insights IA</h2>
         </div>
-        <span className="live-pill" style={{ background: "rgba(255,210,0,0.12)", color: "#ffd200", borderColor: "rgba(255,210,0,0.25)" }}>
+        <span className="live-pill">
           Online
         </span>
       </div>
@@ -131,7 +131,7 @@ export default function ChatAssistant({ messages, onSendMessage, isPending }) {
         )}
       </div>
 
-      <form className="chat-form" onSubmit={handleSubmit} style={{ padding: "12px", borderTop: "1px solid var(--border-soft)", display: "flex", gap: "8px", background: "rgba(5, 7, 13, 0.4)" }}>
+      <form className="chat-form" onSubmit={handleSubmit} style={{ padding: "12px", borderTop: "1px solid var(--border-soft)", display: "flex", gap: "8px" }}>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
