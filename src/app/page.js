@@ -1260,7 +1260,7 @@ export default function Home() {
 
     let decisionMetric = {
       label: "Próxima decisão",
-      value: "Medir resultados",
+      value: "Validar atribuição",
       detail: "Associe conversões às campanhas antes de redistribuir verba.",
       tone: "neutral",
     };
@@ -1274,15 +1274,15 @@ export default function Home() {
       const costGap = Math.round(((leastEfficientCampaign.cpa / mostEfficientCampaign.cpa) - 1) * 100);
       decisionMetric = {
         label: "Prioridade",
-        value: `Revisar ${leastEfficientCampaign.nome}`,
-        detail: `CPA ${costGap}% acima de ${mostEfficientCampaign.nome}.`,
+        value: "Revisar verba",
+        detail: `"${leastEfficientCampaign.nome}" tem CPA ${costGap}% acima de "${mostEfficientCampaign.nome}".`,
         tone: "attention",
       };
     } else if (mostEfficientCampaign) {
       decisionMetric = {
         label: "Campanha a acompanhar",
-        value: mostEfficientCampaign.nome,
-        detail: `Menor CPA do recorte: ${brl.format(mostEfficientCampaign.cpa)}.`,
+        value: "Acompanhar desempenho",
+        detail: `"${mostEfficientCampaign.nome}" tem o menor CPA do recorte (${brl.format(mostEfficientCampaign.cpa)}).`,
         tone: "positive",
       };
     }

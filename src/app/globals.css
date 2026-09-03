@@ -904,13 +904,20 @@ select {
 
 .intelligence-panel.executive-panel {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 14px;
+  overflow: hidden;
 }
 
 .executive-panel .panel-heading {
   align-items: flex-start;
+  flex-wrap: wrap;
   margin-bottom: 0;
+}
+
+.executive-panel .panel-heading > div {
+  min-width: 0;
 }
 
 .executive-panel .panel-heading h2 {
@@ -918,9 +925,13 @@ select {
 }
 
 .executive-panel .confidence {
+  max-width: 100%;
+  margin-left: auto;
+  overflow: hidden;
   color: var(--info);
   border-color: var(--border-info);
   background: var(--surface-info);
+  text-overflow: ellipsis;
 }
 
 .executive-brief {
@@ -930,24 +941,35 @@ select {
   font-size: clamp(1rem, 1.35vw, 1.14rem);
   font-weight: 650;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .executive-metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(154px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
 .executive-metric {
   display: grid;
   min-width: 0;
-  min-height: 112px;
+  min-height: 104px;
   padding: 12px;
   align-content: start;
   gap: 5px;
+  overflow: hidden;
   border: 1px solid var(--border-soft);
   border-radius: calc(var(--radius) - 4px);
   background: var(--surface-subtle);
+}
+
+.executive-metric:nth-child(3) {
+  grid-column: 1 / -1;
+  min-height: 88px;
+}
+
+.executive-metric:only-child {
+  grid-column: 1 / -1;
 }
 
 .executive-metric--primary {
@@ -955,7 +977,8 @@ select {
   background: var(--surface-info);
 }
 
-.executive-metric--efficiency {
+.executive-metric--efficiency,
+.executive-metric--positive {
   border-color: var(--border-success);
   background: var(--surface-success);
 }
@@ -982,14 +1005,36 @@ select {
   font-weight: 800;
   letter-spacing: -0.035em;
   line-height: 1.14;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
 .executive-metric-detail {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--text-secondary);
   font-size: 0.75rem;
   line-height: 1.32;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@media (max-width: 600px) {
+  .executive-panel .confidence {
+    margin-left: 0;
+  }
+
+  .executive-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .executive-metric:nth-child(3) {
+    grid-column: auto;
+  }
 }
 
 .upload-panel {
