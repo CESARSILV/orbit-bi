@@ -6438,6 +6438,13 @@ html[data-theme="light"] .platform-pill.bing {
   color: var(--info);
 }
 
+.kpi-adjustment-badge--blocked,
+.kpi-adjustment-badge--pending {
+  border-color: var(--border-warning);
+  background: var(--surface-warning);
+  color: var(--warning);
+}
+
 .kpi-card-actions {
   display: flex;
   align-items: center;

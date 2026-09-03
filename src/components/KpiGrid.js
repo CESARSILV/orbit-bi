@@ -44,9 +44,20 @@ function KpiCard({ label, value, formatFn, meta, accent, index, adjustmentState,
   const formattedValue = formatFn(value);
   const statusLabel = adjustmentState === "manual"
     ? "Ajustado manualmente"
-    : adjustmentState === "recalculated"
-      ? "Recalculado"
-      : null;
+    : adjustmentState === "blocked"
+      ? "Ajuste bloqueado"
+      : adjustmentState === "pending"
+        ? "Ajuste pendente"
+        : adjustmentState === "recalculated"
+          ? "Recalculado"
+          : null;
+  const badgeLabel = adjustmentState === "manual"
+    ? "Conferido"
+    : adjustmentState === "blocked"
+      ? "Bloqueado"
+      : adjustmentState === "pending"
+        ? "Pendente"
+        : "Recalculado";
 
   return (
     <article
@@ -61,7 +72,7 @@ function KpiCard({ label, value, formatFn, meta, accent, index, adjustmentState,
         <div className="kpi-label">{label}</div>
         {statusLabel && (
           <span className={`kpi-adjustment-badge kpi-adjustment-badge--${adjustmentState}`}>
-            {adjustmentState === "manual" ? "Conferido" : "Recalculado"}
+            {badgeLabel}
           </span>
         )}
       </div>
@@ -107,7 +118,10 @@ function KpiAdjustmentModal({
   const inputRef = useRef(null);
   const previousActiveElementRef = useRef(null);
   const previousOverflowRef = useRef("");
-  const [valueInput, setValueInput] = useState(() => valueForInput(kpi, effectiveValue));
+  const [valueInput, setValueInput] = useState(() => valueForInput(
+    kpi,
+    override ? override.value : effectiveValue
+  ));
   const [reason, setReason] = useState(override?.reason || "");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -193,7 +207,7 @@ function KpiAdjustmentModal({
             <p className="kpi-adjustment-eyebrow">Conferência manual</p>
             <h2 id="kpi-adjustment-title">Ajustar {kpi.label}</h2>
             <p id="kpi-adjustment-description">
-              O ajuste altera somente o total consolidado deste recorte. Os fatos importados continuam preservados.
+              O valor conferido é consolidado neste recorte e passa a compor os meses, totais, gráficos, tabelas e relatórios aplicáveis. Os fatos importados continuam preservados.
             </p>
           </div>
           <button
@@ -212,6 +226,12 @@ function KpiAdjustmentModal({
             <span>Valor importado</span>
             <strong>{kpi.formatFn(baseValue)}</strong>
           </div>
+          {override && (
+            <div>
+              <span>Valor registrado</span>
+              <strong>{kpi.formatFn(override.value)}</strong>
+            </div>
+          )}
           {hasAutomaticDifference && (
             <div>
               <span>Automático após outros ajustes</span>
@@ -223,6 +243,17 @@ function KpiAdjustmentModal({
             <strong>{kpi.formatFn(effectiveValue)}</strong>
           </div>
         </div>
+
+        {override?.applicationStatus === "blocked" && (
+          <p className="kpi-adjustment-error" role="status">
+            Este valor está registrado, mas foi bloqueado por sobreposição ou incompatibilidade com um ajuste mais específico. O valor efetivo continua vindo das linhas consolidadas.
+          </p>
+        )}
+        {override?.applicationStatus === "pending" && (
+          <p className="kpi-adjustment-impact" role="status">
+            Este valor está registrado, mas não há linhas elegíveis para aplicá-lo neste recorte.
+          </p>
+        )}
 
         <form className="kpi-adjustment-form" onSubmit={handleSubmit}>
           <label htmlFor="kpi-adjustment-value">
@@ -554,11 +585,16 @@ export default function KpiGrid({
     <>
       <section className="kpi-grid" id="kpiGrid" aria-label="Principais indicadores de mídia paga">
         {kpis.map((kpi, index) => {
-          const adjustmentState = overrides[kpi.key]
-            ? "manual"
-            : recalculatedMetricKeys.includes(kpi.key)
-              ? "recalculated"
-              : null;
+          const override = overrides[kpi.key];
+          const adjustmentState = override?.applicationStatus === "blocked"
+            ? "blocked"
+            : override?.applicationStatus === "pending"
+              ? "pending"
+              : override
+                ? "manual"
+                : recalculatedMetricKeys.includes(kpi.key)
+                  ? "recalculated"
+                  : null;
           return (
             <KpiCard
               key={kpi.key}

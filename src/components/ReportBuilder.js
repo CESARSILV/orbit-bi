@@ -40,6 +40,16 @@ const KPI_DEFS = [
 ];
 
 const DEFAULT_KPIS = ["investimento", "cliques", "impressoes", "ctr", "leads", "qualificados", "conversoes", "demos", "cpa", "cpl"];
+const ADDITIVE_KPI_KEYS = new Set([
+  "investimento",
+  "cliques",
+  "impressoes",
+  "leads",
+  "qualificados",
+  "conversoes",
+  "demos",
+  "alcance",
+]);
 
 // ─── Calcula linha de dados para um mês ──────────────────────────────────────
 function calcRowKpis(row) {
@@ -216,6 +226,7 @@ export default function ReportBuilder({
   timeline,
   totals,
   manualAdjustments = [],
+  auditAdjustments = manualAdjustments,
   filteredCampaigns,
   platform,
   period,
@@ -342,10 +353,15 @@ export default function ReportBuilder({
 
   // Linha de total
   const totalRow = useMemo(() => calcTotalRow(tableRows), [tableRows]);
-  // As linhas mensais já vêm reconciliadas (timeline reflete a conferência manual),
-  // então o total efetivo bate com a soma das linhas. Ainda preferimos totals para
-  // cobrir também ajustes de métricas derivadas (CTR, CPC…) que não são somáveis.
+  // Métricas aditivas vêm obrigatoriamente da soma das linhas mensais reconciliadas.
+  // `totals` é usado apenas nas razões derivadas, que precisam ser recalculadas sobre
+  // o consolidado (e podem receber um ajuste derivado no escopo exato atual).
   const effectiveTotalRow = useMemo(() => KPI_DEFS.reduce((result, definition) => {
+    if (ADDITIVE_KPI_KEYS.has(definition.key)) {
+      result[definition.key] = totalRow[definition.key] ?? 0;
+      return result;
+    }
+
     const totalValue = definition.key === "cpa"
       ? (totals?.cpa ?? totals?.cac)
       : totals?.[definition.key];
@@ -353,6 +369,7 @@ export default function ReportBuilder({
     return result;
   }, { ...totalRow }), [totalRow, totals]);
   const hasManualAdjustments = manualAdjustments.length > 0;
+  const hasAuditAdjustments = auditAdjustments.length > 0;
 
   // Insights
   const insights = useMemo(() => generateInsights(tableRows, totals), [tableRows, totals]);
@@ -385,17 +402,27 @@ export default function ReportBuilder({
       [sanitizeSpreadsheetText(row.mes), ...orderedKpis.map(k => String(row[k] ?? "").replace(".", ","))].join(";")
     );
     const totalLine = ["TOTAL", ...orderedKpis.map(k => String(effectiveTotalRow[k.key] ?? "").replace(".", ","))].join(";");
-    const manualAdjustmentLines = hasManualAdjustments
+    const manualAdjustmentLines = hasAuditAdjustments
       ? [
           "",
-          "AJUSTES MANUAIS DO RECORTE",
-          "KPI;Valor importado;Valor automático;Valor efetivo;Motivo",
-          ...manualAdjustments.map((adjustment) => [
+          "AJUSTES MANUAIS APLICÁVEIS À VISÃO",
+          "KPI;Escopo de origem;Herança;Valor declarado;Valor importado;Valor automático;Valor efetivo;Motivo;Situação",
+          ...auditAdjustments.map((adjustment) => [
             adjustment.label,
+            adjustment.scopeLabel || "Recorte atual",
+            adjustment.inherited ? "Herdado" : "Escopo atual",
+            adjustment.declaredValue,
             adjustment.baseValue,
             adjustment.automaticValue,
             adjustment.effectiveValue,
             adjustment.reason || "Conferência manual",
+            adjustment.isBlockedByConflict
+              ? "Bloqueado por sobreposição"
+              : adjustment.isUnallocated
+                ? "Sem base para distribuição"
+                : adjustment.isApplied
+                  ? "Aplicado"
+                  : "Somente referência",
           ].map((value) => sanitizeSpreadsheetText(value).replace(/[;\r\n]/g, " ")).join(";")),
         ]
       : [];
@@ -424,7 +451,9 @@ export default function ReportBuilder({
     const kpiCardsHtml = summaryKpis.map(key => {
       const def = KPI_DEFS.find(d => d.key === key);
       if (!def) return "";
-      const rawVal = totals[key] ?? effectiveTotalRow[key] ?? 0;
+      const rawVal = ADDITIVE_KPI_KEYS.has(key)
+        ? (effectiveTotalRow[key] ?? 0)
+        : (totals[key] ?? effectiveTotalRow[key] ?? 0);
       const val = rawVal;
       return `<div class="kpi-card"><div class="kpi-ic">${def.icon}</div><div class="kpi-lb">${def.label}</div><div class="kpi-vl">${fmtKpi(key, val)}</div></div>`;
     }).join("");
@@ -442,7 +471,7 @@ export default function ReportBuilder({
       ? `<div class="sec"><div class="sec-t">⚡ Insights Automáticos</div><div class="ins-grid">${insights.map(i => `<div class="ins">${i.icon} <span>${i.text}</span></div>`).join("")}</div></div>`
       : "";
     const manualAdjustmentHtml = hasManualAdjustments
-      ? `<div class="manual-note"><strong>Conferência manual consolidada.</strong><span>${manualAdjustments.map((adjustment) => adjustment.label).join(" · ")}. Os valores conferidos foram distribuídos proporcionalmente no recorte, então a evolução mensal e o total refletem a mesma conferência.</span></div>`
+      ? `<div class="manual-note"><strong>Conferência manual consolidada.</strong><span>${manualAdjustments.map((adjustment) => `${adjustment.label} (${adjustment.scopeLabel || "recorte atual"})`).join(" · ")}. Cada ajuste foi aplicado em seu escopo de origem, e a evolução mensal e o total usam a mesma projeção reconciliada.</span></div>`
       : "";
 
     // Plataformas inline

@@ -178,6 +178,263 @@ export function createKpiOverrideScope(filters = {}) {
   return { ...scope, key: JSON.stringify(scope) };
 }
 
+function getTemporalBounds(scope) {
+  if (/^\d{4}-\d{2}$/.test(scope.period)) {
+    const [year, month] = scope.period.split("-").map(Number);
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    return {
+      start: `${scope.period}-01`,
+      end: `${scope.period}-${String(lastDay).padStart(2, "0")}`,
+    };
+  }
+
+  return {
+    start: scope.startDate || null,
+    end: scope.endDate || null,
+  };
+}
+
+function dimensionContains(parentValue, childValue, wildcard) {
+  return parentValue === wildcard || parentValue === childValue;
+}
+
+function temporalScopeContains(parentScope, childScope) {
+  const parent = getTemporalBounds(parentScope);
+  const child = getTemporalBounds(childScope);
+
+  if (parent.start && (!child.start || child.start < parent.start)) return false;
+  if (parent.end && (!child.end || child.end > parent.end)) return false;
+  return true;
+}
+
+function temporalScopesOverlap(firstScope, secondScope) {
+  const first = getTemporalBounds(firstScope);
+  const second = getTemporalBounds(secondScope);
+  if (first.end && second.start && first.end < second.start) return false;
+  if (second.end && first.start && second.end < first.start) return false;
+  return true;
+}
+
+function platformScopesOverlap(firstPlatform, secondPlatform) {
+  if (firstPlatform === "todas" || secondPlatform === "todas" || firstPlatform === secondPlatform) {
+    return true;
+  }
+
+  const attributedPlatforms = new Set(["google", "meta"]);
+  const crmViews = new Set(["bitrix", "doitsa"]);
+  if (attributedPlatforms.has(firstPlatform) && attributedPlatforms.has(secondPlatform)) return false;
+
+  // Linhas de CRM mantêm a plataforma atribuída (Google/Meta), portanto uma visão
+  // operacional de CRM pode intersectar uma visão por canal de atribuição.
+  return (
+    (attributedPlatforms.has(firstPlatform) && crmViews.has(secondPlatform))
+    || (crmViews.has(firstPlatform) && attributedPlatforms.has(secondPlatform))
+    || (crmViews.has(firstPlatform) && crmViews.has(secondPlatform))
+  );
+}
+
+function parseStoredScope(item) {
+  if (item?.scope && typeof item.scope === "object") {
+    return createKpiOverrideScope(item.scope);
+  }
+
+  try {
+    const parsed = JSON.parse(item?.scopeKey || "");
+    return createKpiOverrideScope(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function getRuleSpecificity(scope) {
+  const temporal = getTemporalBounds(scope);
+  return (
+    (scope.platform !== "todas" ? 2 : 0)
+    + (scope.campaign !== "todas" ? 2 : 0)
+    + (temporal.start ? 1 : 0)
+    + (temporal.end ? 1 : 0)
+  );
+}
+
+function compareRulesBroadToSpecific(first, second) {
+  const firstContainsSecond = scopeContains(first.scope, second.scope);
+  const secondContainsFirst = scopeContains(second.scope, first.scope);
+  if (firstContainsSecond && !secondContainsFirst) return -1;
+  if (secondContainsFirst && !firstContainsSecond) return 1;
+
+  if (first.specificity !== second.specificity) {
+    return first.specificity - second.specificity;
+  }
+
+  const firstUpdatedAt = Date.parse(first.updatedAt || "") || 0;
+  const secondUpdatedAt = Date.parse(second.updatedAt || "") || 0;
+  return firstUpdatedAt - secondUpdatedAt;
+}
+
+/**
+ * Retorna verdadeiro quando todo o conjunto de `childScope` está contido em
+ * `parentScope`. A relação é usada para herdar ajustes feitos em meses,
+ * plataformas ou campanhas específicas ao abrir uma visão mais ampla.
+ */
+export function scopeContains(parentScope, childScope) {
+  const parent = createKpiOverrideScope(parentScope);
+  const child = createKpiOverrideScope(childScope);
+
+  return (
+    dimensionContains(parent.platform, child.platform, "todas")
+    && dimensionContains(parent.campaign, child.campaign, "todas")
+    && temporalScopeContains(parent, child)
+  );
+}
+
+/** Verifica se dois escopos podem selecionar ao menos uma mesma linha. */
+export function kpiOverrideScopesOverlap(firstScope, secondScope) {
+  const first = createKpiOverrideScope(firstScope);
+  const second = createKpiOverrideScope(secondScope);
+  const campaignsOverlap = (
+    first.campaign === "todas"
+    || second.campaign === "todas"
+    || first.campaign === second.campaign
+  );
+
+  return (
+    campaignsOverlap
+    && platformScopesOverlap(first.platform, second.platform)
+    && temporalScopesOverlap(first, second)
+  );
+}
+
+/** Aplica a semântica dos filtros de KPI a uma linha do resumo consolidado. */
+export function rowMatchesKpiOverrideScope(row, scope) {
+  const normalizedScope = createKpiOverrideScope(scope);
+
+  if (normalizedScope.platform === "bitrix") {
+    if (!row.is_crm || toFiniteNumber(row.crm_leads) === 0) return false;
+  } else if (normalizedScope.platform === "doitsa") {
+    if (!row.is_crm || (toFiniteNumber(row.conversions) === 0 && toFiniteNumber(row.crm_demos) === 0)) {
+      return false;
+    }
+  } else if (normalizedScope.platform !== "todas" && row.platform !== normalizedScope.platform) {
+    return false;
+  }
+
+  if (normalizedScope.campaign !== "todas" && row.campaign_name !== normalizedScope.campaign) {
+    return false;
+  }
+
+  if (/^\d{4}-\d{2}$/.test(normalizedScope.period) && row.reference_month) {
+    return row.reference_month === normalizedScope.period;
+  }
+
+  const bounds = getTemporalBounds(normalizedScope);
+  if (!bounds.start && !bounds.end) return true;
+
+  const rawStart = row.date || (row.reference_month ? `${row.reference_month}-01` : "");
+  if (!rawStart) return true;
+  const rowStart = /^\d{4}-\d{2}$/.test(rawStart) ? `${rawStart}-01` : String(rawStart).slice(0, 10);
+  const rawEnd = row.report_end_date || rowStart;
+  const rowEnd = /^\d{4}-\d{2}$/.test(rawEnd) ? `${rawEnd}-01` : String(rawEnd).slice(0, 10);
+
+  if (bounds.start && rowEnd < bounds.start) return false;
+  if (bounds.end && rowStart > bounds.end) return false;
+  return true;
+}
+
+/**
+ * Resolve todas as regras nativas inteiramente contidas na visão atual.
+ *
+ * Regras idênticas são deduplicadas pelo `updatedAt` mais recente. A detecção de
+ * conflito ocorre ANTES do filtro da visão, garantindo bloqueio fail-closed: uma
+ * sobreposição ambígua não volta a valer apenas porque uma das regras ficou fora
+ * da tela atual.
+ */
+export function resolveKpiOverridePlan(overrides, viewScope) {
+  const normalizedView = createKpiOverrideScope(viewScope);
+  const latestByScopeAndMetric = new Map();
+
+  (overrides || []).forEach((item) => {
+    if (!item) return;
+    const validation = validateKpiOverrideValue(item.metric, item.value);
+    const scope = parseStoredScope(item);
+    if (!validation.valid || !scope) return;
+
+    const ruleId = `${scope.key}:${validation.metric}`;
+    const previous = latestByScopeAndMetric.get(ruleId);
+    const previousUpdatedAt = Date.parse(previous?.updatedAt || "") || 0;
+    const itemUpdatedAt = Date.parse(item.updatedAt || "") || 0;
+    if (previous && itemUpdatedAt < previousUpdatedAt) return;
+
+    latestByScopeAndMetric.set(ruleId, {
+      ...item,
+      id: ruleId,
+      scope,
+      scopeKey: scope.key,
+      metric: validation.metric,
+      value: validation.value,
+      isExact: scope.key === normalizedView.key,
+      specificity: getRuleSpecificity(scope),
+    });
+  });
+
+  const canonicalRules = [...latestByScopeAndMetric.values()].sort(compareRulesBroadToSpecific);
+  const allConflicts = [];
+  const blockedRuleIds = new Set();
+  const canonicalRulesByMetric = canonicalRules.reduce((result, rule) => {
+    if (!result[rule.metric]) result[rule.metric] = [];
+    result[rule.metric].push(rule);
+    return result;
+  }, {});
+
+  Object.entries(canonicalRulesByMetric).forEach(([metric, metricRules]) => {
+    for (let firstIndex = 0; firstIndex < metricRules.length; firstIndex += 1) {
+      for (let secondIndex = firstIndex + 1; secondIndex < metricRules.length; secondIndex += 1) {
+        const first = metricRules[firstIndex];
+        const second = metricRules[secondIndex];
+        const firstContainsSecond = scopeContains(first.scope, second.scope);
+        const secondContainsFirst = scopeContains(second.scope, first.scope);
+        if (firstContainsSecond || secondContainsFirst) continue;
+        if (!kpiOverrideScopesOverlap(first.scope, second.scope)) continue;
+
+        blockedRuleIds.add(first.id);
+        blockedRuleIds.add(second.id);
+        allConflicts.push({
+          type: "non_hierarchical_overlap",
+          metric,
+          ruleIds: [first.id, second.id],
+          message: `Há ajustes sobrepostos de ${getKpiOverrideLabel(metric)} em recortes que não formam uma hierarquia. Abra um dos recortes e remova ou refine o ajuste para consolidar com segurança.`,
+        });
+      }
+    }
+  });
+
+  const rules = canonicalRules.filter((rule) => scopeContains(normalizedView, rule.scope));
+  const auditRules = canonicalRules.filter((rule) => (
+    kpiOverrideScopesOverlap(normalizedView, rule.scope)
+  ));
+  const visibleRuleIds = new Set(auditRules.map((rule) => rule.id));
+  const conflicts = allConflicts.filter((conflict) => (
+    conflict.ruleIds.some((ruleId) => visibleRuleIds.has(ruleId))
+  ));
+  const annotateRule = (rule) => ({
+    ...rule,
+    isBlockedByConflict: blockedRuleIds.has(rule.id),
+  });
+  const annotatedRules = rules.map(annotateRule);
+  const annotatedAuditRules = auditRules.map(annotateRule);
+
+  return {
+    viewScope: normalizedView,
+    rules: annotatedRules,
+    auditRules: annotatedAuditRules,
+    fundamentalRules: annotatedRules.filter((rule) => FUNDAMENTAL_KPI_KEYS.includes(rule.metric)),
+    derivedRules: annotatedRules.filter((rule) => DERIVED_KPI_KEYS.includes(rule.metric)),
+    exactOverrides: getScopedKpiOverrides(overrides, normalizedView),
+    conflicts,
+    blockedRuleIds: [...blockedRuleIds],
+    hasInheritedOverrides: annotatedAuditRules.some((rule) => !rule.isExact),
+  };
+}
+
 export function createKpiOverrideRecord({ scope, metric, value, reason = "" }) {
   const normalizedScope = createKpiOverrideScope(scope);
   const validation = validateKpiOverrideValue(metric, value);

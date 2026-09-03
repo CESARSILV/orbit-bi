@@ -23,12 +23,21 @@ import { parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticVal
 import { getDatabase, saveDatabase, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary } from "@/lib/db";
 import { clearAnalyticsSystem } from "@/lib/clearAnalyticsSystem";
 import { useMarketingData } from "@/lib/useMarketingData";
-import { applyKpiOverrides, createKpiOverrideScope, getScopedKpiOverrides } from "@/lib/kpi-overrides";
+import {
+  applyKpiOverrides,
+  createKpiOverrideScope,
+  FUNDAMENTAL_KPI_KEYS,
+  getKpiOverrideLabel,
+  getScopedKpiOverrides,
+  resolveKpiOverridePlan,
+  rowMatchesKpiOverrideScope,
+} from "@/lib/kpi-overrides";
 import { reconcileSummaryRows } from "@/lib/kpi-reconciliation";
 import { resolveLeadAttribution } from "@/lib/attribution";
 
 // Formatting helpers
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const brl2 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const number = new Intl.NumberFormat("pt-BR");
 
 
@@ -38,6 +47,109 @@ const MONTHS_PT = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ];
+
+const EMPTY_KPI_TOTALS = Object.freeze({
+  investimento: 0,
+  receita: 0,
+  lucro: 0,
+  cpa: 0,
+  ctr: 0,
+  cpc: 0,
+  conversoes: 0,
+  qualificados: 0,
+  demos: 0,
+  cliques: 0,
+  impressoes: 0,
+  alcance: 0,
+  roi: 0,
+  ticket: 0,
+  leads: 0,
+  cpm: 0,
+  cpl: 0,
+  cac: 0,
+});
+
+function calculateSummaryTotals(rows = []) {
+  if (rows.length === 0) return { ...EMPTY_KPI_TOTALS };
+
+  const investimento = rows.reduce((sum, item) => sum + (item.spend || 0), 0);
+  const receita = rows.reduce((sum, item) => sum + (item.revenue || 0), 0);
+  const leads = rows.reduce((sum, item) => sum + (item.leads || 0), 0);
+  const conversoes = rows.reduce(
+    (sum, item) => sum + (item.is_crm ? (item.conversions || 0) : 0),
+    0
+  );
+  const qualificados = rows.reduce(
+    (sum, item) => sum + (item.is_crm ? (item.crm_leads || 0) : 0),
+    0
+  );
+  const demos = rows.reduce(
+    (sum, item) => sum + (item.is_crm ? (item.crm_demos || 0) : 0),
+    0
+  );
+  const cliques = rows.reduce((sum, item) => sum + (item.clicks || 0), 0);
+  const impressoes = rows.reduce((sum, item) => sum + (item.impressions || 0), 0);
+  const alcance = rows.reduce((sum, item) => sum + (item.reach || 0), 0);
+  const lucro = receita - investimento;
+  const cpa = conversoes > 0 ? investimento / conversoes : 0;
+
+  return {
+    investimento,
+    receita,
+    lucro,
+    cpa,
+    ctr: impressoes > 0 ? cliques / impressoes : 0,
+    cpc: cliques > 0 ? investimento / cliques : 0,
+    conversoes,
+    qualificados,
+    demos,
+    cliques,
+    impressoes,
+    alcance,
+    roi: investimento > 0 ? (lucro / investimento) * 100 : 0,
+    ticket: conversoes > 0 ? receita / conversoes : 0,
+    leads,
+    cpm: impressoes > 0 ? (investimento / impressoes) * 1000 : 0,
+    cpl: leads > 0 ? investimento / leads : 0,
+    cac: cpa,
+  };
+}
+
+function getKpiTotalValue(totals, metric) {
+  if (metric === "cpa") return Number(totals?.cpa ?? totals?.cac) || 0;
+  return Number(totals?.[metric]) || 0;
+}
+
+function formatKpiAuditValue(metric, value) {
+  const numericValue = Number(value) || 0;
+  if (metric === "ctr") return `${(numericValue * 100).toFixed(2).replace(".", ",")}%`;
+  if (["investimento", "cpc", "cpm", "cpl", "cpa"].includes(metric)) {
+    return brl2.format(numericValue);
+  }
+  return number.format(numericValue);
+}
+
+function formatKpiOverrideScope(scope) {
+  const parts = [];
+  const platformLabels = {
+    google: "Google Ads",
+    meta: "Meta Ads",
+    bitrix: "Bitrix24 CRM",
+    doitsa: "DOitSA",
+  };
+
+  if (scope.platform !== "todas") parts.push(platformLabels[scope.platform] || scope.platform);
+  if (/^\d{4}-\d{2}$/.test(scope.period)) {
+    const [year, month] = scope.period.split("-").map(Number);
+    parts.push(`${MONTHS_PT[month - 1]}/${year}`);
+  } else if (scope.startDate || scope.endDate) {
+    const formatDate = (value) => value ? value.split("-").reverse().join("/") : "sem limite";
+    parts.push(`${formatDate(scope.startDate)} a ${formatDate(scope.endDate)}`);
+  }
+  if (scope.campaign !== "todas") parts.push(`Campanha: ${scope.campaign}`);
+
+  return parts.length > 0 ? parts.join(" · ") : "Histórico completo";
+}
 
 const INITIAL_MESSAGES = [
   {
@@ -676,61 +788,36 @@ export default function Home() {
     [kpiOverrides, kpiOverrideScope]
   );
 
-  // Reconciliação proporcional: o valor conferido vira verdade consolidada e é
-  // redistribuído nas linhas do recorte, para que gráficos, tabelas por mês e por
-  // campanha e relatórios reflitam o mesmo número — não apenas o total dos cards.
-  //
-  // Substituímos as linhas por POSIÇÃO original (não por chave textual), evitando
-  // colisão quando várias linhas compartilham platform/campanha/mês sem `date`.
-  // A função aceita um predicado de recorte próprio para permitir uma versão sem
-  // filtro de plataforma (usada pelo Donut consolidado).
-  const buildReconciledSummary = useCallback((predicate) => {
-    const allRows = marketingDb.fact_marketing_summary || [];
-    const scopedRows = [];
-    const scopedIndexes = [];
-    allRows.forEach((row, index) => {
-      if (predicate(row)) {
-        scopedRows.push(row);
-        scopedIndexes.push(index);
-      }
-    });
+  // Este plano determina quais ajustes devem aparecer na auditoria da visão atual.
+  // A edição/restauração continua restrita ao escopo exato acima.
+  const kpiOverridePlan = useMemo(
+    () => resolveKpiOverridePlan(kpiOverrides, kpiOverrideScope),
+    [kpiOverrides, kpiOverrideScope]
+  );
 
-    const { rows: reconciledRows, hasReconciliation, unallocatedMetrics } =
-      reconcileSummaryRows(scopedRows, scopedKpiOverrides);
+  // A projeção de linhas é canônica e independente do filtro aberto. Isso evita que
+  // um ajuste de Meta volte ao bruto no Donut ao selecionar Google e garante que um
+  // conflito permaneça bloqueado em qualquer tela que mostre uma de suas regras.
+  const canonicalKpiOverridePlan = useMemo(
+    () => resolveKpiOverridePlan(kpiOverrides, {
+      platform: "todas",
+      period: "todos",
+      startDate: "",
+      endDate: "",
+      campaign: "todas",
+    }),
+    [kpiOverrides]
+  );
 
-    if (!hasReconciliation) {
-      return { rows: allRows, unallocatedMetrics: unallocatedMetrics || [] };
-    }
-
-    const nextRows = allRows.slice();
-    scopedIndexes.forEach((originalIndex, scopedIndex) => {
-      nextRows[originalIndex] = reconciledRows[scopedIndex];
-    });
-
-    return { rows: nextRows, unallocatedMetrics: unallocatedMetrics || [] };
-  }, [marketingDb, scopedKpiOverrides]);
-
+  // Fonte única de verdade projetada: cada regra fundamental é aplicada somente às
+  // linhas de seu escopo nativo. Timeline, campanhas, donut e exportações passam a
+  // consumir esta mesma cópia reconciliada; marketingDb permanece imutável.
   const reconciledState = useMemo(
-    () => buildReconciledSummary(matchesCoreFilters),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [buildReconciledSummary, platform, period, startDate, endDate, campaign]
+    () => reconcileSummaryRows(marketingDb.fact_marketing_summary || [], canonicalKpiOverridePlan),
+    [canonicalKpiOverridePlan, marketingDb.fact_marketing_summary]
   );
   const reconciledSummary = reconciledState.rows;
-
-  // Recorte do Donut ignora a plataforma de propósito; para não misturar linhas
-  // reconciliadas com linhas factuais de outras plataformas, reconciliamos com o
-  // mesmo predicado sem filtro de plataforma.
-  const donutSummary = useMemo(
-    () => buildReconciledSummary((row) => {
-      if (period !== "todos" && row.reference_month !== period) return false;
-      if (!isInsideSelectedDateRange(row)) return false;
-      if (campaign !== "todas" && row.campaign_name !== campaign) return false;
-      return true;
-    }).rows,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [buildReconciledSummary, period, startDate, endDate, campaign]
-  );
-
+  const donutSummary = reconciledSummary;
 
   // A-03 FIX: Memoized campaign grouped list
   const filteredCampaigns = useMemo(() => {
@@ -857,83 +944,132 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [donutSummary, period, startDate, endDate, campaign]);
 
-  // Calculate Consolidated KPIs from filtered summary
-  // A-03 FIX: Memoized KPI totals
-  // REGRA DEFINITIVA de leads vs conversões:
-  //   leads     = soma de item.leads (coluna real de leads, ex: Meta Leads Form)
-  //   conversoes = soma de item.conversions (conversões/resultados do objetivo da campanha)
-  //   CPL = spend / leads (quando leads > 0)
-  //   CAC = spend / conversions (quando conversions > 0)
-  //   As duas métricas são INDEPENDENTES — nunca são somadas nem uma é derivada da outra.
-  const baseTotals = useMemo(() => {
-    const list = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
+  // Totais importados do filtro atual, mantidos para auditoria e para o modal de
+  // conferência. Eles nunca são mutados pelos ajustes manuais.
+  const baseTotals = useMemo(
+    () => calculateSummaryTotals(marketingDb.fact_marketing_summary.filter(matchesCoreFilters)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [marketingDb, platform, period, startDate, endDate, campaign]
+  );
 
-    if (list.length === 0) {
-      return {
-        investimento: 0, receita: 0, lucro: 0, cpa: 0, ctr: 0, cpc: 0,
-        conversoes: 0, qualificados: 0, demos: 0, cliques: 0, impressoes: 0, alcance: 0, roi: 0, ticket: 0,
-        leads: 0, cpm: 0, cpl: 0, cac: 0
-      };
-    }
+  // Totais efetivos vêm da mesma projeção usada pela timeline e pelas tabelas.
+  // Assim, Agosto corrigido permanece corrigido ao abrir "Todos os meses" e seu
+  // delta compõe naturalmente o histórico consolidado.
+  const reconciledTotals = useMemo(
+    () => calculateSummaryTotals(reconciledSummary.filter(matchesCoreFilters)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [reconciledSummary, platform, period, startDate, endDate, campaign]
+  );
 
-    const investimento = list.reduce((sum, item) => sum + (item.spend || 0), 0);
-    const receita      = list.reduce((sum, item) => sum + (item.revenue || 0), 0);
-    const leads        = list.reduce((sum, item) => sum + (item.leads || 0), 0);
-    const conversoes   = list.reduce((sum, item) => sum + (item.is_crm ? (item.conversions || 0) : 0), 0);
-
-    const qualificados = list.reduce((sum, item) => sum + (item.is_crm ? (item.crm_leads || 0) : 0), 0);
-    const demos        = list.reduce((sum, item) => sum + (item.is_crm ? (item.crm_demos || 0) : 0), 0);
-    const cliques      = list.reduce((sum, item) => sum + (item.clicks || 0), 0);
-    const impressoes   = list.reduce((sum, item) => sum + (item.impressions || 0), 0);
-    const reach        = list.reduce((sum, item) => sum + (item.reach || 0), 0);
-
-    const ctr    = impressoes > 0 ? cliques / impressoes : 0;
-    const cpc    = cliques > 0 ? investimento / cliques : 0;
-    const cpm    = impressoes > 0 ? (investimento / impressoes) * 1000 : 0;
-    const cpl    = leads > 0 ? investimento / leads : 0;
-    const cac    = conversoes > 0 ? investimento / conversoes : 0;
-    const profit = receita - investimento;
-    const roi    = investimento > 0 ? (profit / investimento) * 100 : 0;
-    const ticket = conversoes > 0 ? receita / conversoes : 0;
+  const effectiveKpiState = useMemo(() => {
+    const blockedRuleIds = new Set(reconciledState.blockedRuleIds || []);
+    const safeExactDerivedOverrides = Object.fromEntries(
+      Object.entries(scopedKpiOverrides).filter(([metric, record]) => (
+        !FUNDAMENTAL_KPI_KEYS.includes(metric) && !blockedRuleIds.has(record.id)
+      ))
+    );
+    // Fundamentais são sempre a soma da projeção reconciliada. Reaplicar um alvo
+    // fundamental aqui criaria duas fontes quando um pai fosse incompatível com
+    // seus filhos. Somente derivados exatos podem substituir o agregado final.
+    const projectedState = applyKpiOverrides(reconciledTotals, safeExactDerivedOverrides);
+    const appliedRuleIds = new Set(reconciledState.appliedRuleIds || []);
+    const annotatedExactOverrides = Object.fromEntries(
+      Object.entries(scopedKpiOverrides).map(([metric, record]) => {
+        const isApplied = FUNDAMENTAL_KPI_KEYS.includes(metric)
+          ? appliedRuleIds.has(record.id)
+          : Boolean(safeExactDerivedOverrides[metric]);
+        return [metric, {
+          ...record,
+          applicationStatus: blockedRuleIds.has(record.id)
+            ? "blocked"
+            : isApplied
+              ? "applied"
+              : "pending",
+        }];
+      })
+    );
 
     return {
-      investimento,
-      receita,
-      lucro: profit,
-      cpa: cac,
-      ctr,
-      cpc,
-      conversoes,
-      qualificados,
-      demos,
-      cliques,
-      impressoes,
-      alcance: reach,
-      roi,
-      ticket,
-      leads,
-      cpm,
-      cpl,
-      cac
+      ...projectedState,
+      baseTotals,
+      // Todos os overrides exatos continuam visíveis no modal para restauração,
+      // inclusive os bloqueados; eles apenas não alteram o valor efetivo.
+      overrides: annotatedExactOverrides,
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [marketingDb, platform, period, startDate, endDate, campaign]);
-
-  const effectiveKpiState = useMemo(
-    () => applyKpiOverrides(baseTotals, scopedKpiOverrides),
-    [baseTotals, scopedKpiOverrides]
-  );
+  }, [baseTotals, reconciledState, reconciledTotals, scopedKpiOverrides]);
   const totals = effectiveKpiState.totals;
-  const manualKpiAdjustments = effectiveKpiState.adjustments;
-  // Rótulos dos ajustes que não puderam ser distribuídos por falta de base factual
-  // no recorte. Nesses casos o card mostra o valor conferido, mas gráficos/tabelas
-  // não têm onde alocá-lo — avisamos o usuário para não parecer inconsistência.
+
+  // Auditoria única para UI, IA e exportações. Inclui ajustes herdados de meses,
+  // plataformas e campanhas filhos, com seu subtotal importado e efetivo nativos.
+  const manualKpiAdjustments = useMemo(() => {
+    const appliedRuleIds = new Set(reconciledState.appliedRuleIds || []);
+    const unallocatedRuleIds = new Set(reconciledState.unallocatedRuleIds || []);
+    const blockedRuleIds = new Set(reconciledState.blockedRuleIds || []);
+    const rawRows = marketingDb.fact_marketing_summary || [];
+
+    return (kpiOverridePlan.auditRules || kpiOverridePlan.rules).map((rule) => {
+      const rawNativeTotals = calculateSummaryTotals(
+        rawRows.filter((row) => rowMatchesKpiOverrideScope(row, rule.scope))
+      );
+      const projectedNativeTotals = calculateSummaryTotals(
+        reconciledSummary.filter((row) => rowMatchesKpiOverrideScope(row, rule.scope))
+      );
+      const baseValue = getKpiTotalValue(rawNativeTotals, rule.metric);
+      const automaticValue = getKpiTotalValue(projectedNativeTotals, rule.metric);
+      const isBlockedByConflict = blockedRuleIds.has(rule.id);
+      const isUnallocated = unallocatedRuleIds.has(rule.id);
+      const isDerivedExact = rule.isExact
+        && !isBlockedByConflict
+        && !FUNDAMENTAL_KPI_KEYS.includes(rule.metric);
+      const isApplied = !isBlockedByConflict
+        && (appliedRuleIds.has(rule.id) || isDerivedExact);
+      const affectedRowIndexes = reconciledState.appliedRuleRowIndexes?.[rule.id] || [];
+      const affectsCurrentView = affectedRowIndexes.some((rowIndex) => (
+        rowMatchesKpiOverrideScope(reconciledSummary[rowIndex], kpiOverrideScope)
+      ));
+
+      return {
+        ...rule,
+        label: getKpiOverrideLabel(rule.metric),
+        scopeLabel: formatKpiOverrideScope(rule.scope),
+        inherited: !rule.isExact,
+        declaredValue: rule.value,
+        baseValue,
+        automaticValue,
+        effectiveValue: isDerivedExact ? rule.value : automaticValue,
+        isApplied,
+        isAppliedInView: isApplied && (isDerivedExact || rule.isExact || affectsCurrentView),
+        isUnallocated,
+        isBlockedByConflict,
+      };
+    });
+  }, [kpiOverridePlan, kpiOverrideScope, marketingDb.fact_marketing_summary, reconciledState, reconciledSummary]);
+
   const unallocatedAdjustmentLabels = useMemo(() => {
-    const labelByMetric = new Map(manualKpiAdjustments.map((item) => [item.metric, item.label]));
-    return (reconciledState.unallocatedMetrics || []).map(
-      (metric) => labelByMetric.get(metric) || metric
+    const adjustmentById = new Map(manualKpiAdjustments.map((item) => [item.id, item]));
+    return (reconciledState.unallocatedRuleIds || [])
+      .map((ruleId) => {
+        const adjustment = adjustmentById.get(ruleId);
+        return adjustment ? `${adjustment.label} (${adjustment.scopeLabel})` : null;
+      })
+      .filter(Boolean);
+  }, [manualKpiAdjustments, reconciledState.unallocatedRuleIds]);
+
+  const overrideConflictMessages = useMemo(() => {
+    const visibleRuleIds = new Set(
+      (kpiOverridePlan.auditRules || kpiOverridePlan.rules).map((rule) => rule.id)
     );
-  }, [manualKpiAdjustments, reconciledState.unallocatedMetrics]);
+    return [...new Set((reconciledState.conflicts || [])
+      .filter((conflict) => conflict.ruleIds?.some((ruleId) => visibleRuleIds.has(ruleId)))
+      .map((conflict) => conflict.message))];
+  }, [kpiOverridePlan, reconciledState.conflicts]);
+
+  const appliedManualKpiAdjustments = useMemo(
+    () => manualKpiAdjustments.filter((adjustment) => (
+      adjustment.isAppliedInView && !adjustment.isBlockedByConflict
+    )),
+    [manualKpiAdjustments]
+  );
 
   const handleSaveKpiOverride = useCallback(async ({ metric, value, reason }) => {
     const result = await saveKpiOverride({
@@ -980,7 +1116,9 @@ export default function Home() {
     // A fonte de verdade é unallocatedMetrics (calculada no motor), não uma
     // comparação numérica que pode gerar falso positivo.
     const effectiveConversoes = Math.round(Number(totals.conversoes || 0));
-    const hasUnallocatedAdjustment = (reconciledState.unallocatedMetrics || []).includes("conversoes");
+    const hasUnallocatedAdjustment = manualKpiAdjustments.some(
+      (adjustment) => adjustment.metric === "conversoes" && adjustment.isUnallocated
+    );
 
     // As partes vêm das linhas reconciliadas; o total exibido é a soma dessas partes
     // para que meta + google + playbooks feche exatamente com o card. Se o ajuste não
@@ -997,8 +1135,12 @@ export default function Home() {
       google: platformCounts.google,
       playbooksOutras,
       demosRealizadas,
-      isTotalAdjusted: Boolean(effectiveKpiState.overrides.conversoes),
-      isDemosAdjusted: Boolean(effectiveKpiState.overrides.demos),
+      isTotalAdjusted: manualKpiAdjustments.some(
+        (adjustment) => adjustment.metric === "conversoes" && adjustment.isAppliedInView
+      ),
+      isDemosAdjusted: manualKpiAdjustments.some(
+        (adjustment) => adjustment.metric === "demos" && adjustment.isAppliedInView
+      ),
       hasUnallocatedAdjustment,
       effectiveConversoes,
     };
@@ -2377,8 +2519,8 @@ export default function Home() {
       "Definir metas de CPA e CPL para o próximo ciclo.",
       "Gerar nova leitura após o próximo período de otimização.",
     ];
-    const manualAdjustmentHtml = manualKpiAdjustments.length > 0
-      ? `<div class="manual-adjustment-note"><strong>Conferência manual consolidada.</strong><span>${manualKpiAdjustments.map((adjustment) => adjustment.label).join(" · ")}. Os valores conferidos foram consolidados e distribuídos proporcionalmente no recorte, refletindo em KPIs, tabelas e totais.</span></div>`
+    const manualAdjustmentHtml = appliedManualKpiAdjustments.length > 0
+      ? `<div class="manual-adjustment-note"><strong>Conferência manual consolidada.</strong><span>${appliedManualKpiAdjustments.map((adjustment) => `${adjustment.label} (${adjustment.scopeLabel})`).join(" · ")}. Os ajustes aplicados foram projetados em seus meses, plataformas e campanhas de origem; os KPIs e totais usam essa mesma base consolidada.</span></div>`
       : "";
 
     const sorted   = [...filteredCampaigns].sort((a, b) => b.investimento - a.investimento);
@@ -2629,15 +2771,20 @@ export default function Home() {
       return String(Number(normalized.toFixed(10))).replace(".", ",");
     };
     const FUNDAMENTAL_OVERRIDE_METRICS = new Set(["investimento", "cliques", "impressoes", "leads", "qualificados", "conversoes", "demos", "alcance"]);
+    const appliedExactMetrics = new Set(
+      appliedManualKpiAdjustments
+        .filter((adjustment) => !adjustment.inherited)
+        .map((adjustment) => adjustment.metric)
+    );
     const formulaWithOverride = (metric, fallbackFormula) => {
-      if (!effectiveKpiState.overrides[metric]) return fallbackFormula;
+      if (!appliedExactMetrics.has(metric)) return fallbackFormula;
       // Métricas fundamentais ajustadas já foram reconciliadas nas linhas, então a
       // soma fecha com o total: mantemos a fórmula viva. Métricas derivadas (CTR, CPC…)
       // não são redistribuídas por linha, então gravamos o valor conferido diretamente.
       return FUNDAMENTAL_OVERRIDE_METRICS.has(metric) ? fallbackFormula : `=${toExcelNumber(totals[metric] ?? 0)}`;
     };
     const descriptionWithOverride = (metric, description) => (
-      effectiveKpiState.overrides[metric]
+      appliedExactMetrics.has(metric)
         ? `${description} — consolidado a partir da sua conferência manual`
         : description
     );
@@ -2698,14 +2845,24 @@ export default function Home() {
       }),
       ...(manualKpiAdjustments.length > 0 ? [
         [],
-        ["AJUSTES MANUAIS DO RECORTE"],
-        ["KPI", "Valor importado", "Valor automático", "Valor efetivo", "Motivo", "Atualizado em"],
+        ["AJUSTES MANUAIS APLICÁVEIS À VISÃO"],
+        ["KPI", "Escopo de origem", "Herança", "Valor declarado", "Valor importado", "Valor automático", "Valor efetivo", "Motivo", "Situação", "Atualizado em"],
         ...manualKpiAdjustments.map((adjustment) => [
           safeSpreadsheetText(adjustment.label),
+          safeSpreadsheetText(adjustment.scopeLabel),
+          adjustment.inherited ? "Herdado" : "Escopo atual",
+          adjustment.declaredValue,
           adjustment.baseValue,
           adjustment.automaticValue,
           adjustment.effectiveValue,
           safeSpreadsheetText(adjustment.reason || "Conferência manual"),
+          adjustment.isBlockedByConflict
+            ? "Bloqueado por sobreposição"
+            : adjustment.isUnallocated
+              ? "Sem base para distribuição"
+              : adjustment.isApplied
+                ? "Aplicado"
+                : "Somente referência",
           safeSpreadsheetText(adjustment.updatedAt || ""),
         ]),
       ] : []),
@@ -2730,7 +2887,7 @@ export default function Home() {
         body: JSON.stringify({
           campaigns: filteredCampaigns,
           totals,
-          manualAdjustments: manualKpiAdjustments,
+          manualAdjustments: appliedManualKpiAdjustments,
         }),
       });
       if (response.ok) {
@@ -2792,7 +2949,7 @@ export default function Home() {
           messages: [...messages.slice(-9), newUserMessage],
           campaigns: filteredCampaigns,
           totals,
-          manualAdjustments: manualKpiAdjustments,
+          manualAdjustments: appliedManualKpiAdjustments,
           uploadedFiles: base64Files,
         }),
       });
@@ -2921,7 +3078,8 @@ export default function Home() {
               <ReportBuilder
                 timeline={timeline}
                 totals={totals}
-                manualAdjustments={manualKpiAdjustments}
+                manualAdjustments={appliedManualKpiAdjustments}
+                auditAdjustments={manualKpiAdjustments}
                 filteredCampaigns={filteredCampaigns}
                 platform={platform}
                 period={period}
@@ -3036,15 +3194,35 @@ export default function Home() {
                 lineHeight: 1.5,
               }}
             >
-              <strong style={{ color: "var(--info)" }}>Conferência manual ativa no recorte atual</strong>
+              <strong style={{ color: "var(--info)" }}>
+                {kpiOverridePlan.hasInheritedOverrides
+                  ? "Conferências manuais aplicadas e herdadas"
+                  : "Conferência manual ativa no recorte atual"}
+              </strong>
               <span>
-                {manualKpiAdjustments.map((adjustment) => adjustment.label).join(" · ")}. Os valores conferidos são consolidados e distribuídos proporcionalmente no recorte, refletindo em cards, gráficos, tabelas por mês e por campanha, IA e exportações.
+                {manualKpiAdjustments.map((adjustment) => {
+                  const status = adjustment.isBlockedByConflict
+                    ? "bloqueado por sobreposição"
+                    : adjustment.isUnallocated
+                      ? "sem base para distribuição"
+                      : adjustment.isAppliedInView
+                        ? "aplicado nesta visão"
+                        : adjustment.isApplied
+                          ? "aplicado fora desta visão"
+                          : "somente referência";
+                  return `${adjustment.label} (${adjustment.scopeLabel}) — alvo ${formatKpiAuditValue(adjustment.metric, adjustment.declaredValue)} — ${status}`;
+                }).join(" · ")}. Os itens aplicados atuam somente no mês, plataforma e campanha em que foram conferidos; a visão atual e seus totais são recalculados a partir da projeção única.
               </span>
               {unallocatedAdjustmentLabels.length > 0 && (
                 <span style={{ color: "var(--warning)" }}>
-                  Atenção: {unallocatedAdjustmentLabels.join(" · ")} não têm base neste recorte para distribuição por mês/campanha. O total considera o valor conferido, mas os gráficos ficam sem onde alocá-lo — importe os dados do período ou ajuste dentro de um recorte com registros.
+                  Atenção: {unallocatedAdjustmentLabels.join(" · ")} não têm linhas elegíveis para distribuição. O ajuste foi sinalizado sem inventar dados por mês ou campanha; importe a base do período ou refine o recorte.
                 </span>
               )}
+              {overrideConflictMessages.map((message) => (
+                <span key={message} style={{ color: "var(--warning)" }}>
+                  Atenção: {message}
+                </span>
+              ))}
             </aside>
           )}
 
