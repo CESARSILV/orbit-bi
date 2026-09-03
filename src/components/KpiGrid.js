@@ -80,23 +80,15 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
     total: 0,
     meta: 0,
     google: 0,
-    playbooks: 0,
-    outras: 0,
-    semOrigem: 0,
+    playbooksOutras: 0,
     demosRealizadas: 0,
-    registrosEncontrados: 0,
-    registrosComOrigem: 0,
-    registrosInferidos: 0,
-    hasWarning: false,
     ...breakdown,
   };
 
   const stats = [
     { key: "meta", label: "Meta", value: data.meta, modifier: "meta" },
     { key: "google", label: "Google", value: data.google, modifier: "google" },
-    { key: "playbooks", label: "Playbooks", value: data.playbooks, modifier: "playbooks" },
-    { key: "outras", label: "Outras origens", value: data.outras, modifier: "outras" },
-    { key: "sem-origem", label: "Sem origem", value: data.semOrigem, modifier: "sem-origem" },
+    { key: "playbooks-outros", label: "Playbooks e outras origens", value: data.playbooksOutras, modifier: "playbooks" },
     { key: "demos", label: "Demos realizadas", value: data.demosRealizadas, modifier: "demos" },
   ];
 
@@ -141,7 +133,7 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
           <small>O total permanece vinculado ao KPI consolidado do dashboard.</small>
         </div>
 
-        <div className="appointment-breakdown-grid" role="list" aria-label="Agendamentos por origem">
+        <div className="appointment-breakdown-grid" role="list" aria-label="Agendamentos por plataforma">
           {stats.map((stat) => (
             <div className={`appointment-breakdown-stat appointment-breakdown-stat--${stat.modifier}`} role="listitem" key={stat.key}>
               <span>{stat.label}</span>
@@ -150,17 +142,8 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
           ))}
         </div>
 
-        {data.hasWarning && (
-          <div className="appointment-breakdown-warning" role="status">
-            <strong>Atenção à atribuição</strong>
-            <span>
-              O card consolida {formatCount(data.total)} agendamento(s). Foram localizados {formatCount(data.registrosEncontrados)} registro(s) DOitSA neste filtro, dos quais {formatCount(data.registrosComOrigem)} têm atribuição identificada por origem ou UTM. {data.registrosInferidos > 0 ? `${formatCount(data.registrosInferidos)} foram classificados por um campo auxiliar. ` : ""}Registros sem evidência de plataforma aparecem em “Sem origem” e podem exigir reimportação.
-            </span>
-          </div>
-        )}
-
         <p className="appointment-breakdown-footnote">
-          Meta reúne Facebook, Instagram e WhatsApp. “Outras origens” preserva valores informados pelo comercial que não correspondem às categorias principais.
+          Meta reúne Facebook, Instagram e WhatsApp. O saldo de Playbooks e outras origens é calculado a partir do total consolidado menos Meta e Google.
         </p>
       </section>
     </div>

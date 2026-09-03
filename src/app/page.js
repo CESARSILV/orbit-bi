@@ -915,11 +915,12 @@ export default function Home() {
       && matchesDateFilters(row, row.date)
     ));
 
-    const counts = selectedRows.reduce((accumulator, row) => {
+    const platformCounts = selectedRows.reduce((accumulator, row) => {
       const source = resolveLeadAttribution(row).category;
-      accumulator[source] += 1;
+      if (source === "meta") accumulator.meta += 1;
+      if (source === "google") accumulator.google += 1;
       return accumulator;
-    }, { meta: 0, google: 0, playbooks: 0, outras: 0, sem_origem: 0 });
+    }, { meta: 0, google: 0 });
 
     const realizedRows = sourceRows.filter((row) => {
       const isDemoRealized = row.is_demo === true
@@ -932,25 +933,15 @@ export default function Home() {
         && matchesDateFilters(row, getRealizedDate(row) || row.date);
     });
 
-    const total = Math.round(Number(totals.conversoes || 0));
-    const registrosComOrigem = selectedRows.length - counts.sem_origem;
-    const registrosInferidos = selectedRows.filter((row) => {
-      const attribution = resolveLeadAttribution(row);
-      return attribution.category !== "sem_origem" && attribution.method !== "origem declarada";
-    }).length;
+    const total = Math.max(0, Math.round(Number(totals.conversoes || 0)));
+    const playbooksOutras = Math.max(0, total - platformCounts.meta - platformCounts.google);
 
     return {
       total,
-      meta: counts.meta,
-      google: counts.google,
-      playbooks: counts.playbooks,
-      outras: counts.outras,
-      semOrigem: counts.sem_origem,
+      meta: platformCounts.meta,
+      google: platformCounts.google,
+      playbooksOutras,
       demosRealizadas: realizedRows.length,
-      registrosEncontrados: selectedRows.length,
-      registrosComOrigem,
-      registrosInferidos,
-      hasWarning: selectedRows.length !== total || registrosComOrigem !== total,
     };
   }, [marketingDb, totals.conversoes, platform, period, startDate, endDate, campaign]);
 
