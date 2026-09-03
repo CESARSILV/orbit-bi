@@ -633,7 +633,7 @@ export default function Home() {
     if (platform === "bitrix") {
       if (!row.is_crm || (row.crm_leads || 0) === 0) return false;
     } else if (platform === "doitsa") {
-      if (!row.is_crm || (row.conversions || 0) === 0) return false;
+      if (!row.is_crm || ((row.conversions || 0) === 0 && (row.crm_demos || 0) === 0)) return false;
     } else if (platform !== "todas" && row.platform !== platform) {
       return false;
     }
@@ -837,103 +837,24 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketingDb, platform, period, startDate, endDate, campaign]);
 
-  // O total exibido no popup continua sendo o mesmo total autoritativo do card.
-  // A divisão por origem vem somente dos registros DOitSA preservados em fact_crm.
-  const appointmentBreakdown = useMemo(() => {
-    const sourceRows = (marketingDb.fact_crm || []).filter((row) => {
-      const isDoitsa = row.crm_platform === "doitsa" || row.platform === "doitsa";
-      return isDoitsa && Number(row.conversions || 0) > 0;
-    });
+  // O detalhamento usa a mesma tabela consolidada que alimenta os cards.
+  // Assim, duplicatas lógicas de CRM não reaparecem no modal de agendamentos.
+  const appointmentBreakdown = (() => {
+    const crmRows = marketingDb.fact_marketing_summary.filter(
+      (row) => row.is_crm && matchesCoreFilters(row)
+    );
 
-    const normalizeDate = (value) => {
-      const raw = String(value || "").trim();
-      if (!raw) return "";
-      if (/^\d{4}-\d{2}$/.test(raw)) return `${raw}-01`;
-      if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-
-      const brMatch = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
-      if (brMatch) {
-        return `${brMatch[3]}-${String(brMatch[2]).padStart(2, "0")}-${String(brMatch[1]).padStart(2, "0")}`;
-      }
-      return raw;
-    };
-
-    const getReferenceMonth = (dateValue, fallback) => {
-      const normalizedDate = normalizeDate(dateValue);
-      if (/^\d{4}-\d{2}/.test(normalizedDate)) return normalizedDate.slice(0, 7);
-
-      const normalizedFallback = normalizeDate(fallback);
-      return /^\d{4}-\d{2}/.test(normalizedFallback)
-        ? normalizedFallback.slice(0, 7)
-        : String(fallback || "").slice(0, 7);
-    };
-
-    const getRealizedDate = (row) => {
-      if (row.realized_date) return normalizeDate(row.realized_date);
-      const statusMatch = String(row.lead_status || "").match(/Demo Realizada\|(\d{4}-\d{2}-\d{2})/);
-      return statusMatch ? statusMatch[1] : "";
-    };
-
-    const matchesDateFilters = (row, dateValue) => {
-      const date = normalizeDate(dateValue || row.date);
-      const referenceMonth = getReferenceMonth(dateValue || row.date, row.reference_month);
-
-      if (period !== "todos" && referenceMonth !== period) return false;
-      if (!date) return true;
-      if (startDate && date < startDate) return false;
-      if (endDate && date > endDate) return false;
-      return true;
-    };
-
-    const matchesPlatformFilter = (row) => {
-      if (platform === "todas") return true;
-      if (platform === "bitrix") return false;
-
-      const source = resolveLeadAttribution(row).category;
-      if (platform === "doitsa") return source !== "meta" && source !== "google";
-      if (platform === "meta") return source === "meta";
-      if (platform === "google") return source === "google";
-      return row.platform === platform;
-    };
-
-    const matchesCampaignFilter = (row) => {
-      if (campaign === "todas") return true;
-
-      const source = resolveLeadAttribution(row).category;
-      const crmCampaign = source === "google"
-        ? "Google Ads (CRM)"
-        : source === "meta"
-          ? "Meta Ads (CRM)"
-          : "DOitSA Demos";
-
-      return row.campaign_name === campaign || crmCampaign === campaign;
-    };
-
-    const selectedRows = sourceRows.filter((row) => (
-      matchesPlatformFilter(row)
-      && matchesCampaignFilter(row)
-      && matchesDateFilters(row, row.date)
-    ));
-
-    const platformCounts = selectedRows.reduce((accumulator, row) => {
-      const source = resolveLeadAttribution(row).category;
-      if (source === "meta") accumulator.meta += 1;
-      if (source === "google") accumulator.google += 1;
+    const platformCounts = crmRows.reduce((accumulator, row) => {
+      if (row.platform === "meta") accumulator.meta += Number(row.conversions || 0);
+      if (row.platform === "google") accumulator.google += Number(row.conversions || 0);
       return accumulator;
     }, { meta: 0, google: 0 });
 
-    const realizedRows = sourceRows.filter((row) => {
-      const isDemoRealized = row.is_demo === true
-        || row.is_demo === 1
-        || ["true", "1", "sim", "verdadeiro"].includes(String(row.is_demo || "").toLowerCase());
-      if (!isDemoRealized) return false;
-
-      return matchesPlatformFilter(row)
-        && matchesCampaignFilter(row)
-        && matchesDateFilters(row, getRealizedDate(row) || row.date);
-    });
-
     const total = Math.max(0, Math.round(Number(totals.conversoes || 0)));
+    const demosRealizadas = crmRows.reduce(
+      (sum, row) => sum + Number(row.crm_demos || 0),
+      0
+    );
     const playbooksOutras = Math.max(0, total - platformCounts.meta - platformCounts.google);
 
     return {
@@ -941,9 +862,9 @@ export default function Home() {
       meta: platformCounts.meta,
       google: platformCounts.google,
       playbooksOutras,
-      demosRealizadas: realizedRows.length,
+      demosRealizadas,
     };
-  }, [marketingDb, totals.conversoes, platform, period, startDate, endDate, campaign]);
+  })();
 
   const deviceData = useMemo(() => {
     const list = marketingDb.fact_devices.filter(d => {
@@ -1603,6 +1524,32 @@ export default function Home() {
 
         // Bitrix pode repetir o mesmo negócio por produto; DOitSA pode repetir
         // a mesma linha de agendamento. Reagendamentos em datas diferentes são preservados.
+        const getValidDailyCrmDate = (value) => {
+          if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+          }
+
+          const rawDate = String(value ?? "").trim();
+          const isoMatch = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s]|$)/);
+          const brazilianMatch = rawDate.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:\s|$)/);
+          const parts = isoMatch
+            ? { year: Number(isoMatch[1]), month: Number(isoMatch[2]), day: Number(isoMatch[3]) }
+            : brazilianMatch
+              ? { year: Number(brazilianMatch[3]), month: Number(brazilianMatch[2]), day: Number(brazilianMatch[1]) }
+              : null;
+
+          if (!parts) return "";
+
+          const parsed = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+          const isValid = parsed.getUTCFullYear() === parts.year
+            && parsed.getUTCMonth() === parts.month - 1
+            && parsed.getUTCDate() === parts.day;
+
+          return isValid
+            ? `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`
+            : "";
+        };
+
         const seenCrmKeys = new Set();
         const dedupedRows = wizardRawRows.filter(row => {
           const hasContent = Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== "");
@@ -1615,13 +1562,17 @@ export default function Home() {
             .replace(/\s+/g, " ")
             .trim();
           const rawId = wizardMapping.lead_id ? normalizeMatchValue(row[wizardMapping.lead_id]) : "";
-          const rawDate = wizardMapping.date ? normalizeMatchValue(row[wizardMapping.date]) : "";
+          const rawDate = wizardMapping.date
+            ? wizardPlatform === "doitsa"
+              ? getValidDailyCrmDate(row[wizardMapping.date])
+              : normalizeMatchValue(row[wizardMapping.date])
+            : "";
           const rawPhone = wizardMapping.phone ? String(row[wizardMapping.phone] || "").replace(/\D/g, "") : "";
           const rawName = wizardMapping.client_name ? normalizeMatchValue(row[wizardMapping.client_name]) : "";
 
           const crmKey = wizardPlatform === "bitrix"
             ? (rawId ? `id:${rawId}` : (rawPhone || rawName) ? `contato:${rawPhone}|${rawName}|${rawDate}` : "")
-            : (rawId || rawPhone || rawName) ? `agendamento:${rawId}|${rawPhone}|${rawName}|${rawDate}` : "";
+            : rawDate && (rawId || rawPhone || rawName) ? `agendamento:${rawId}|${rawPhone}|${rawName}|${rawDate}` : "";
 
           if (crmKey) {
             if (seenCrmKeys.has(crmKey)) return false;
@@ -1697,6 +1648,8 @@ export default function Home() {
               if (dtMatch) cleanDateVal = dtMatch[1];
             }
             
+            const isScheduled = wizardPlatform === "doitsa";
+            const hasValidDailyScheduledDate = !isScheduled || Boolean(getValidDailyCrmDate(dateVal));
             const enrichedDate = applyTemporalIntelligence(cleanDateVal || `${reference_month}-01`, finalDateFormat);
 
             // Regra operacional DOit:
@@ -1704,7 +1657,6 @@ export default function Home() {
             // - DOitSA registra agendamentos e confirma a realização da demo.
             // - A união mensal e a deduplicação por cliente são calculadas em
             //   consolidateSummary(), que conhece o histórico das duas fontes.
-            const isScheduled = wizardPlatform === "doitsa";
             const rawDemoRealized = wizardMapping.conversions
               ? row[wizardMapping.conversions]
               : undefined;
@@ -1743,7 +1695,7 @@ export default function Home() {
               lead_campaign: leadCampaign,
               lead_industry: leadIndustry,
               is_demo: isDemoRealized,
-              date: enrichedDate.date,
+              date: hasValidDailyScheduledDate ? enrichedDate.date : "",
               reference_month: enrichedDate.reference_month || reference_month,
               reference_label: enrichedDate.reference_label || reference_label,
               day: enrichedDate.day,

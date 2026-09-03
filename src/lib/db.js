@@ -679,18 +679,186 @@ export function consolidateSummary(db) {
     ].some(qualifiedStage => normalized.includes(qualifiedStage));
   };
 
+  const isDemoRealizedValue = (value) => {
+    if (value === true || value === 1) return true;
+
+    const normalized = String(value ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+    return ["true", "verdadeiro", "sim", "1", "yes"].includes(normalized);
+  };
+
+  const getDailyDateKey = (value) => {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, "0");
+      const day = String(value.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    const rawDate = String(value ?? "").trim();
+    const isoMatch = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s]|$)/);
+    const brazilianMatch = rawDate.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:\s|$)/);
+    const parts = isoMatch
+      ? { year: Number(isoMatch[1]), month: Number(isoMatch[2]), day: Number(isoMatch[3]) }
+      : brazilianMatch
+        ? { year: Number(brazilianMatch[3]), month: Number(brazilianMatch[2]), day: Number(brazilianMatch[1]) }
+        : null;
+
+    if (!parts) return "";
+
+    const parsed = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+    const isValid = parsed.getUTCFullYear() === parts.year
+      && parsed.getUTCMonth() === parts.month - 1
+      && parsed.getUTCDate() === parts.day;
+
+    return isValid
+      ? `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`
+      : "";
+  };
+
+  const getDoitsaAppointmentAliases = (row) => {
+    const aliases = [];
+    const leadId = normalizeLeadIdForMatch(row.lead_id);
+    const phone = cleanPhoneForMatch(row.phone);
+    const names = getNameAliases(row.client_name);
+
+    if (leadId) aliases.push(`id:${leadId}`);
+    if (phone) aliases.push(`telefone:${phone}`);
+    names.forEach((name) => aliases.push(`nome:${name.replace(/\s+/g, "")}`));
+
+    return aliases;
+  };
+
+  const getFirstFilledValue = (rows, field) => {
+    const match = rows.find((row) => {
+      const value = row[field];
+      return value !== null && value !== undefined && String(value).trim() !== "";
+    });
+    return match ? match[field] : "";
+  };
+
+  // Mantém os fatos importados intactos e remove somente eventos equivalentes
+  // durante a consolidação. Um evento é equivalente quando a identidade do
+  // cliente e o dia do agendamento coincidem; reagendamentos em outra data
+  // permanecem como eventos distintos.
+  const deduplicateDoitsaAppointments = (rows) => {
+    const entriesByDate = new Map();
+    const preservedRows = [];
+
+    rows.forEach((row, index) => {
+      const dateKey = getDailyDateKey(row.date);
+      const aliases = getDoitsaAppointmentAliases(row);
+      const leadId = normalizeLeadIdForMatch(row.lead_id);
+
+      // Sem data diária ou identidade confiável não há evidência suficiente
+      // para fundir fatos; preservamos a linha para evitar falso positivo.
+      if (!dateKey || aliases.length === 0) {
+        preservedRows.push({ row: { ...row, is_demo: isDemoRealizedValue(row.is_demo) }, index });
+        return;
+      }
+
+      const entries = entriesByDate.get(dateKey) || [];
+      entries.push({ row, index, aliases, leadId });
+      entriesByDate.set(dateKey, entries);
+    });
+
+    entriesByDate.forEach((entries) => {
+      const parents = entries.map((_, index) => index);
+      const leadIdsByRoot = entries.map((entry) => (
+        entry.leadId ? new Set([entry.leadId]) : new Set()
+      ));
+      const findRoot = (index) => {
+        if (parents[index] !== index) parents[index] = findRoot(parents[index]);
+        return parents[index];
+      };
+      const mergeRoots = (left, right) => {
+        const leftRoot = findRoot(left);
+        const rightRoot = findRoot(right);
+        if (leftRoot === rightRoot) return true;
+
+        const leftLeadIds = leadIdsByRoot[leftRoot];
+        const rightLeadIds = leadIdsByRoot[rightRoot];
+        const hasConflictingLeadIds = leftLeadIds.size > 0
+          && rightLeadIds.size > 0
+          && [...rightLeadIds].some((leadId) => !leftLeadIds.has(leadId));
+
+        // Um telefone ou nome compartilhado não pode fundir dois leads com
+        // IDs distintos. Esses aliases servem como fallback quando ao menos
+        // um dos registros não possui identificador forte.
+        if (hasConflictingLeadIds) return false;
+
+        parents[rightRoot] = leftRoot;
+        leadIdsByRoot[leftRoot] = new Set([...leftLeadIds, ...rightLeadIds]);
+        return true;
+      };
+
+      const aliasOwners = new Map();
+      entries.forEach((entry, index) => {
+        entry.aliases.forEach((alias) => {
+          const owner = aliasOwners.get(alias);
+          if (owner === undefined) aliasOwners.set(alias, index);
+          else mergeRoots(index, owner);
+        });
+      });
+
+      const clusters = new Map();
+      entries.forEach((entry, index) => {
+        const root = findRoot(index);
+        const cluster = clusters.get(root) || [];
+        cluster.push(entry);
+        clusters.set(root, cluster);
+      });
+
+      clusters.forEach((cluster) => {
+        const clusterRows = cluster.map(({ row }) => row);
+        const demoRow = clusterRows.find((row) => isDemoRealizedValue(row.is_demo));
+        const baseRow = demoRow || clusterRows[0];
+        const realizedStatus = clusterRows
+          .map((row) => row.lead_status)
+          .find((status) => /demo\s+realizada(?:\s*\||$)/i.test(String(status || "")));
+
+        preservedRows.push({
+          index: Math.min(...cluster.map(({ index }) => index)),
+          row: {
+            ...baseRow,
+            lead_id: getFirstFilledValue(clusterRows, "lead_id") || baseRow.lead_id,
+            client_name: getFirstFilledValue(clusterRows, "client_name") || baseRow.client_name,
+            phone: getFirstFilledValue(clusterRows, "phone") || baseRow.phone,
+            lead_source: getFirstFilledValue(clusterRows, "lead_source") || baseRow.lead_source,
+            lead_medium: getFirstFilledValue(clusterRows, "lead_medium") || baseRow.lead_medium,
+            lead_campaign: getFirstFilledValue(clusterRows, "lead_campaign") || baseRow.lead_campaign,
+            lead_industry: getFirstFilledValue(clusterRows, "lead_industry") || baseRow.lead_industry,
+            realized_date: getFirstFilledValue(clusterRows, "realized_date") || baseRow.realized_date,
+            lead_status: realizedStatus || getFirstFilledValue(clusterRows, "lead_status") || baseRow.lead_status,
+            is_demo: clusterRows.some((row) => isDemoRealizedValue(row.is_demo)),
+          },
+        });
+      });
+    });
+
+    return preservedRows
+      .sort((left, right) => left.index - right.index)
+      .map(({ row }) => row);
+  };
+
   const bitrixRows = [];
-  const doitsaRows = [];
+  const rawDoitsaRows = [];
 
   if (db.fact_crm && db.fact_crm.length > 0) {
     db.fact_crm.forEach(r => {
       if (r.platform === "doitsa" || r.crm_platform === "doitsa") {
-        doitsaRows.push(r);
+        rawDoitsaRows.push(r);
       } else {
         bitrixRows.push(r);
       }
     });
   }
+
+  const doitsaRows = deduplicateDoitsaAppointments(rawDoitsaRows);
 
   // Regra operacional DOit:
   // - Bitrix qualifica negócios em Demo, Reagendar, Proposta e etapas posteriores.
@@ -845,11 +1013,16 @@ export function consolidateSummary(db) {
       is_realization_event: false,
     });
 
-    const isDemoRealized = d.is_demo === true || d.is_demo === 1;
+    const isDemoRealized = isDemoRealizedValue(d.is_demo);
     if (isDemoRealized) {
-      const realizedDateMatch = String(d.lead_status || "").match(/^Demo Realizada\|(\d{4}-\d{2}-\d{2})$/);
-      const realizedDate = realizedDateMatch?.[1] || d.date;
-      const realizedMonth = realizedDate ? String(realizedDate).slice(0, 7) : d.reference_month;
+      const statusRealizedDate = String(d.lead_status || "")
+        .match(/demo\s+realizada\s*\|\s*([^|]+)/i)?.[1];
+      const realizedDate = getDailyDateKey(d.realized_date)
+        || getDailyDateKey(statusRealizedDate)
+        || getDailyDateKey(d.date)
+        || d.date;
+      const realizedMonth = getRowReferenceMonth({ ...d, date: realizedDate, reference_month: "" })
+        || d.reference_month;
       const realizedMonthIndex = realizedMonth ? parseInt(realizedMonth.split("-")[1], 10) - 1 : -1;
 
       mergedCrmRows.push({
