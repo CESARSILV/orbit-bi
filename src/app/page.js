@@ -2586,10 +2586,13 @@ export default function Home() {
         <main className="workspace">
           <Topbar 
             onRefresh={async () => {
-              // A-09 FIX: Refresh reloads data from localStorage instead of corrupting it with random noise
-              const freshDb = getDatabase();
-              setMarketingDb(freshDb);
-              triggerToast("Dados recarregados do banco local com sucesso.");
+              // O refresh deve respeitar a fonte ativa: no Supabase, recarrega
+              // os dados e o resumo consolidados do servidor; no modo local,
+              // mantém o comportamento legado via getDatabase().
+              await dalRefresh();
+              triggerToast(isSupabaseMode
+                ? "Dados e Leads Qualificados atualizados do Supabase."
+                : "Dados e Leads Qualificados recarregados do banco local.");
             }} 
             onGenerateReport={handleGenerateReport} 
             onClearData={() => setShowClearConfirmModal(true)} 

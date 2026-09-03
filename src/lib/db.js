@@ -603,9 +603,21 @@ export function consolidateSummary(db) {
 
   // 3º: processa fact_crm (leads e demonstrações do CRM Bitrix24 & DOitSA)
   // Cruzamento automático de dados para evitar duplicidade
+  const normalizeLeadIdForMatch = (value) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (!normalized || /^(?:0|null|undefined|n\/a|na|-)$/i.test(normalized)) return "";
+    return normalized;
+  };
+
   const cleanPhoneForMatch = (p) => {
-    if (!p) return "";
-    return String(p).replace(/\D/g, "");
+    const digits = String(p || "").replace(/\D/g, "");
+    // Telefones curtos ou formados apenas por zeros são placeholders, não
+    // identidades confiáveis para deduplicar clientes.
+    if (!digits || /^0+$/.test(digits) || digits.length < 8) return "";
+    // Unifica formatos brasileiros com ou sem o código do país.
+    if (digits.startsWith("0055") && digits.length >= 13) return digits.slice(-11);
+    if (digits.startsWith("55") && digits.length >= 12) return digits.slice(-11);
+    return digits;
   };
 
   const normalizeNameForMatch = (value) => String(value || "")
@@ -623,22 +635,8 @@ export function consolidateSummary(db) {
     .map(normalizeNameForMatch)
     .filter(Boolean);
 
-  const editDistance = (a, b) => {
-    const row = Array.from({ length: b.length + 1 }, (_, index) => index);
-    for (let i = 1; i <= a.length; i++) {
-      let previous = row[0];
-      row[0] = i;
-      for (let j = 1; j <= b.length; j++) {
-        const current = row[j];
-        row[j] = a[i - 1] === b[j - 1]
-          ? previous
-          : Math.min(previous, row[j - 1], row[j]) + 1;
-        previous = current;
-      }
-    }
-    return row[b.length];
-  };
-
+  // O nome só pode confirmar uma correspondência quando for exatamente igual.
+  // Casamentos por distância ou por trecho de texto podem unir clientes distintos.
   const namesMatch = (left, right) => {
     const leftAliases = getNameAliases(left);
     const rightAliases = getNameAliases(right);
@@ -646,19 +644,33 @@ export function consolidateSummary(db) {
     return leftAliases.some(a => rightAliases.some(b => {
       const compactA = a.replace(/\s+/g, "");
       const compactB = b.replace(/\s+/g, "");
-      if (!compactA || !compactB) return false;
-      if (compactA === compactB) return true;
-      if (compactA.length >= 6 && compactB.length >= 6 && (compactA.includes(compactB) || compactB.includes(compactA))) return true;
-      return Math.min(compactA.length, compactB.length) >= 10 && editDistance(compactA, compactB) <= 2;
+      return Boolean(compactA && compactB && compactA === compactB);
     }));
   };
 
   const isQualifiedBitrixStage = (stage) => {
     const normalized = normalizeNameForMatch(stage).replace(/\s+/g, "");
+    if (!normalized) return false;
+
+    // Etapas explicitamente perdidas/canceladas não são qualificadas, mesmo
+    // quando o texto também contém "demo" ou "qualificado".
+    const disqualifiedTokens = [
+      "cancel", "perdid", "desqualific", "naoqualific", "semcontato",
+      "invalido", "spam", "duplicad",
+    ];
+    if (disqualifiedTokens.some(token => normalized.includes(token))) return false;
+
     return [
+      "demo",
       "demos",
+      "demonstracao",
+      "qualificado",
+      "leadqualificado",
+      "reagendar",
       "reagendardemo",
+      "proposta",
       "propostaenviada",
+      "desconto",
       "descontoenviado",
       "aguardandoassinatura",
       "aguardandopagamento",
@@ -687,14 +699,20 @@ export function consolidateSummary(db) {
   // - Remarcações preservam o evento de agendamento, sem duplicar o qualificado.
   // - Demo realizada = campo is_demo vindo de "Demo Realizada" no DOitSA.
   const getDoitsaIdentity = (row, index) => {
+    // O ID do lead é a chave mais estável; depois usamos telefone válido e,
+    // por último, nome normalizado. Remarcações com a mesma identidade ficam
+    // em `conversions`, mas somente o primeiro evento recebe `is_qualified`.
+    const leadId = normalizeLeadIdForMatch(row.lead_id);
+    if (leadId) return `id:${leadId}`;
+
     const phone = cleanPhoneForMatch(row.phone);
     if (phone) return `telefone:${phone}`;
 
     const name = getNameAliases(row.client_name)[0] || "";
     if (name) return `nome:${name.replace(/\s+/g, "")}`;
 
-    const leadId = row.lead_id ? String(row.lead_id).trim() : "";
-    return leadId ? `id:${leadId}` : `linha:${index}`;
+    // Sem nenhum identificador confiável, não colapsamos linhas diferentes.
+    return `linha:${index}`;
   };
 
   const firstAppointmentByIdentity = new Map();
@@ -719,11 +737,11 @@ export function consolidateSummary(db) {
 
   doitsaRows.forEach((d, dIndex) => {
     const dPhone = cleanPhoneForMatch(d.phone);
-    const dLeadId = d.lead_id ? String(d.lead_id).trim() : "";
+    const dLeadId = normalizeLeadIdForMatch(d.lead_id);
 
     const match = bitrixRows.find(b => {
       const bPhone = cleanPhoneForMatch(b.phone);
-      const bLeadId = b.lead_id ? String(b.lead_id).trim() : "";
+      const bLeadId = normalizeLeadIdForMatch(b.lead_id);
 
       if (bLeadId && dLeadId && bLeadId === dLeadId) return true;
       if (bPhone && dPhone && bPhone === dPhone) return true;
