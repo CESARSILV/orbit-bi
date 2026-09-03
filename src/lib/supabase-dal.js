@@ -184,7 +184,12 @@ export async function fetchMarketingDb(orgId, filters = {}) {
 
   db.uploaded_files = files || [];
 
-  return db;
+  // `fact_marketing_summary` é materializado e pode ter sido gerado por uma
+  // regra anterior. Sempre derive o resumo a partir das tabelas brutas para
+  // que mudanças de qualificação e normalização sejam refletidas no próximo
+  // carregamento, sem depender de um novo upload.
+  const rebuilt = consolidateSummary(db);
+  return { ...rebuilt, uploaded_files: db.uploaded_files };
 }
 
 /**

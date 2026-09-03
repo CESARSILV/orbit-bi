@@ -715,10 +715,35 @@ export function consolidateSummary(db) {
     return `linha:${index}`;
   };
 
+  const getCrmStage = (row) => {
+    const candidates = [
+      row?.lead_status,
+      row?.status,
+      row?.stage,
+      row?.stage_name,
+      row?.etapa,
+    ];
+    return candidates.find(value => value !== null && value !== undefined && String(value).trim() !== "") || "";
+  };
+
+  const getCrmDateKey = (row) => {
+    const rawDate = String(row?.date || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) return rawDate.slice(0, 10);
+    if (/^\d{4}-\d{2}$/.test(rawDate)) return `${rawDate}-01`;
+
+    const brazilianDate = rawDate.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+    if (brazilianDate) {
+      return `${brazilianDate[3]}-${String(brazilianDate[2]).padStart(2, "0")}-${String(brazilianDate[1]).padStart(2, "0")}`;
+    }
+
+    const referenceMonth = getRowReferenceMonth(row);
+    return referenceMonth ? `${referenceMonth}-01` : "9999-12-31";
+  };
+
   const firstAppointmentByIdentity = new Map();
   doitsaRows.forEach((row, index) => {
     const identity = getDoitsaIdentity(row, index);
-    const date = String(row.date || `${row.reference_month || "9999-12"}-01`);
+    const date = getCrmDateKey(row);
     const current = firstAppointmentByIdentity.get(identity);
     if (!current || date < current.date) {
       firstAppointmentByIdentity.set(identity, { date, index });
@@ -731,7 +756,7 @@ export function consolidateSummary(db) {
     crm_platform: "bitrix",
     conversions: 0,
     is_demo: false,
-    is_qualified: isQualifiedBitrixStage(row.lead_status),
+    is_qualified: isQualifiedBitrixStage(getCrmStage(row)),
     is_realization_event: false,
   }));
 
@@ -750,11 +775,11 @@ export function consolidateSummary(db) {
 
     const identity = getDoitsaIdentity(d, dIndex);
     const firstAppointment = firstAppointmentByIdentity.get(identity);
-    const appointmentMonth = d.reference_month || (d.date && String(d.date).slice(0, 7));
-    const matchedBitrixMonth = match?.reference_month || (match?.date && String(match.date).slice(0, 7));
+    const appointmentMonth = getRowReferenceMonth(d);
+    const matchedBitrixMonth = getRowReferenceMonth(match);
     const alreadyQualifiedInBitrixThisMonth = Boolean(
       match
-      && isQualifiedBitrixStage(match.lead_status)
+      && isQualifiedBitrixStage(getCrmStage(match))
       && appointmentMonth
       && appointmentMonth === matchedBitrixMonth
     );
@@ -804,7 +829,7 @@ export function consolidateSummary(db) {
 
   if (mergedCrmRows.length > 0) {
     mergedCrmRows.forEach(r => {
-      const refMonth = r.reference_month || (r.date && String(r.date).slice(0, 7));
+      const refMonth = getRowReferenceMonth(r);
       if (!refMonth) return;
 
       // A origem não exclui o cliente do funil. Indicação, Playbooks e origens
