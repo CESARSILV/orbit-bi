@@ -3,10 +3,18 @@ import { generateProviderText } from "@/lib/ai-providers";
 
 export async function POST(request) {
   try {
-    const { campaigns, totals } = await request.json();
+    const { campaigns = [], totals = {}, manualAdjustments = [] } = await request.json();
+    const appliedManualAdjustments = Array.isArray(manualAdjustments) ? manualAdjustments : [];
 
     // Format BRL function for prompt context
-    const brlFormat = (val) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(val);
+    const brlFormat = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value || 0);
+    const adjustmentContext = appliedManualAdjustments.length > 0
+      ? `\nHá ajustes de conferência manual aplicados somente aos totais consolidados deste recorte:\n${JSON.stringify(appliedManualAdjustments.map((adjustment) => ({
+          indicador: adjustment.label,
+          valorImportado: adjustment.baseValue,
+          valorEfetivo: adjustment.effectiveValue,
+        })), null, 2)}\nEsses ajustes não foram distribuídos entre campanhas ou meses; não invente essa distribuição.`
+      : "";
 
     const systemPrompt = `Você é o DOit AI, um analista executivo sênior de mídia paga e especialista em performance de Google Ads e Meta Ads.
 Você deve analisar o desempenho das campanhas e métricas fornecidas do usuário e produzir um diagnóstico estratégico executivo.
@@ -16,12 +24,13 @@ ${JSON.stringify(campaigns, null, 2)}
 
 Resumo dos totais atuais:
 - Investimento Total: ${brlFormat(totals.investimento)}
-- CPA Médio: ${brlFormat(totals.cpa)}
-- Leads Qualificados: ${(totals.qualificados || 0).toLocaleString('pt-BR')}
-- Agendamentos: ${(totals.conversoes || 0).toLocaleString('pt-BR')}
-- Demos Realizadas: ${(totals.demos || 0).toLocaleString('pt-BR')}
-- CPL Médio: ${brlFormat(totals.cpl || 0)}
-- CTR Médio: ${((totals.ctr || 0) * 100).toFixed(2).replace('.', ',')}%
+- CPA Médio: ${brlFormat(totals.cpa ?? totals.cac)}
+- Leads Qualificados: ${(totals.qualificados || 0).toLocaleString("pt-BR")}
+- Agendamentos: ${(totals.conversoes || 0).toLocaleString("pt-BR")}
+- Demos Realizadas: ${(totals.demos || 0).toLocaleString("pt-BR")}
+- CPL Médio: ${brlFormat(totals.cpl)}
+- CTR Médio: ${((totals.ctr || 0) * 100).toFixed(2).replace(".", ",")}%
+${adjustmentContext}
 
 Sua resposta deve ser estritamente um objeto JSON válido (com aspas duplas, sem formatação markdown, sem \`\`\`json, apenas o JSON puro) seguindo a estrutura abaixo:
 {

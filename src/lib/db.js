@@ -20,7 +20,9 @@ export const INITIAL_DB = {
   fact_conversions: [],
   fact_crm: [],
   fact_marketing_summary: [],
-  uploaded_files: []
+  uploaded_files: [],
+  // Ajustes de conferência ficam fora dos fatos e do resumo reconstruído.
+  kpi_overrides: []
 };
 
 export function createInitialDb() {
@@ -357,7 +359,9 @@ export async function insertDataset(db, fileMeta, rows, action = "replace") {
     fact_conversions: [...(db.fact_conversions || [])],
     fact_crm: [...(db.fact_crm || [])],
     fact_marketing_summary: [...(db.fact_marketing_summary || [])],
-    uploaded_files: [...(db.uploaded_files || [])]
+    uploaded_files: [...(db.uploaded_files || [])],
+    // Ledger separado: nunca é consolidado junto com os fatos importados.
+    kpi_overrides: [...(db.kpi_overrides || [])]
   };
 
   const targetTable = DATASET_TABLE_MAP[fileMeta.dataset_type] || "fact_campaigns";

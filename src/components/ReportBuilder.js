@@ -17,6 +17,11 @@ const brl2 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL"
 const num  = new Intl.NumberFormat("pt-BR");
 const pct  = (v) => `${(v || 0).toFixed(2).replace(".", ",")}%`;
 
+function sanitizeSpreadsheetText(value) {
+  const text = String(value ?? "");
+  return /^\s*[=+\-@]/.test(text) ? `'${text}` : text;
+}
+
 // ─── Definição dos KPIs disponíveis ──────────────────────────────────────────
 const KPI_DEFS = [
   { key: "investimento", label: "Investimento",  icon: "💰", fmt: (v) => brl.format(v),  desc: "Gasto total em mídia paga" },
@@ -210,6 +215,7 @@ function generateInsights(rows, totals) {
 export default function ReportBuilder({
   timeline,
   totals,
+  manualAdjustments = [],
   filteredCampaigns,
   platform,
   period,
@@ -336,6 +342,16 @@ export default function ReportBuilder({
 
   // Linha de total
   const totalRow = useMemo(() => calcTotalRow(tableRows), [tableRows]);
+  // Os totais do rodapé usam a mesma camada efetiva dos cards. As linhas
+  // mensais continuam factuais para não inventar uma distribuição do ajuste.
+  const effectiveTotalRow = useMemo(() => KPI_DEFS.reduce((result, definition) => {
+    const totalValue = definition.key === "cpa"
+      ? (totals?.cpa ?? totals?.cac)
+      : totals?.[definition.key];
+    result[definition.key] = totalValue ?? totalRow[definition.key] ?? 0;
+    return result;
+  }, { ...totalRow }), [totalRow, totals]);
+  const hasManualAdjustments = manualAdjustments.length > 0;
 
   // Insights
   const insights = useMemo(() => generateInsights(tableRows, totals), [tableRows, totals]);
@@ -365,10 +381,24 @@ export default function ReportBuilder({
     if (tableRows.length === 0) return;
     const header = ["Mês", ...orderedKpis.map(k => k.label)].join(";");
     const dataRows = tableRows.map(row =>
-      [row.mes, ...orderedKpis.map(k => String(row[k] ?? "").replace(".", ","))].join(";")
+      [sanitizeSpreadsheetText(row.mes), ...orderedKpis.map(k => String(row[k] ?? "").replace(".", ","))].join(";")
     );
-    const totalLine = ["TOTAL", ...orderedKpis.map(k => String(totalRow[k] ?? "").replace(".", ","))].join(";");
-    const csv = [header, ...dataRows, totalLine].join("\n");
+    const totalLine = ["TOTAL", ...orderedKpis.map(k => String(effectiveTotalRow[k.key] ?? "").replace(".", ","))].join(";");
+    const manualAdjustmentLines = hasManualAdjustments
+      ? [
+          "",
+          "AJUSTES MANUAIS DO RECORTE",
+          "KPI;Valor importado;Valor automático;Valor efetivo;Motivo",
+          ...manualAdjustments.map((adjustment) => [
+            adjustment.label,
+            adjustment.baseValue,
+            adjustment.automaticValue,
+            adjustment.effectiveValue,
+            adjustment.reason || "Conferência manual",
+          ].map((value) => sanitizeSpreadsheetText(value).replace(/[;\r\n]/g, " ")).join(";")),
+        ]
+      : [];
+    const csv = [header, ...dataRows, totalLine, ...manualAdjustmentLines].join("\n");
     const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -393,7 +423,7 @@ export default function ReportBuilder({
     const kpiCardsHtml = summaryKpis.map(key => {
       const def = KPI_DEFS.find(d => d.key === key);
       if (!def) return "";
-      const rawVal = totals[key] ?? totalRow[key] ?? 0;
+      const rawVal = totals[key] ?? effectiveTotalRow[key] ?? 0;
       const val = rawVal;
       return `<div class="kpi-card"><div class="kpi-ic">${def.icon}</div><div class="kpi-lb">${def.label}</div><div class="kpi-vl">${fmtKpi(key, val)}</div></div>`;
     }).join("");
@@ -404,11 +434,14 @@ export default function ReportBuilder({
       const isBest = highlight && idx === bestRowIdx;
       return `<tr class="${isBest ? "best" : idx % 2 === 1 ? "alt" : ""}"><td class="td-mes">${isBest ? "★ " : ""}${row.mes}</td>${orderedKpis.map(k => `<td class="td-n">${fmtKpi(k.key, row[k.key] ?? 0)}</td>`).join("")}</tr>`;
     }).join("");
-    const tfootHtml = `<tr class="total"><td class="td-mes">TOTAL</td>${orderedKpis.map(k => `<td class="td-n">${fmtKpi(k.key, totalRow[k.key] ?? 0)}</td>`).join("")}</tr>`;
+    const tfootHtml = `<tr class="total"><td class="td-mes">TOTAL</td>${orderedKpis.map(k => `<td class="td-n">${fmtKpi(k.key, effectiveTotalRow[k.key] ?? 0)}</td>`).join("")}</tr>`;
 
     // Insights
     const insightsHtml = insights.length > 0
       ? `<div class="sec"><div class="sec-t">⚡ Insights Automáticos</div><div class="ins-grid">${insights.map(i => `<div class="ins">${i.icon} <span>${i.text}</span></div>`).join("")}</div></div>`
+      : "";
+    const manualAdjustmentHtml = hasManualAdjustments
+      ? `<div class="manual-note"><strong>Conferência manual aplicada aos KPIs consolidados.</strong><span>${manualAdjustments.map((adjustment) => adjustment.label).join(" · ")}. A evolução mensal permanece baseada nos fatos importados e não redistribui os ajustes por campanha.</span></div>`
       : "";
 
     // Plataformas inline
@@ -451,6 +484,8 @@ export default function ReportBuilder({
   .kpi-ic{font-size:11px;margin-bottom:1px}
   .kpi-lb{font-size:6pt;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:1px;white-space:nowrap}
   .kpi-vl{font-size:9pt;font-weight:800;color:#0f172a;white-space:nowrap}
+  .manual-note{display:grid;gap:2px;padding:6px 8px;border:1px solid #bfdbfe;border-left:3px solid #2563eb;border-radius:5px;background:#eff6ff;color:#475569;font-size:7pt;line-height:1.4}
+  .manual-note strong{color:#1d4ed8}
 
   /* SEÇÕES */
   .sec{display:flex;flex-direction:column;gap:1.5mm}
@@ -505,6 +540,7 @@ export default function ReportBuilder({
   </div>
 
   <div class="kpi-row">${kpiCardsHtml}</div>
+  ${manualAdjustmentHtml}
 
   <div class="sec">
     <div class="sec-t">📅 Evolução Mensal — ${tableRows.length} ${tableRows.length === 1 ? "mês" : "meses"}</div>
@@ -785,12 +821,33 @@ export default function ReportBuilder({
                 {summaryKpis.map(key => {
                   const kpiDef = KPI_DEFS.find(d => d.key === key);
                   if (!kpiDef) return null;
-                  const value = totals[key] ?? totalRow[key] ?? 0;
+                  const value = totals[key] ?? effectiveTotalRow[key] ?? 0;
                   return (
                     <SummaryCard key={key} kpi={key} value={value} prevValue={0} />
                   );
                 })}
               </div>
+
+              {hasManualAdjustments && (
+                <div style={{
+                  display: "grid",
+                  gap: 4,
+                  marginBottom: 16,
+                  padding: "10px 12px",
+                  border: "1px solid var(--border-info)",
+                  borderLeft: "3px solid var(--info)",
+                  borderRadius: 8,
+                  background: "var(--surface-info)",
+                  color: "var(--text-secondary)",
+                  fontSize: "0.78rem",
+                  lineHeight: 1.45,
+                }}>
+                  <strong style={{ color: "var(--info)" }}>Conferência manual aplicada aos totais</strong>
+                  <span>
+                    {manualAdjustments.map((adjustment) => adjustment.label).join(" · ")}. A linha TOTAL considera estes valores; as linhas mensais continuam baseadas nos fatos importados.
+                  </span>
+                </div>
+              )}
 
               {/* ── TABELA DINÂMICA ─────────────────────────────── */}
               <div className="report-table-section">
@@ -836,7 +893,7 @@ export default function ReportBuilder({
                         <td className="report-td report-td-mes" style={{ fontWeight: 800 }}>TOTAL</td>
                         {orderedKpis.map(kpi => (
                           <td key={kpi.key} className="report-td report-td-num" style={{ fontWeight: 800 }}>
-                            {kpi.fmt(totalRow[kpi.key] ?? 0)}
+                            {kpi.fmt(effectiveTotalRow[kpi.key] ?? 0)}
                           </td>
                         ))}
                       </tr>

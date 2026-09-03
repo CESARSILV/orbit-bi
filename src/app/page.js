@@ -23,6 +23,7 @@ import { parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticVal
 import { getDatabase, saveDatabase, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary } from "@/lib/db";
 import { clearAnalyticsSystem } from "@/lib/clearAnalyticsSystem";
 import { useMarketingData } from "@/lib/useMarketingData";
+import { applyKpiOverrides, createKpiOverrideScope, getScopedKpiOverrides } from "@/lib/kpi-overrides";
 import { resolveLeadAttribution } from "@/lib/attribution";
 
 // Formatting helpers
@@ -54,7 +55,11 @@ export default function Home() {
   // Supports both Supabase-first (when configured) and localStorage fallback
   const {
     marketingDb, setMarketingDb,
+    kpiOverrides,
     importData: dalImportData,
+    saveKpiOverride,
+    removeKpiOverride,
+    clearKpiOverrides,
     clearData: dalClearData,
     refresh: dalRefresh,
     resetOnLogout: dalResetOnLogout,
@@ -131,12 +136,12 @@ export default function Home() {
   const toastTimerRef = useRef(null);
 
   // A-01 FIX: Use ref for timer ID — no re-render triggered
-  const triggerToast = (message) => {
+  const triggerToast = useCallback((message) => {
     setToastMessage(message);
     setShowToast(true);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setShowToast(false), 3200);
-  };
+  }, []);
   
   // File upload management states
   const [files, setFiles] = useState([]);
@@ -351,7 +356,7 @@ export default function Home() {
         setMarketingDb(loadedDb);
       }, 0);
     }
-  }, [isSupabaseMode]); // roda no mount e quando isSupabaseMode é definido
+  }, [isSupabaseMode, setMarketingDb, triggerToast]); // roda no mount e quando isSupabaseMode é definido
 
   useEffect(() => {
     const timerStart = setTimeout(() => setIsIntelligenceUpdating(true), 0);
@@ -426,7 +431,7 @@ export default function Home() {
         fetchUserData();
       } else {
         setUser(null);
-        setMarketingDb(createInitialDb());
+        void dalResetOnLogout();
       }
       setAuthChecking(false);
     });
@@ -434,14 +439,14 @@ export default function Home() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [dalResetOnLogout, setMarketingDb]);
 
   const handleSignOut = async () => {
     if (isSupabaseConfigured) {
       await supabase.auth.signOut();
+      await dalResetOnLogout();
       setUser(null);
       setAuthBypassed(false);
-      setMarketingDb(createInitialDb());
       saveDatabase(createInitialDb());
       triggerToast("Desconectado com sucesso.");
     }
@@ -461,6 +466,10 @@ export default function Home() {
     // ─ FASE 1: Reset instantâneo de TODO o estado React ───────────────────
     // Os gráficos, KPIs e tabelas ficam em branco IMEDIATAMENTE.
     const emptyDb = createInitialDb();
+
+    // O ledger é independente dos fatos; limpe-o antes do reset visual para
+    // impedir que um valor manual seja reaplicado durante a transição.
+    clearKpiOverrides();
 
     // Dados principais
     setMarketingDb(emptyDb);
@@ -785,7 +794,7 @@ export default function Home() {
   //   CPL = spend / leads (quando leads > 0)
   //   CAC = spend / conversions (quando conversions > 0)
   //   As duas métricas são INDEPENDENTES — nunca são somadas nem uma é derivada da outra.
-  const totals = useMemo(() => {
+  const baseTotals = useMemo(() => {
     const list = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
 
     if (list.length === 0) {
@@ -839,6 +848,45 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketingDb, platform, period, startDate, endDate, campaign]);
 
+  // Os ajustes são um ledger lateral, identificado pelos filtros que de fato
+  // compõem os KPIs. Nenhum fato importado ou resumo materializado é alterado.
+  const kpiOverrideScope = useMemo(() => createKpiOverrideScope({
+    platform,
+    period,
+    startDate,
+    endDate,
+    campaign,
+  }), [platform, period, startDate, endDate, campaign]);
+
+  const scopedKpiOverrides = useMemo(
+    () => getScopedKpiOverrides(kpiOverrides, kpiOverrideScope),
+    [kpiOverrides, kpiOverrideScope]
+  );
+
+  const effectiveKpiState = useMemo(
+    () => applyKpiOverrides(baseTotals, scopedKpiOverrides),
+    [baseTotals, scopedKpiOverrides]
+  );
+  const totals = effectiveKpiState.totals;
+  const manualKpiAdjustments = effectiveKpiState.adjustments;
+
+  const handleSaveKpiOverride = useCallback(async ({ metric, value, reason }) => {
+    const result = await saveKpiOverride({
+      scope: kpiOverrideScope,
+      metric,
+      value,
+      reason,
+    });
+    if (result.success) triggerToast("Ajuste manual salvo para este recorte.");
+    return result;
+  }, [kpiOverrideScope, saveKpiOverride, triggerToast]);
+
+  const handleRestoreKpiOverride = useCallback(async (metric) => {
+    const result = await removeKpiOverride(kpiOverrideScope.key, metric);
+    if (result.success) triggerToast("Cálculo automático restaurado para este indicador.");
+    return result;
+  }, [kpiOverrideScope.key, removeKpiOverride, triggerToast]);
+
   // O detalhamento usa a mesma tabela consolidada que alimenta os cards.
   // Assim, duplicatas lógicas de CRM não reaparecem no modal de agendamentos.
   const appointmentBreakdown = (() => {
@@ -852,12 +900,13 @@ export default function Home() {
       return accumulator;
     }, { meta: 0, google: 0 });
 
-    const total = Math.max(0, Math.round(Number(totals.conversoes || 0)));
-    const demosRealizadas = crmRows.reduce(
-      (sum, row) => sum + Number(row.crm_demos || 0),
+    const importedTotal = crmRows.reduce(
+      (sum, row) => sum + Number(row.conversions || 0),
       0
     );
-    const playbooksOutras = Math.max(0, total - platformCounts.meta - platformCounts.google);
+    const total = Math.max(0, Math.round(Number(totals.conversoes || 0)));
+    const demosRealizadas = Math.max(0, Math.round(Number(totals.demos || 0)));
+    const playbooksOutras = Math.max(0, importedTotal - platformCounts.meta - platformCounts.google);
 
     return {
       total,
@@ -865,6 +914,8 @@ export default function Home() {
       google: platformCounts.google,
       playbooksOutras,
       demosRealizadas,
+      isTotalAdjusted: Boolean(effectiveKpiState.overrides.conversoes),
+      isDemosAdjusted: Boolean(effectiveKpiState.overrides.demos),
     };
   })();
 
@@ -2241,6 +2292,9 @@ export default function Home() {
       "Definir metas de CPA e CPL para o próximo ciclo.",
       "Gerar nova leitura após o próximo período de otimização.",
     ];
+    const manualAdjustmentHtml = manualKpiAdjustments.length > 0
+      ? `<div class="manual-adjustment-note"><strong>Conferência manual aplicada aos KPIs consolidados.</strong><span>${manualKpiAdjustments.map((adjustment) => adjustment.label).join(" · ")}. A tabela por campanha preserva os fatos importados e não redistribui estes ajustes.</span></div>`
+      : "";
 
     const sorted   = [...filteredCampaigns].sort((a, b) => b.investimento - a.investimento);
     const topCamps = sorted.slice(0, 10);
@@ -2327,6 +2381,10 @@ export default function Home() {
   .recs-list li::before { content: '●'; color: #10b981; font-size: 7pt; margin-top: 1mm; flex-shrink: 0; }
   .steps-list li::before { content: '→'; color: #6366f1; font-size: 9pt; flex-shrink: 0; }
 
+  /* Ajustes manuais */
+  .manual-adjustment-note { display: grid; gap: 1mm; margin: 0 0 5mm; padding: 3mm 4mm; border: 1px solid #bfdbfe; border-left: 3px solid #2563eb; border-radius: 0 6px 6px 0; background: #eff6ff; color: #334155; font-size: 8pt; line-height: 1.5; }
+  .manual-adjustment-note strong { color: #1d4ed8; }
+
   /* Footer */
   .footer { margin-top: 8mm; padding-top: 4mm; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 7pt; color: #94a3b8; }
 
@@ -2395,6 +2453,8 @@ export default function Home() {
       <div class="kpi-sub">Impressões: ${numFmt(totals.impressoes)}</div>
     </div>
   </div>
+
+  ${manualAdjustmentHtml}
 
   <!-- COMPARAÇÃO POR PLATAFORMA -->
   <div class="section-title">Investimento por Plataforma</div>
@@ -2477,34 +2537,61 @@ export default function Home() {
     }
 
     const totalRows = listToExport.length;
-    
-    // Build spreadsheet rows with formulas
+    const dataStartRow = 21;
+    const dataEndRow = totalRows + dataStartRow - 1;
+    const toExcelNumber = (value) => {
+      const normalized = Number(value) || 0;
+      return String(Number(normalized.toFixed(10))).replace(".", ",");
+    };
+    const formulaWithOverride = (metric, fallbackFormula) => (
+      effectiveKpiState.overrides[metric]
+        ? `=${toExcelNumber(totals[metric] ?? 0)}`
+        : fallbackFormula
+    );
+    const descriptionWithOverride = (metric, description) => (
+      effectiveKpiState.overrides[metric]
+        ? `${description} — valor ajustado manualmente neste recorte`
+        : description
+    );
+    const safeSpreadsheetText = (value) => {
+      const text = String(value ?? "");
+      return /^\s*[=+\-@]/.test(text) ? `'${text}` : text;
+    };
+
+    // O resumo usa os totais efetivos. Linhas detalhadas continuam factuais,
+    // sem distribuir artificialmente uma conferência manual por campanha.
+    const summaryRows = [
+      ["Investimento Total (R$)", formulaWithOverride("investimento", `=SOMA(E${dataStartRow}:E${dataEndRow})`), "=SOMA(Investimento)", descriptionWithOverride("investimento", "Soma de todo investimento em mídia paga")],
+      ["Cliques Totais", formulaWithOverride("cliques", `=SOMA(F${dataStartRow}:F${dataEndRow})`), "=SOMA(Cliques)", descriptionWithOverride("cliques", "Quantidade total de cliques recebidos")],
+      ["Impressões Totais", formulaWithOverride("impressoes", `=SOMA(G${dataStartRow}:G${dataEndRow})`), "=SOMA(Impressões)", descriptionWithOverride("impressoes", "Quantidade total de exibições do anúncio")],
+      ["Leads Totais", formulaWithOverride("leads", `=SOMA(H${dataStartRow}:H${dataEndRow})`), "=SOMA(Leads)", descriptionWithOverride("leads", "Quantidade total de leads capturados")],
+      ["Leads Qualificados", formulaWithOverride("qualificados", `=SOMA(I${dataStartRow}:I${dataEndRow})`), "=SOMA(Leads Qualificados)", descriptionWithOverride("qualificados", "Clientes únicos no primeiro agendamento")],
+      ["Agendamentos Totais", formulaWithOverride("conversoes", `=SOMA(J${dataStartRow}:J${dataEndRow})`), "=SOMA(Agendamentos)", descriptionWithOverride("conversoes", "Clientes únicos por mês com agendamento")],
+      ["Demos Realizadas", formulaWithOverride("demos", `=SOMA(K${dataStartRow}:K${dataEndRow})`), "=SOMA(Demos)", descriptionWithOverride("demos", "Uma demo por cliente e mês de realização válida")],
+      ["Alcance Total", formulaWithOverride("alcance", `=SOMA(L${dataStartRow}:L${dataEndRow})`), "=SOMA(Alcance)", descriptionWithOverride("alcance", "Pessoas únicas impactadas")],
+      ["CTR Geral", formulaWithOverride("ctr", "=SEERRO(B7/B8;0)"), "=Cliques/Impressões", descriptionWithOverride("ctr", "Taxa média de cliques")],
+      ["CPC Geral (R$)", formulaWithOverride("cpc", "=SEERRO(B6/B7;0)"), "=Investimento/Cliques", descriptionWithOverride("cpc", "Custo médio por clique")],
+      ["CPM Geral (R$)", formulaWithOverride("cpm", "=SEERRO((B6/B8)*1000;0)"), "=Investimento/Impressões×1000", descriptionWithOverride("cpm", "Custo por mil impressões")],
+      ["CPL Geral (R$)", formulaWithOverride("cpl", "=SEERRO(B6/B9;0)"), "=Investimento/Leads", descriptionWithOverride("cpl", "Custo por lead")],
+      ["CPA Geral (R$)", formulaWithOverride("cpa", "=SEERRO(B6/B11;0)"), "=Investimento/Agendamentos", descriptionWithOverride("cpa", "Custo por agendamento")],
+    ];
+
     const rows = [
       ["DOIT BI - RELATÓRIO EXECUTIVO E BASE CONSOLIDADA DE MARKETING"],
       ["Gerado em:", new Date().toLocaleString("pt-BR")],
       [],
       ["RESUMO DE KPIs (FÓRMULAS EXCEL)"],
       ["KPI", "Valor", "Fórmula", "Descrição"],
-      ["Investimento Total (R$)", `=SOMA(E19:E${totalRows + 18})`, "=SOMA(E19:E...)", "Soma de todo investimento em mídia paga"],
-      ["Cliques Totais", `=SOMA(F19:F${totalRows + 18})`, "=SOMA(F19:F...)", "Quantidade total de cliques recebidos"],
-      ["Impressões Totais", `=SOMA(G19:G${totalRows + 18})`, "=SOMA(G19:G...)", "Quantidade total de exibições do anúncio"],
-      ["Leads Totais", `=SOMA(H19:H${totalRows + 18})`, "=SOMA(H19:H...)", "Quantidade total de leads capturados"],
-      ["Leads Qualificados", `=SOMA(I19:I${totalRows + 18})`, "=SOMA(I19:I...)", "Clientes únicos no primeiro agendamento"],
-      ["Agendamentos Totais", `=SOMA(J19:J${totalRows + 18})`, "=SOMA(J19:J...)", "Clientes únicos por mês com agendamento"],
-      ["Demos Realizadas", `=SOMA(K19:K${totalRows + 18})`, "=SOMA(K19:K...)", "Uma demo por cliente e mês de realização válida"],
-      ["CTR Geral", `=SEERRO(B7/B8;0)`, "=Cliques/Impressões", "Taxa média de cliques"],
-      ["CPC Geral (R$)", `=SEERRO(B6/B7;0)`, "=Investimento/Cliques", "Custo médio por clique"],
-      ["CPL Geral (R$)", `=SEERRO(B6/B9;0)`, "=Investimento/Leads", "Custo por lead"],
-      ["CPA Geral (R$)", `=SEERRO(B6/B11;0)`, "=Investimento/Agendamentos", "Custo por agendamento"],
+      ...summaryRows,
       [],
-      ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Cliques Totais", "Impressões", "Leads", "Leads Qualificados", "Agendamentos", "Demos Realizadas", "CTR", "CPC", "CPM", "CPL", "CPA", "Status"],
+      ["Data de Referência", "Mês", "Plataforma", "Campanha", "Investimento (R$)", "Cliques Totais", "Impressões", "Leads", "Leads Qualificados", "Agendamentos", "Demos Realizadas", "Alcance", "CTR", "CPC", "CPM", "CPL", "CPA", "Status"],
       ...listToExport.map((item, index) => {
-        const rowNum = index + 19; // starts on row 19
+        const rowNum = dataStartRow + index;
         return [
-          item.date,
-          item.reference_label,
+          safeSpreadsheetText(item.date),
+          safeSpreadsheetText(item.reference_label),
           item.platform === "google" ? "Google Ads" : item.platform === "meta" ? "Meta Ads" : item.platform === "doitsa" ? "DOitSA" : "Bitrix24 CRM",
-          item.campaign_name,
+          safeSpreadsheetText(item.campaign_name),
           item.spend,
           item.clicks,
           item.impressions,
@@ -2512,14 +2599,28 @@ export default function Home() {
           item.is_crm ? (item.crm_leads || 0) : 0,
           item.is_crm ? (item.conversions || 0) : 0,
           item.is_crm ? (item.crm_demos || 0) : 0,
+          item.reach || 0,
           `=SEERRO(F${rowNum}/G${rowNum};0)`,
           `=SEERRO(E${rowNum}/F${rowNum};0)`,
           `=SEERRO((E${rowNum}/G${rowNum})*1000;0)`,
           `=SEERRO(E${rowNum}/H${rowNum};0)`,
           `=SEERRO(E${rowNum}/J${rowNum};0)`,
-          item.status
+          safeSpreadsheetText(item.status),
         ];
-      })
+      }),
+      ...(manualKpiAdjustments.length > 0 ? [
+        [],
+        ["AJUSTES MANUAIS DO RECORTE"],
+        ["KPI", "Valor importado", "Valor automático", "Valor efetivo", "Motivo", "Atualizado em"],
+        ...manualKpiAdjustments.map((adjustment) => [
+          safeSpreadsheetText(adjustment.label),
+          adjustment.baseValue,
+          adjustment.automaticValue,
+          adjustment.effectiveValue,
+          safeSpreadsheetText(adjustment.reason || "Conferência manual"),
+          safeSpreadsheetText(adjustment.updatedAt || ""),
+        ]),
+      ] : []),
     ];
 
     const csv = rows.map((row) => row.map((cell) => {
@@ -2538,7 +2639,11 @@ export default function Home() {
       const response = await fetch("/api/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ campaigns: filteredCampaigns, totals }),
+        body: JSON.stringify({
+          campaigns: filteredCampaigns,
+          totals,
+          manualAdjustments: manualKpiAdjustments,
+        }),
       });
       if (response.ok) {
         reportData = await response.json();
@@ -2598,6 +2703,8 @@ export default function Home() {
           // BP-04: Send only last 10 messages to limit API cost
           messages: [...messages.slice(-9), newUserMessage],
           campaigns: filteredCampaigns,
+          totals,
+          manualAdjustments: manualKpiAdjustments,
           uploadedFiles: base64Files,
         }),
       });
@@ -2726,6 +2833,7 @@ export default function Home() {
               <ReportBuilder
                 timeline={timeline}
                 totals={totals}
+                manualAdjustments={manualKpiAdjustments}
                 filteredCampaigns={filteredCampaigns}
                 platform={platform}
                 period={period}
@@ -2811,8 +2919,41 @@ export default function Home() {
           <KpiGrid
             key={`kpi-${dashboardResetKey}`}
             totals={totals}
+            baseTotals={effectiveKpiState.baseTotals}
+            automaticTotals={effectiveKpiState.automaticTotals}
+            overrides={effectiveKpiState.overrides}
+            recalculatedMetricKeys={effectiveKpiState.recalculatedMetricKeys}
             appointmentBreakdown={appointmentBreakdown}
+            onSaveOverride={handleSaveKpiOverride}
+            onRestoreOverride={handleRestoreKpiOverride}
+            persistenceNotice={isSupabaseMode
+              ? "O ajuste é salvo neste navegador para esta organização e este recorte. Ele não altera os fatos importados nem é redistribuído entre campanhas."
+              : "O ajuste é salvo neste navegador para este recorte e não altera os arquivos importados."}
           />
+
+          {manualKpiAdjustments.length > 0 && (
+            <aside
+              aria-label="Ajustes manuais ativos"
+              style={{
+                display: "grid",
+                gap: 4,
+                margin: "0 0 16px",
+                padding: "12px 14px",
+                border: "1px solid var(--border-info)",
+                borderLeft: "3px solid var(--info)",
+                borderRadius: 10,
+                background: "var(--surface-info)",
+                color: "var(--text-secondary)",
+                fontSize: "0.8rem",
+                lineHeight: 1.5,
+              }}
+            >
+              <strong style={{ color: "var(--info)" }}>Conferência manual ativa no recorte atual</strong>
+              <span>
+                {manualKpiAdjustments.map((adjustment) => adjustment.label).join(" · ")}. Os cards, resumos, IA e exportações usam os valores efetivos; gráficos e tabelas por campanha preservam os fatos importados.
+              </span>
+            </aside>
+          )}
 
           <section className="analytics-grid">
             <HistoricalChart key={`hist-${dashboardResetKey}`} timeline={timeline} />
