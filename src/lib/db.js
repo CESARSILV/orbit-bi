@@ -770,6 +770,16 @@ export function consolidateSummary(db) {
     return referenceMonth ? `${referenceMonth}-01` : "9999-12-31";
   };
 
+  // Quando existe uma base Bitrix qualificada no mês, ela é a fonte
+  // autoritativa de Leads Qualificados. O DOitSA continua sendo a fonte dos
+  // eventos de Agendamento e das Demos, mas não soma novamente essas pessoas.
+  const qualifiedBitrixMonths = new Set(
+    bitrixRows
+      .filter(isQualifiedBitrixRow)
+      .map(row => getRowReferenceMonth(row))
+      .filter(Boolean)
+  );
+
   const firstAppointmentByIdentity = new Map();
   doitsaRows.forEach((row, index) => {
     const identity = getDoitsaIdentity(row, index);
@@ -807,7 +817,10 @@ export function consolidateSummary(db) {
     const firstAppointment = firstAppointmentByIdentity.get(identity);
     const appointmentMonth = getRowReferenceMonth(d);
     const matchedBitrixMonth = getRowReferenceMonth(match);
-    const alreadyQualifiedInBitrixThisMonth = Boolean(
+    const bitrixIsAuthoritativeForMonth = Boolean(
+      appointmentMonth && qualifiedBitrixMonths.has(appointmentMonth)
+    );
+    const alreadyQualifiedInBitrixThisMonth = bitrixIsAuthoritativeForMonth || Boolean(
       match
       && isQualifiedBitrixRow(match)
       && appointmentMonth
