@@ -37,8 +37,29 @@ export function buildRowKey(row) {
     const leadId = normalizeText(row.lead_id);
     const phone = String(row.phone || "").replace(/\D/g, "");
     const clientName = normalizeText(row.client_name);
+    const baseKey = ["crm", crmPlatform || row.platform || "", dateKey, leadId, phone, clientName];
+    const isDoitsa = crmPlatform === "doitsa" || String(row.platform || "").toLowerCase().trim() === "doitsa";
 
-    return ["crm", crmPlatform || row.platform || "", dateKey, leadId, phone, clientName].join("|");
+    // DOitSA pode registrar o agendamento e uma atualização posterior da
+    // mesma pessoa. A confirmação e a data de realização fazem parte do fato
+    // bruto e precisam permanecer distintas também no upsert do Supabase.
+    if (isDoitsa) {
+      const normalizedDemoValue = normalizeText(row.is_demo);
+      const isDemoRealized = row.is_demo === true || row.is_demo === 1
+        || ["true", "verdadeiro", "sim", "1", "yes"].includes(normalizedDemoValue);
+      const statusRealizedDate = String(row.lead_status || "")
+        .match(/demo\s+realizada\s*\|\s*([^|]+)/i)?.[1] || "";
+      const realizationKey = normalizeText(row.realized_date || statusRealizedDate);
+      const statusKey = normalizeText(row.lead_status);
+
+      baseKey.push(
+        `demo:${isDemoRealized ? "1" : "0"}`,
+        `realizacao:${realizationKey}`,
+        `status:${statusKey}`
+      );
+    }
+
+    return baseKey.join("|");
   }
 
   // IMPORTANTE: usa a data COMPLETA (não truncada para YYYY-MM).

@@ -19,7 +19,7 @@ import RegionalMap from "@/components/RegionalMap";
 import ReportBuilder from "@/components/ReportBuilder";
 
 // Custom ETL & DB Ingestion Imports
-import { parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticValue, parseDate, inferReferenceMonth, isTotalOrMetadata, applyTemporalIntelligence, parseFormattedFloat, sanitizeMojibake, SYNONYMS, detectFileDateFormat } from "@/lib/etl";
+import { parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticValue, parseDate, inferReferenceMonth, isTotalOrMetadata, applyTemporalIntelligence, parseFormattedFloat, sanitizeMojibake, SYNONYMS, detectFileDateFormat, isMonthOnlySourceDate } from "@/lib/etl";
 import { getDatabase, saveDatabase, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary } from "@/lib/db";
 import { clearAnalyticsSystem } from "@/lib/clearAnalyticsSystem";
 import { useMarketingData } from "@/lib/useMarketingData";
@@ -173,6 +173,7 @@ export default function Home() {
   const [wizardStatusText, setWizardStatusText] = useState("");
   const [wizardErrorMsg, setWizardErrorMsg] = useState("");
   const [wizardResultCount, setWizardResultCount] = useState(0);
+  const [wizardPendingDemoCount, setWizardPendingDemoCount] = useState(0);
   const [wizardDatasetType, setWizardDatasetType] = useState("campaign_performance");
   const [wizardDetectedMonths, setWizardDetectedMonths] = useState([]); // months found in CSV date column
   const [wizardDateFormat, setWizardDateFormat] = useState("BR");
@@ -262,7 +263,7 @@ export default function Home() {
         { key: "lead_campaign", label: "UTM Campaign / Campanha", required: false, description: "Campo auxiliar usado somente quando o nome contém uma plataforma inequívoca." },
         { key: "date", label: "Data do Agendamento (Obrigatório)", required: true, description: "Coluna contendo as datas dos agendamentos." },
         { key: "conversions", label: "Demo Realizada (Obrigatório)", required: true, description: "Coluna booleana que confirma se a demo foi realizada." },
-        { key: "realized_date", label: "Data da Demo Realizada", required: false, description: "Data efetiva da realização; quando vazia, usa a data agendada." }
+        { key: "realized_date", label: "Data da Demo Realizada", required: false, description: "Data efetiva da realização. Sem uma data válida, a demo fica preservada para revisão, mas não entra no KPI." }
       ];
     }
 
@@ -487,6 +488,7 @@ export default function Home() {
     setWizardStatusText("");
     setWizardErrorMsg("");
     setWizardResultCount(0);
+    setWizardPendingDemoCount(0);
     setWizardDatasetType("campaign_performance");
     setWizardDetectedMonths([]);
 
@@ -1464,6 +1466,7 @@ export default function Home() {
 
     setWizardStep("processing");
     setWizardProgress(10);
+    setWizardPendingDemoCount(0);
     setWizardStatusText("Iniciando processamento assíncrono...");
 
     try {
@@ -1524,18 +1527,30 @@ export default function Home() {
 
         // Bitrix pode repetir o mesmo negócio por produto; DOitSA pode repetir
         // a mesma linha de agendamento. Reagendamentos em datas diferentes são preservados.
-        const getValidDailyCrmDate = (value) => {
+        const getValidDailyCrmDate = (value, dateFormat = "BR") => {
           if (value instanceof Date && !Number.isNaN(value.getTime())) {
             return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
           }
 
           const rawDate = String(value ?? "").trim();
+          if (!rawDate) return "";
+
+          // Números de série do Excel representam uma data válida por definição.
+          if (/^\d+(?:\.0+)?$/.test(rawDate) && Number(rawDate) >= 35000 && Number(rawDate) <= 60000) {
+            const parsedExcelDate = parseDate(rawDate, dateFormat);
+            if (parsedExcelDate && !Number.isNaN(parsedExcelDate.getTime())) {
+              return `${parsedExcelDate.getFullYear()}-${String(parsedExcelDate.getMonth() + 1).padStart(2, "0")}-${String(parsedExcelDate.getDate()).padStart(2, "0")}`;
+            }
+          }
+
           const isoMatch = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s]|$)/);
-          const brazilianMatch = rawDate.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:\s|$)/);
+          const delimitedMatch = rawDate.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})(?:[T\s]|$)/);
           const parts = isoMatch
             ? { year: Number(isoMatch[1]), month: Number(isoMatch[2]), day: Number(isoMatch[3]) }
-            : brazilianMatch
-              ? { year: Number(brazilianMatch[3]), month: Number(brazilianMatch[2]), day: Number(brazilianMatch[1]) }
+            : delimitedMatch
+              ? dateFormat === "US"
+                ? { year: Number(delimitedMatch[3]), month: Number(delimitedMatch[1]), day: Number(delimitedMatch[2]) }
+                : { year: Number(delimitedMatch[3]), month: Number(delimitedMatch[2]), day: Number(delimitedMatch[1]) }
               : null;
 
           if (!parts) return "";
@@ -1562,17 +1577,39 @@ export default function Home() {
             .replace(/\s+/g, " ")
             .trim();
           const rawId = wizardMapping.lead_id ? normalizeMatchValue(row[wizardMapping.lead_id]) : "";
+          const scheduledDateIsMonthOnly = Boolean(
+            wizardMapping.date && isMonthOnlySourceDate(row, wizardMapping.date)
+          );
           const rawDate = wizardMapping.date
             ? wizardPlatform === "doitsa"
-              ? getValidDailyCrmDate(row[wizardMapping.date])
+              ? getValidDailyCrmDate(
+                scheduledDateIsMonthOnly ? undefined : row[wizardMapping.date],
+                finalDateFormat
+              )
               : normalizeMatchValue(row[wizardMapping.date])
             : "";
           const rawPhone = wizardMapping.phone ? String(row[wizardMapping.phone] || "").replace(/\D/g, "") : "";
           const rawName = wizardMapping.client_name ? normalizeMatchValue(row[wizardMapping.client_name]) : "";
+          const rawDemoValue = wizardMapping.conversions ? normalizeMatchValue(row[wizardMapping.conversions]) : "";
+          const realizedDateIsMonthOnly = Boolean(
+            wizardMapping.realized_date && isMonthOnlySourceDate(row, wizardMapping.realized_date)
+          );
+          const rawRealizedDateValue = wizardMapping.realized_date
+            ? `${realizedDateIsMonthOnly ? "mes:" : ""}${normalizeMatchValue(row[wizardMapping.realized_date])}`
+            : "";
+          const hasValidDoitsaLeadId = Boolean(rawId && !/^(?:0|null|undefined|n\/a|na|-)$/i.test(rawId));
+          const hasValidDoitsaPhone = Boolean(rawPhone.length >= 8 && !/^0+$/.test(rawPhone));
+          const doitsaIdentity = hasValidDoitsaLeadId
+            ? `id:${rawId}`
+            : hasValidDoitsaPhone
+              ? `telefone:${rawPhone}`
+              : "";
 
           const crmKey = wizardPlatform === "bitrix"
             ? (rawId ? `id:${rawId}` : (rawPhone || rawName) ? `contato:${rawPhone}|${rawName}|${rawDate}` : "")
-            : rawDate && (rawId || rawPhone || rawName) ? `agendamento:${rawId}|${rawPhone}|${rawName}|${rawDate}` : "";
+            : rawDate && doitsaIdentity
+              ? `agendamento:${doitsaIdentity}|${rawDate}|demo:${rawDemoValue}|realizacao:${rawRealizedDateValue}`
+              : "";
 
           if (crmKey) {
             if (seenCrmKeys.has(crmKey)) return false;
@@ -1626,13 +1663,18 @@ export default function Home() {
             // Formato esperado: "DD/MM/YYYY HH:MM:SS" (ex: "21/07/2026 16:06:41")
             // Cada negócio recebe o reference_month da SUA data de criação,
             // NÃO o mês inferido do nome do arquivo.
-            let dateVal = wizardMapping.date ? row[wizardMapping.date] : undefined;
+            const scheduledDateIsMonthOnly = Boolean(
+              wizardMapping.date && isMonthOnlySourceDate(row, wizardMapping.date)
+            );
+            let dateVal = wizardMapping.date && !scheduledDateIsMonthOnly
+              ? row[wizardMapping.date]
+              : undefined;
             
             // Fallback 1: busca semântica por sinônimos de data
-            if (!dateVal) dateVal = getSemanticValue(row, "date");
+            if (!dateVal && !scheduledDateIsMonthOnly) dateVal = getSemanticValue(row, "date");
             
             // Fallback 2: se ainda não encontrou, busca qualquer valor com formato DD/MM/YYYY nas colunas
-            if (!dateVal) {
+            if (!dateVal && !scheduledDateIsMonthOnly) {
               for (const val of Object.values(row)) {
                 if (val && /^\d{1,2}\/\d{1,2}\/\d{4}/.test(String(val))) {
                   dateVal = val;
@@ -1649,8 +1691,23 @@ export default function Home() {
             }
             
             const isScheduled = wizardPlatform === "doitsa";
-            const hasValidDailyScheduledDate = !isScheduled || Boolean(getValidDailyCrmDate(dateVal));
-            const enrichedDate = applyTemporalIntelligence(cleanDateVal || `${reference_month}-01`, finalDateFormat);
+            const scheduledDate = isScheduled
+              ? getValidDailyCrmDate(dateVal, finalDateFormat)
+              : "";
+            const hasValidDailyScheduledDate = !isScheduled || Boolean(scheduledDate);
+            const enrichedDate = applyTemporalIntelligence(
+              isScheduled ? (scheduledDate || `${reference_month}-01`) : cleanDateVal || `${reference_month}-01`,
+              finalDateFormat
+            );
+            const crmDate = isScheduled ? scheduledDate : enrichedDate.date;
+            const crmReferenceMonth = isScheduled
+              ? scheduledDate ? scheduledDate.slice(0, 7) : ""
+              : enrichedDate.reference_month || reference_month;
+            const crmReferenceLabel = isScheduled
+              ? scheduledDate
+                ? `${MONTHS_PT[Number(scheduledDate.slice(5, 7)) - 1]}/${scheduledDate.slice(0, 4)}`
+                : ""
+              : enrichedDate.reference_label || reference_label;
 
             // Regra operacional DOit:
             // - Bitrix registra negócios em fases qualificadas e fornece atribuição.
@@ -1666,23 +1723,23 @@ export default function Home() {
               .replace(/[\u0300-\u036f]/g, "")
               .trim();
             const isDemoRealized = isScheduled && ["true", "verdadeiro", "sim", "1", "yes"].includes(normalizedDemoRealized);
+            let realizedDate = "";
 
             if (isScheduled) {
-              let realizedDate = enrichedDate.date;
-              const rawRealizedDate = wizardMapping.realized_date
+              const realizedDateIsMonthOnly = Boolean(
+                wizardMapping.realized_date && isMonthOnlySourceDate(row, wizardMapping.realized_date)
+              );
+              const rawRealizedDate = wizardMapping.realized_date && !realizedDateIsMonthOnly
                 ? row[wizardMapping.realized_date]
                 : undefined;
-              const parsedRealizedDate = parseDate(rawRealizedDate, finalDateFormat);
-              if (parsedRealizedDate && !isNaN(parsedRealizedDate.getTime())) {
-                realizedDate = applyTemporalIntelligence(rawRealizedDate, finalDateFormat).date;
-              }
+              realizedDate = getValidDailyCrmDate(rawRealizedDate, finalDateFormat);
               leadStatus = isDemoRealized
-                ? `Demo Realizada|${realizedDate}`
+                ? realizedDate ? `Demo Realizada|${realizedDate}` : "Demo Realizada"
                 : "Demo Agendada";
             }
 
             return {
-              id: `crm_${wizardPlatform}_${enrichedDate.reference_month || reference_month}_${leadId}_${idx}`,
+              id: `crm_${wizardPlatform}_${crmReferenceMonth || reference_month}_${leadId}_${idx}`,
               platform: wizardPlatform,
               crm_platform: wizardPlatform,
               dataset_type: "crm_leads",
@@ -1695,18 +1752,20 @@ export default function Home() {
               lead_campaign: leadCampaign,
               lead_industry: leadIndustry,
               is_demo: isDemoRealized,
-              date: hasValidDailyScheduledDate ? enrichedDate.date : "",
-              reference_month: enrichedDate.reference_month || reference_month,
-              reference_label: enrichedDate.reference_label || reference_label,
+              realized_date: realizedDate,
+              appointment_date_valid: !isScheduled || hasValidDailyScheduledDate,
+              date: crmDate,
+              reference_month: crmReferenceMonth,
+              reference_label: crmReferenceLabel,
               day: enrichedDate.day,
               week: enrichedDate.week,
               month: enrichedDate.month,
               month_name: enrichedDate.month_name,
               quarter: enrichedDate.quarter,
               year: enrichedDate.year,
-              year_month: enrichedDate.year_month,
-              spend: 0, clicks: 0, impressions: 0, 
-              conversions: isScheduled ? 1 : 0, 
+              year_month: crmReferenceMonth,
+              spend: 0, clicks: 0, impressions: 0,
+              conversions: isScheduled && hasValidDailyScheduledDate ? 1 : 0,
               leads: 0,
               reach: 0, revenue: 0, frequency: 1,
               ctr: 0, cpc: 0, cpm: 0, cpl: 0, cac: 0, roas: 0,
@@ -1717,6 +1776,10 @@ export default function Home() {
             };
           });
 
+        const pendingDemoCount = wizardPlatform === "doitsa"
+          ? crmRows.filter((row) => row.is_demo && !row.realized_date).length
+          : 0;
+
         setWizardProgress(90);
         setWizardStatusText("Verificando duplicados e gravando no banco (CRM)...");
 
@@ -1726,11 +1789,18 @@ export default function Home() {
         setMarketingDb(result.db);
 
         setWizardProgress(100);
-        setWizardStatusText("Finalizado!");
+        setWizardStatusText(pendingDemoCount > 0
+          ? `Finalizado com ${pendingDemoCount} demo(s) pendente(s) de data de realização.`
+          : "Finalizado!");
         setWizardResultCount(crmRows.length);
+        setWizardPendingDemoCount(pendingDemoCount);
         setWizardStep("success");
-        updateFileStatus(wizardFile.name, "sucesso", `Sincronizado ${wizardPlatform === "bitrix" ? "Bitrix24" : "DOitSA"}`);
-        triggerToast(`${wizardPlatform === "bitrix" ? "Bitrix24 CRM" : "DOitSA"}: ${crmRows.length} negócios únicos processados (${wizardRawRows.length} linhas brutas deduplificadas).`);
+        const integrationLabel = wizardPlatform === "bitrix" ? "Bitrix24" : "DOitSA";
+        const pendingDemoMessage = pendingDemoCount > 0
+          ? ` ${pendingDemoCount} demo(s) foram preservadas para revisão e não entraram no KPI por falta de data válida de realização.`
+          : "";
+        updateFileStatus(wizardFile.name, "sucesso", `Sincronizado ${integrationLabel}.${pendingDemoMessage}`);
+        triggerToast(`${integrationLabel}: ${crmRows.length} registros processados.${pendingDemoMessage}`);
         return;
       }
       // ─────────────────────────────────────────────────────────────────────────
@@ -2312,12 +2382,12 @@ export default function Home() {
     <div class="kpi-card">
       <div class="kpi-label">Agendamentos</div>
       <div class="kpi-value">${numFmt(totals.conversoes)}</div>
-      <div class="kpi-sub">Inclui remarcações</div>
+      <div class="kpi-sub">Clientes únicos por mês com agendamento</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Demos Realizadas</div>
       <div class="kpi-value">${numFmt(totals.demos)}</div>
-      <div class="kpi-sub">Confirmação no DOitSA</div>
+      <div class="kpi-sub">Uma demo por cliente e mês de realização</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">CPC Médio</div>
@@ -2420,8 +2490,8 @@ export default function Home() {
       ["Impressões Totais", `=SOMA(G19:G${totalRows + 18})`, "=SOMA(G19:G...)", "Quantidade total de exibições do anúncio"],
       ["Leads Totais", `=SOMA(H19:H${totalRows + 18})`, "=SOMA(H19:H...)", "Quantidade total de leads capturados"],
       ["Leads Qualificados", `=SOMA(I19:I${totalRows + 18})`, "=SOMA(I19:I...)", "Clientes únicos no primeiro agendamento"],
-      ["Agendamentos Totais", `=SOMA(J19:J${totalRows + 18})`, "=SOMA(J19:J...)", "Agendamentos, incluindo remarcações"],
-      ["Demos Realizadas", `=SOMA(K19:K${totalRows + 18})`, "=SOMA(K19:K...)", "Demos confirmadas como realizadas"],
+      ["Agendamentos Totais", `=SOMA(J19:J${totalRows + 18})`, "=SOMA(J19:J...)", "Clientes únicos por mês com agendamento"],
+      ["Demos Realizadas", `=SOMA(K19:K${totalRows + 18})`, "=SOMA(K19:K...)", "Uma demo por cliente e mês de realização válida"],
       ["CTR Geral", `=SEERRO(B7/B8;0)`, "=Cliques/Impressões", "Taxa média de cliques"],
       ["CPC Geral (R$)", `=SEERRO(B6/B7;0)`, "=Investimento/Cliques", "Custo médio por clique"],
       ["CPL Geral (R$)", `=SEERRO(B6/B9;0)`, "=Investimento/Leads", "Custo por lead"],
@@ -3117,10 +3187,15 @@ export default function Home() {
                 <div className="wizard-success-icon">✓</div>
                 <h3 className="wizard-success-title">Ingestão Concluída com Sucesso!</h3>
                 <p className="wizard-success-desc">
-                  O arquivo de marketing <strong>{wizardFile.name}</strong> foi lido, normalizado e integrado com sucesso. 
-                  Inserimos <strong>{wizardResultCount}</strong> registros de campanhas na base de dados consolidada. 
+                  O arquivo <strong>{wizardFile.name}</strong> foi lido, normalizado e integrado com sucesso.
+                  Inserimos <strong>{wizardResultCount}</strong> registros normalizados na base consolidada.
                   Os gráficos e o painel já foram atualizados.
                 </p>
+                {wizardPendingDemoCount > 0 && (
+                  <p className="wizard-success-desc" role="status">
+                    <strong>{wizardPendingDemoCount} demo(s)</strong> sem data válida de realização foram preservadas para revisão e não compõem o KPI de Demos Realizadas.
+                  </p>
+                )}
                 <footer className="wizard-footer-actions" style={{ width: "100%", justifyContent: "center", border: "none", paddingTop: "8px" }}>
                   <button
                     className="primary-btn"

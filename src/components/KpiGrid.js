@@ -113,7 +113,7 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
             <p className="appointment-breakdown-eyebrow">Agendamentos</p>
             <h2 id="appointment-breakdown-title">Dados por plataforma</h2>
             <p id="appointment-breakdown-description">
-              Registros reais do DOitSA distribuídos pela origem de aquisição no período e nos filtros selecionados.
+              Cada cliente com ID ou telefone válido é contado uma vez por mês de agendamento. Demos entram uma vez por cliente no mês da realização válida.
             </p>
           </div>
           <button
@@ -130,7 +130,7 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
         <div className="appointment-breakdown-total">
           <span>Total exibido no card</span>
           <strong>{formatCount(data.total)}</strong>
-          <small>O total permanece vinculado ao KPI consolidado do dashboard.</small>
+          <small>Consolidado por cliente e mês de agendamento.</small>
         </div>
 
         <div className="appointment-breakdown-grid" role="list" aria-label="Agendamentos por plataforma">
@@ -143,7 +143,7 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
         </div>
 
         <p className="appointment-breakdown-footnote">
-          Meta reúne Facebook, Instagram e WhatsApp. O saldo de Playbooks e outras origens é calculado a partir do total consolidado menos Meta e Google.
+          Meta reúne Facebook, Instagram e WhatsApp. O saldo de Playbooks e outras origens é calculado a partir do total consolidado menos Meta e Google. Demos sem data de realização válida não entram no KPI.
         </p>
       </section>
     </div>
@@ -195,7 +195,7 @@ export default function KpiGrid({ totals, appointmentBreakdown }) {
       label: "Agendamentos",
       value: totals.conversoes || 0,
       formatFn: (v) => number.format(Math.round(v)),
-      meta: "Inclui remarcações registradas",
+      meta: "Clientes únicos por mês com agendamento",
       accent: "#7cf7be", // Green
       interactive: true,
       onActivate: openAppointments,
@@ -204,7 +204,7 @@ export default function KpiGrid({ totals, appointmentBreakdown }) {
       label: "Demos Realizadas",
       value: totals.demos || 0,
       formatFn: (v) => number.format(Math.round(v)),
-      meta: "Demos confirmadas como realizadas",
+      meta: "Uma demo por cliente e mês de realização",
       accent: "#ffd481", // Amber
     },
     {

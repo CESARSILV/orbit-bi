@@ -720,15 +720,15 @@ export function consolidateSummary(db) {
       : "";
   };
 
-  const getDoitsaAppointmentAliases = (row) => {
+  // Identidade forte para consolidação mensal: ID do lead ou telefone válido.
+  // Nome isolado não é suficiente para unir fatos de pessoas homônimas.
+  const getDoitsaStrongAliases = (row) => {
     const aliases = [];
     const leadId = normalizeLeadIdForMatch(row.lead_id);
     const phone = cleanPhoneForMatch(row.phone);
-    const names = getNameAliases(row.client_name);
 
     if (leadId) aliases.push(`id:${leadId}`);
     if (phone) aliases.push(`telefone:${phone}`);
-    names.forEach((name) => aliases.push(`nome:${name.replace(/\s+/g, "")}`));
 
     return aliases;
   };
@@ -741,32 +741,30 @@ export function consolidateSummary(db) {
     return match ? match[field] : "";
   };
 
-  // Mantém os fatos importados intactos e remove somente eventos equivalentes
-  // durante a consolidação. Um evento é equivalente quando a identidade do
-  // cliente e o dia do agendamento coincidem; reagendamentos em outra data
-  // permanecem como eventos distintos.
-  const deduplicateDoitsaAppointments = (rows) => {
-    const entriesByDate = new Map();
-    const preservedRows = [];
+  // Agrupa fatos pelo mês de referência apenas quando há identidade forte.
+  // IDs conflitantes nunca são fundidos, ainda que compartilhem um telefone.
+  const getDoitsaMonthlyClusters = (rows, getReferenceMonth) => {
+    const entriesByMonth = new Map();
+    const preservedClusters = [];
 
     rows.forEach((row, index) => {
-      const dateKey = getDailyDateKey(row.date);
-      const aliases = getDoitsaAppointmentAliases(row);
+      const referenceMonth = getReferenceMonth(row);
+      const aliases = getDoitsaStrongAliases(row);
       const leadId = normalizeLeadIdForMatch(row.lead_id);
 
-      // Sem data diária ou identidade confiável não há evidência suficiente
-      // para fundir fatos; preservamos a linha para evitar falso positivo.
-      if (!dateKey || aliases.length === 0) {
-        preservedRows.push({ row: { ...row, is_demo: isDemoRealizedValue(row.is_demo) }, index });
+      // Sem mês ou identidade forte não há evidência suficiente para unir
+      // fatos. A linha permanece isolada para evitar falso positivo.
+      if (!referenceMonth || aliases.length === 0) {
+        preservedClusters.push({ index, referenceMonth, rows: [row] });
         return;
       }
 
-      const entries = entriesByDate.get(dateKey) || [];
+      const entries = entriesByMonth.get(referenceMonth) || [];
       entries.push({ row, index, aliases, leadId });
-      entriesByDate.set(dateKey, entries);
+      entriesByMonth.set(referenceMonth, entries);
     });
 
-    entriesByDate.forEach((entries) => {
+    entriesByMonth.forEach((entries, referenceMonth) => {
       const parents = entries.map((_, index) => index);
       const leadIdsByRoot = entries.map((entry) => (
         entry.leadId ? new Set([entry.leadId]) : new Set()
@@ -786,9 +784,6 @@ export function consolidateSummary(db) {
           && rightLeadIds.size > 0
           && [...rightLeadIds].some((leadId) => !leftLeadIds.has(leadId));
 
-        // Um telefone ou nome compartilhado não pode fundir dois leads com
-        // IDs distintos. Esses aliases servem como fallback quando ao menos
-        // um dos registros não possui identificador forte.
         if (hasConflictingLeadIds) return false;
 
         parents[rightRoot] = leftRoot;
@@ -814,36 +809,50 @@ export function consolidateSummary(db) {
       });
 
       clusters.forEach((cluster) => {
-        const clusterRows = cluster.map(({ row }) => row);
-        const demoRow = clusterRows.find((row) => isDemoRealizedValue(row.is_demo));
-        const baseRow = demoRow || clusterRows[0];
-        const realizedStatus = clusterRows
-          .map((row) => row.lead_status)
-          .find((status) => /demo\s+realizada(?:\s*\||$)/i.test(String(status || "")));
-
-        preservedRows.push({
+        preservedClusters.push({
           index: Math.min(...cluster.map(({ index }) => index)),
-          row: {
-            ...baseRow,
-            lead_id: getFirstFilledValue(clusterRows, "lead_id") || baseRow.lead_id,
-            client_name: getFirstFilledValue(clusterRows, "client_name") || baseRow.client_name,
-            phone: getFirstFilledValue(clusterRows, "phone") || baseRow.phone,
-            lead_source: getFirstFilledValue(clusterRows, "lead_source") || baseRow.lead_source,
-            lead_medium: getFirstFilledValue(clusterRows, "lead_medium") || baseRow.lead_medium,
-            lead_campaign: getFirstFilledValue(clusterRows, "lead_campaign") || baseRow.lead_campaign,
-            lead_industry: getFirstFilledValue(clusterRows, "lead_industry") || baseRow.lead_industry,
-            realized_date: getFirstFilledValue(clusterRows, "realized_date") || baseRow.realized_date,
-            lead_status: realizedStatus || getFirstFilledValue(clusterRows, "lead_status") || baseRow.lead_status,
-            is_demo: clusterRows.some((row) => isDemoRealizedValue(row.is_demo)),
-          },
+          referenceMonth,
+          rows: cluster.map(({ row }) => row),
         });
       });
     });
 
-    return preservedRows
-      .sort((left, right) => left.index - right.index)
-      .map(({ row }) => row);
+    return preservedClusters.sort((left, right) => left.index - right.index);
   };
+
+  // Mantém os fatos importados intactos e consolida agendamentos por cliente
+  // único no mês de agendamento. Remarcações não criam um novo agendamento.
+  const deduplicateDoitsaAppointments = (rows) => (
+    getDoitsaMonthlyClusters(rows, (row) => {
+      const appointmentDate = getDailyDateKey(row.date);
+      return appointmentDate ? appointmentDate.slice(0, 7) : "";
+    }).map(({ rows: clusterRows }) => {
+      const baseRow = clusterRows.reduce((earliestRow, row) => {
+        const earliestDate = getDailyDateKey(earliestRow.date);
+        const candidateDate = getDailyDateKey(row.date);
+        return candidateDate && (!earliestDate || candidateDate < earliestDate)
+          ? row
+          : earliestRow;
+      }, clusterRows[0]);
+      const realizedStatus = clusterRows
+        .map((row) => row.lead_status)
+        .find((status) => /demo\s+realizada(?:\s*\||$)/i.test(String(status || "")));
+
+      return {
+        ...baseRow,
+        lead_id: getFirstFilledValue(clusterRows, "lead_id") || baseRow.lead_id,
+        client_name: getFirstFilledValue(clusterRows, "client_name") || baseRow.client_name,
+        phone: getFirstFilledValue(clusterRows, "phone") || baseRow.phone,
+        lead_source: getFirstFilledValue(clusterRows, "lead_source") || baseRow.lead_source,
+        lead_medium: getFirstFilledValue(clusterRows, "lead_medium") || baseRow.lead_medium,
+        lead_campaign: getFirstFilledValue(clusterRows, "lead_campaign") || baseRow.lead_campaign,
+        lead_industry: getFirstFilledValue(clusterRows, "lead_industry") || baseRow.lead_industry,
+        realized_date: getFirstFilledValue(clusterRows, "realized_date") || baseRow.realized_date,
+        lead_status: realizedStatus || getFirstFilledValue(clusterRows, "lead_status") || baseRow.lead_status,
+        is_demo: clusterRows.some((row) => isDemoRealizedValue(row.is_demo)),
+      };
+    })
+  );
 
   const bitrixRows = [];
   const rawDoitsaRows = [];
@@ -864,23 +873,20 @@ export function consolidateSummary(db) {
   // - Bitrix qualifica negócios em Demo, Reagendar, Proposta e etapas posteriores.
   // - DOitSA qualifica o cliente no primeiro agendamento, inclusive se não realizado.
   // - Quando ambos registram o mesmo cliente no mês, conta apenas uma vez.
-  // - Remarcações preservam o evento de agendamento, sem duplicar o qualificado.
+  // - Remarcações no mesmo mês são consolidadas no primeiro agendamento.
   // - Demo realizada = campo is_demo vindo de "Demo Realizada" no DOitSA.
   const getDoitsaIdentity = (row, index) => {
-    // O ID do lead é a chave mais estável; depois usamos telefone válido e,
-    // por último, nome normalizado. Remarcações com a mesma identidade ficam
-    // em `conversions`, mas somente o primeiro evento recebe `is_qualified`.
-    const leadId = normalizeLeadIdForMatch(row.lead_id);
-    if (leadId) return `id:${leadId}`;
+    // A consolidação mensal aceita somente ID do lead ou telefone válido.
+    // Sem eles, a linha fica isolada e jamais é unida por nome.
+    return getDoitsaStrongAliases(row)[0] || `linha:${index}`;
+  };
 
-    const phone = cleanPhoneForMatch(row.phone);
-    if (phone) return `telefone:${phone}`;
+  const getDoitsaRealizationDate = (row) => {
+    const statusRealizedDate = String(row.lead_status || "")
+      .match(/demo\s+realizada\s*\|\s*([^|]+)/i)?.[1];
 
-    const name = getNameAliases(row.client_name)[0] || "";
-    if (name) return `nome:${name.replace(/\s+/g, "")}`;
-
-    // Sem nenhum identificador confiável, não colapsamos linhas diferentes.
-    return `linha:${index}`;
+    return getDailyDateKey(row.realized_date)
+      || getDailyDateKey(statusRealizedDate);
   };
 
   const getCrmStage = (row) => {
@@ -924,20 +930,6 @@ export function consolidateSummary(db) {
     isQualifiedBitrixStage(getCrmStage(row)) || isQualifiedBitrixSource(row)
   );
 
-  const getCrmDateKey = (row) => {
-    const rawDate = String(row?.date || "").trim();
-    if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) return rawDate.slice(0, 10);
-    if (/^\d{4}-\d{2}$/.test(rawDate)) return `${rawDate}-01`;
-
-    const brazilianDate = rawDate.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
-    if (brazilianDate) {
-      return `${brazilianDate[3]}-${String(brazilianDate[2]).padStart(2, "0")}-${String(brazilianDate[1]).padStart(2, "0")}`;
-    }
-
-    const referenceMonth = getRowReferenceMonth(row);
-    return referenceMonth ? `${referenceMonth}-01` : "9999-12-31";
-  };
-
   // Quando existe uma base Bitrix qualificada no mês, ela é a fonte
   // autoritativa de Leads Qualificados. O DOitSA continua sendo a fonte dos
   // eventos de Agendamento e das Demos, mas não soma novamente essas pessoas.
@@ -950,8 +942,10 @@ export function consolidateSummary(db) {
 
   const firstAppointmentByIdentity = new Map();
   doitsaRows.forEach((row, index) => {
+    const date = getDailyDateKey(row.date);
+    if (!date) return;
+
     const identity = getDoitsaIdentity(row, index);
-    const date = getCrmDateKey(row);
     const current = firstAppointmentByIdentity.get(identity);
     if (!current || date < current.date) {
       firstAppointmentByIdentity.set(identity, { date, index });
@@ -968,11 +962,10 @@ export function consolidateSummary(db) {
     is_realization_event: false,
   }));
 
-  doitsaRows.forEach((d, dIndex) => {
+  const getDoitsaCrmContext = (d) => {
     const dPhone = cleanPhoneForMatch(d.phone);
     const dLeadId = normalizeLeadIdForMatch(d.lead_id);
-
-    const match = bitrixRows.find(b => {
+    const match = bitrixRows.find((b) => {
       const bPhone = cleanPhoneForMatch(b.phone);
       const bLeadId = normalizeLeadIdForMatch(b.lead_id);
 
@@ -981,9 +974,26 @@ export function consolidateSummary(db) {
       return namesMatch(b.client_name, d.client_name);
     });
 
+    return {
+      match,
+      attribution: {
+        crm_platform: "doitsa",
+        doitsa_matched: Boolean(match),
+        lead_source: match?.lead_source || d.lead_source || "",
+        lead_medium: match?.lead_medium || d.lead_medium || "",
+        lead_campaign: match?.lead_campaign || d.lead_campaign || "",
+        lead_industry: match?.lead_industry || d.lead_industry || "",
+      },
+    };
+  };
+
+  doitsaRows.forEach((d, dIndex) => {
+    const { match, attribution } = getDoitsaCrmContext(d);
+    const appointmentDate = getDailyDateKey(d.date);
+    const hasValidAppointmentDate = Boolean(appointmentDate);
     const identity = getDoitsaIdentity(d, dIndex);
     const firstAppointment = firstAppointmentByIdentity.get(identity);
-    const appointmentMonth = getRowReferenceMonth(d);
+    const appointmentMonth = hasValidAppointmentDate ? appointmentDate.slice(0, 7) : "";
     const matchedBitrixMonth = getRowReferenceMonth(match);
     const bitrixIsAuthoritativeForMonth = Boolean(
       appointmentMonth && qualifiedBitrixMonths.has(appointmentMonth)
@@ -994,53 +1004,82 @@ export function consolidateSummary(db) {
       && appointmentMonth
       && appointmentMonth === matchedBitrixMonth
     );
-    const attribution = {
-      crm_platform: "doitsa",
-      doitsa_matched: Boolean(match),
-      lead_source: match?.lead_source || d.lead_source || "",
-      lead_medium: match?.lead_medium || d.lead_medium || "",
-      lead_campaign: match?.lead_campaign || d.lead_campaign || "",
-      lead_industry: match?.lead_industry || d.lead_industry || "",
-    };
 
     mergedCrmRows.push({
       ...d,
       ...attribution,
       id: d.id || `doitsa_${d.lead_id || dIndex}_${d.date || "sem-data"}`,
-      conversions: 1,
+      conversions: hasValidAppointmentDate ? 1 : 0,
       is_demo: false,
-      is_qualified: firstAppointment?.index === dIndex && !alreadyQualifiedInBitrixThisMonth,
+      is_qualified: hasValidAppointmentDate
+        && firstAppointment?.index === dIndex
+        && !alreadyQualifiedInBitrixThisMonth,
       is_realization_event: false,
+      appointment_date_valid: hasValidAppointmentDate,
     });
+  });
 
-    const isDemoRealized = isDemoRealizedValue(d.is_demo);
-    if (isDemoRealized) {
-      const statusRealizedDate = String(d.lead_status || "")
-        .match(/demo\s+realizada\s*\|\s*([^|]+)/i)?.[1];
-      const realizedDate = getDailyDateKey(d.realized_date)
-        || getDailyDateKey(statusRealizedDate)
-        || getDailyDateKey(d.date)
-        || d.date;
-      const realizedMonth = getRowReferenceMonth({ ...d, date: realizedDate, reference_month: "" })
-        || d.reference_month;
-      const realizedMonthIndex = realizedMonth ? parseInt(realizedMonth.split("-")[1], 10) - 1 : -1;
+  // Demos são extraídas dos fatos brutos, antes da redução mensal dos
+  // agendamentos. Isso preserva realizações em meses diferentes do mesmo lead.
+  const doitsaDemoClusters = getDoitsaMonthlyClusters(
+    rawDoitsaRows.filter((row) => isDemoRealizedValue(row.is_demo)),
+    (row) => {
+      const realizationDate = getDoitsaRealizationDate(row);
+      return realizationDate ? realizationDate.slice(0, 7) : "";
+    }
+  );
 
+  doitsaDemoClusters.forEach(({ rows, index }) => {
+    const d = rows.reduce((earliestRow, row) => {
+      const earliestDate = getDoitsaRealizationDate(earliestRow);
+      const candidateDate = getDoitsaRealizationDate(row);
+      return candidateDate && (!earliestDate || candidateDate < earliestDate)
+        ? row
+        : earliestRow;
+    }, rows[0]);
+    const realizedDate = getDoitsaRealizationDate(d);
+    const { attribution } = getDoitsaCrmContext(d);
+    const baseId = d.id || `doitsa_${d.lead_id || index}`;
+
+    // Um registro de demo sem data de realização válida não é deslocado para
+    // o mês do agendamento. O fato permanece sinalizado, mas não compõe KPI.
+    if (!realizedDate) {
       mergedCrmRows.push({
         ...d,
         ...attribution,
-        id: `${d.id || `doitsa_${d.lead_id || dIndex}`}_realizada`,
-        lead_status: "Demo Realizada",
-        date: realizedDate,
-        reference_month: realizedMonth,
-        reference_label: realizedMonthIndex >= 0
-          ? `${MONTHS_PT[realizedMonthIndex]}/${realizedMonth.split("-")[0]}`
-          : d.reference_label,
+        id: `${baseId}_realizada_sem_data_${index}`,
+        lead_status: "Demo Realizada — data de realização pendente",
+        realized_date: "",
+        date: "",
+        reference_month: "",
+        reference_label: "",
         conversions: 0,
         is_demo: true,
         is_qualified: false,
         is_realization_event: true,
+        realization_date_valid: false,
+        realization_exclusion_reason: "missing_valid_realized_date",
       });
+      return;
     }
+
+    const realizedMonth = realizedDate.slice(0, 7);
+    const realizedMonthIndex = parseInt(realizedMonth.split("-")[1], 10) - 1;
+    mergedCrmRows.push({
+      ...d,
+      ...attribution,
+      id: `${baseId}_realizada_${realizedMonth}`,
+      lead_status: "Demo Realizada",
+      realized_date: realizedDate,
+      date: realizedDate,
+      reference_month: realizedMonth,
+      reference_label: `${MONTHS_PT[realizedMonthIndex]}/${realizedMonth.split("-")[0]}`,
+      conversions: 0,
+      is_demo: true,
+      is_qualified: false,
+      is_realization_event: true,
+      realization_date_valid: true,
+    });
   });
 
   if (mergedCrmRows.length > 0) {
@@ -1095,7 +1134,9 @@ export function consolidateSummary(db) {
 
       const g = groups[crmGroupKey];
       g.crm_leads += r.is_qualified ? 1 : 0;
-      g.conversions += r.crm_platform === "doitsa" && !r.is_realization_event ? 1 : 0;
+      g.conversions += r.crm_platform === "doitsa" && !r.is_realization_event
+        ? r.conversions || 0
+        : 0;
       g.crm_demos += r.is_realization_event ? 1 : 0;
     });
   }

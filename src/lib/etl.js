@@ -170,6 +170,29 @@ const MONTH_MAP_PT = {
   julho: 6, agosto: 7, setembro: 8, outubro: 9, novembro: 10, dezembro: 11
 };
 
+const DATE_GRANULARITY_METADATA = "__doitDateGranularity";
+
+export function getExcelDateGranularity(cell) {
+  if (!cell) return "";
+
+  const numberFormat = String(cell.z || "").toLowerCase();
+  const renderedValue = String(cell.w || "").trim();
+  const looksLikeDate = cell.t === "d" || /[ymd]/i.test(numberFormat);
+  if (!looksLikeDate) return "";
+
+  if (/d/i.test(numberFormat)) return "day";
+
+  const hasMonth = /m/i.test(numberFormat);
+  const hasYear = /y/i.test(numberFormat);
+  const looksLikeMonthYear = /^(?:\d{1,2}|[a-zà-ÿ]{3,})[\/.-\s]+\d{2,4}$/i.test(renderedValue);
+
+  return hasMonth && hasYear || looksLikeMonthYear ? "month" : "";
+}
+
+export function isMonthOnlySourceDate(row, column) {
+  return Boolean(row?.[DATE_GRANULARITY_METADATA]?.[column] === "month");
+}
+
 export function detectFileDateFormat(rows, dateKey) {
   if (!rows || rows.length === 0 || !dateKey) return "BR";
 
@@ -1021,9 +1044,17 @@ export async function parseExcelFile(file) {
             return value || `Coluna_${index + 1}`;
           });
 
-          const formattedRows = rawRows.slice(headerIndex + 1).map((row) => {
+          const formattedRows = rawRows.slice(headerIndex + 1).map((row, rowOffset) => {
             const record = {};
+            const dateGranularity = {};
+            const worksheetRowIndex = headerIndex + 1 + rowOffset;
+
             headers.forEach((header, index) => {
+              const cell = worksheet[XLSX.utils.encode_cell({ r: worksheetRowIndex, c: index })];
+              if (getExcelDateGranularity(cell) === "month") {
+                dateGranularity[header] = "month";
+              }
+
               let val = row ? row[index] : undefined;
               if (val === undefined || val === null) {
                 val = "";
@@ -1032,6 +1063,14 @@ export async function parseExcelFile(file) {
               }
               record[header] = val;
             });
+
+            if (Object.keys(dateGranularity).length > 0) {
+              Object.defineProperty(record, DATE_GRANULARITY_METADATA, {
+                value: dateGranularity,
+                enumerable: false,
+              });
+            }
+
             return record;
           });
 
