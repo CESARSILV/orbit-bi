@@ -726,6 +726,36 @@ export function consolidateSummary(db) {
     return candidates.find(value => value !== null && value !== undefined && String(value).trim() !== "") || "";
   };
 
+  const getCrmSource = (row) => {
+    const candidates = [
+      row?.lead_source,
+      row?.source,
+      row?.origem,
+      row?.fonte,
+      row?.leadSource,
+    ];
+    return candidates.find(value => value !== null && value !== undefined && String(value).trim() !== "") || "";
+  };
+
+  const normalizeCrmSource = (value) => String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+
+  // No CSV Bitrix enviado, 19 registros vieram de "DOit - Formulário do
+  // Ebook 2" e 10 de Wapi. Esses leads são qualificados operacionalmente
+  // mesmo quando o Bitrix ainda mantém a etapa "Entrei em contato".
+  // Formulários explícitos de agendamento ficam somente no funil de eventos.
+  const isQualifiedBitrixSource = (row) => {
+    const source = normalizeCrmSource(getCrmSource(row));
+    return source.includes("wapi") || source.includes("doitformulariodoebook2");
+  };
+
+  const isQualifiedBitrixRow = (row) => (
+    isQualifiedBitrixStage(getCrmStage(row)) || isQualifiedBitrixSource(row)
+  );
+
   const getCrmDateKey = (row) => {
     const rawDate = String(row?.date || "").trim();
     if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) return rawDate.slice(0, 10);
@@ -756,7 +786,7 @@ export function consolidateSummary(db) {
     crm_platform: "bitrix",
     conversions: 0,
     is_demo: false,
-    is_qualified: isQualifiedBitrixStage(getCrmStage(row)),
+    is_qualified: isQualifiedBitrixRow(row),
     is_realization_event: false,
   }));
 
@@ -779,7 +809,7 @@ export function consolidateSummary(db) {
     const matchedBitrixMonth = getRowReferenceMonth(match);
     const alreadyQualifiedInBitrixThisMonth = Boolean(
       match
-      && isQualifiedBitrixStage(getCrmStage(match))
+      && isQualifiedBitrixRow(match)
       && appointmentMonth
       && appointmentMonth === matchedBitrixMonth
     );
