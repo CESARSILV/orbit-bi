@@ -16,19 +16,19 @@ const formatCount = (value) => number.format(Math.max(0, Math.round(Number(value
 const formatPercentage = (value) => `${((Number(value) || 0) * 100).toFixed(2).replace(".", ",")}%`;
 
 const IMPACT_MESSAGES = {
-  investimento: "CPC, CPM, CPL e CPA serão recalculados automaticamente.",
-  cliques: "CTR e CPC serão recalculados automaticamente.",
-  impressoes: "CTR e CPM serão recalculados automaticamente.",
-  leads: "CPL será recalculado automaticamente.",
-  conversoes: "CPA será recalculado automaticamente.",
-  qualificados: "O total de Leads Qualificados será usado no resumo e nas exportações.",
-  demos: "O total de Demos Realizadas será usado no resumo e nas exportações.",
-  alcance: "O total de Alcance será usado no resumo e nas exportações.",
-  ctr: "Este valor manual terá prioridade sobre o cálculo de Cliques ÷ Impressões.",
-  cpc: "Este valor manual terá prioridade sobre o cálculo de Investimento ÷ Cliques.",
-  cpm: "Este valor manual terá prioridade sobre o cálculo de Investimento ÷ Impressões × 1.000.",
-  cpl: "Este valor manual terá prioridade sobre o cálculo de Investimento ÷ Leads.",
-  cpa: "Este valor manual terá prioridade sobre o cálculo de Investimento ÷ Agendamentos.",
+  investimento: "O valor é consolidado e distribuído proporcionalmente no recorte; CPC, CPM, CPL e CPA são recalculados em gráficos, tabelas e total.",
+  cliques: "O valor é consolidado e distribuído proporcionalmente no recorte; CTR e CPC são recalculados em gráficos, tabelas e total.",
+  impressoes: "O valor é consolidado e distribuído proporcionalmente no recorte; CTR e CPM são recalculados em gráficos, tabelas e total.",
+  leads: "O valor é consolidado e distribuído proporcionalmente no recorte; CPL é recalculado em gráficos, tabelas e total.",
+  conversoes: "O valor é consolidado e distribuído proporcionalmente no recorte; CPA e o detalhamento por origem são recalculados.",
+  qualificados: "O valor é consolidado e distribuído proporcionalmente no recorte, refletindo em gráficos, tabelas e total.",
+  demos: "O valor é consolidado e distribuído proporcionalmente no recorte, refletindo em gráficos, tabelas e total.",
+  alcance: "O valor é consolidado e distribuído proporcionalmente no recorte, refletindo em gráficos, tabelas e total.",
+  ctr: "Este valor manual passa a valer no total do recorte; as linhas continuam com o CTR recalculado a partir de cliques e impressões.",
+  cpc: "Este valor manual passa a valer no total do recorte; as linhas continuam com o CPC recalculado a partir de investimento e cliques.",
+  cpm: "Este valor manual passa a valer no total do recorte; as linhas continuam com o CPM recalculado a partir de investimento e impressões.",
+  cpl: "Este valor manual passa a valer no total do recorte; as linhas continuam com o CPL recalculado a partir de investimento e leads.",
+  cpa: "Este valor manual passa a valer no total do recorte; as linhas continuam com o CPA recalculado a partir de investimento e agendamentos.",
 };
 
 function valueForInput(kpi, value) {
@@ -321,6 +321,8 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
     demosRealizadas: 0,
     isTotalAdjusted: false,
     isDemosAdjusted: false,
+    hasUnallocatedAdjustment: false,
+    effectiveConversoes: 0,
     ...breakdown,
   };
 
@@ -376,15 +378,23 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
           <strong>{formatCount(data.total)}</strong>
           <small>
             {data.isTotalAdjusted
-              ? "Valor ajustado manualmente para este recorte."
+              ? "Valor conferido e consolidado para este recorte."
               : "Consolidado por cliente e mês de agendamento."}
           </small>
         </div>
 
-        {(data.isTotalAdjusted || data.isDemosAdjusted) && (
+        {(data.isTotalAdjusted || data.isDemosAdjusted) && !data.hasUnallocatedAdjustment && (
           <div className="appointment-breakdown-warning">
-            <strong>Conferência manual aplicada</strong>
-            <span>A distribuição por origem continua baseada nos fatos importados; o sistema não inventa uma divisão por plataforma para completar o ajuste.</span>
+            <strong>Conferência manual consolidada</strong>
+            <span>O valor conferido foi distribuído proporcionalmente entre as origens que já tinham registros, então a soma por plataforma fecha com o total.</span>
+          </div>
+        )}
+        {data.hasUnallocatedAdjustment && (
+          <div className="appointment-breakdown-warning">
+            <strong>Ajuste sem base para distribuição</strong>
+            <span>
+              O valor conferido ({formatCount(data.effectiveConversoes)}) não pôde ser distribuído por origem porque não há registros de agendamento neste recorte. A soma por plataforma abaixo reflete os dados disponíveis; importe o período para consolidar a divisão.
+            </span>
           </div>
         )}
 
@@ -398,7 +408,7 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
         </div>
 
         <p className="appointment-breakdown-footnote">
-          Meta reúne Facebook, Instagram e WhatsApp. O saldo de Playbooks e outras origens é calculado apenas com os fatos importados. Demos sem data de realização válida não entram no KPI.
+          Meta reúne Facebook, Instagram e WhatsApp. O saldo de Playbooks e outras origens é o total menos Meta e Google. Demos sem data de realização válida não entram no KPI.
         </p>
       </section>
     </div>

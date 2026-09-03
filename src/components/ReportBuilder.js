@@ -342,8 +342,9 @@ export default function ReportBuilder({
 
   // Linha de total
   const totalRow = useMemo(() => calcTotalRow(tableRows), [tableRows]);
-  // Os totais do rodapé usam a mesma camada efetiva dos cards. As linhas
-  // mensais continuam factuais para não inventar uma distribuição do ajuste.
+  // As linhas mensais já vêm reconciliadas (timeline reflete a conferência manual),
+  // então o total efetivo bate com a soma das linhas. Ainda preferimos totals para
+  // cobrir também ajustes de métricas derivadas (CTR, CPC…) que não são somáveis.
   const effectiveTotalRow = useMemo(() => KPI_DEFS.reduce((result, definition) => {
     const totalValue = definition.key === "cpa"
       ? (totals?.cpa ?? totals?.cac)
@@ -441,7 +442,7 @@ export default function ReportBuilder({
       ? `<div class="sec"><div class="sec-t">⚡ Insights Automáticos</div><div class="ins-grid">${insights.map(i => `<div class="ins">${i.icon} <span>${i.text}</span></div>`).join("")}</div></div>`
       : "";
     const manualAdjustmentHtml = hasManualAdjustments
-      ? `<div class="manual-note"><strong>Conferência manual aplicada aos KPIs consolidados.</strong><span>${manualAdjustments.map((adjustment) => adjustment.label).join(" · ")}. A evolução mensal permanece baseada nos fatos importados e não redistribui os ajustes por campanha.</span></div>`
+      ? `<div class="manual-note"><strong>Conferência manual consolidada.</strong><span>${manualAdjustments.map((adjustment) => adjustment.label).join(" · ")}. Os valores conferidos foram distribuídos proporcionalmente no recorte, então a evolução mensal e o total refletem a mesma conferência.</span></div>`
       : "";
 
     // Plataformas inline
@@ -842,9 +843,9 @@ export default function ReportBuilder({
                   fontSize: "0.78rem",
                   lineHeight: 1.45,
                 }}>
-                  <strong style={{ color: "var(--info)" }}>Conferência manual aplicada aos totais</strong>
+                  <strong style={{ color: "var(--info)" }}>Conferência manual consolidada</strong>
                   <span>
-                    {manualAdjustments.map((adjustment) => adjustment.label).join(" · ")}. A linha TOTAL considera estes valores; as linhas mensais continuam baseadas nos fatos importados.
+                    {manualAdjustments.map((adjustment) => adjustment.label).join(" · ")}. Os valores conferidos foram distribuídos proporcionalmente no recorte, então as linhas mensais e a linha TOTAL refletem a mesma conferência.
                   </span>
                 </div>
               )}
