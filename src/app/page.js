@@ -1177,76 +1177,131 @@ export default function Home() {
     });
   };
 
-  // Dynamic Executive Summary Diagnostics generator
-  const generateExecutiveSummary = (campaignsList, totalsVal) => {
-    if (campaignsList.length === 0) return "";
-    
-    const formattedInvest = brl.format(totalsVal.investimento);
-    const formattedConv = number.format(totalsVal.conversoes);
-    
-    const sorted = [...campaignsList].sort((a, b) => b.cpa - a.cpa);
-    const topCampaign = sorted[0];
-    const worstCampaign = sorted[sorted.length - 1];
-
-    let bestDeviceText = "";
-    if (deviceData) {
-      if (deviceData.mobile.conv > deviceData.desktop.conv) {
-        bestDeviceText = "smartphones (mobile)";
-      } else {
-        bestDeviceText = "computadores (desktop)";
-      }
-    }
-
-    const selectLabel = startDate || endDate
-      ? `período de ${startDate || "início"} até ${endDate || "hoje"}`
-      : period === "todos" ? "histórico completo" : `mês de ${uniqueValues.months.find(m => m.value === period)?.label || period}`;
-
-    let text = `Para o ${selectLabel}, o investimento consolidado em mídia paga foi de ${formattedInvest}, resultando em ${formattedConv} agendamentos. `;
-    
-    if (topCampaign && topCampaign.cpa > 0) {
-      text += `A campanha de maior eficiência foi "${topCampaign.nome}" com CPA (Custo por Agendamento) de ${brl.format(topCampaign.cpa)}. `;
-    }
-    
-    if (bestDeviceText) {
-      text += `A maior concentração de conversões ocorreu via ${bestDeviceText}. `;
-    }
-    
-    if (worstCampaign && worstCampaign.cpa > totalsVal.cpa * 1.5 && worstCampaign.investimento > 200) {
-      text += `Recomenda-se otimização de criativos ou realocação de verba na campanha "${worstCampaign.nome}" devido ao CPA elevado de ${brl.format(worstCampaign.cpa)}.`;
-    }
-    
-    return text;
-  };
+  // Briefing executivo: apresenta somente indicadores acionáveis para decisão.
+  // Os valores são derivados do mesmo recorte usado pelos KPIs e pela tabela.
+  const filteredSummary = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
 
   const getDynamicInsights = () => {
-    if (filteredCampaigns.length === 0) {
+    if (isDataLoading && filteredSummary.length === 0) {
       return {
-        summary: "Aguardando upload de planilhas exportadas diretamente do Meta Ads ou Google Ads para processar inteligência.",
-        list: [
-          { title: "Painel autopreenchido", text: "Você pode enviar múltiplos arquivos brutos de uma só vez." },
-          { title: "Inteligência Temporal", text: "Calculamos dias, semanas, trimestres e comparamos meses automaticamente." },
-          { title: "Tabelas Fact Estruturadas", text: "Ingestão resiliente dividindo o conteúdo em dispositivos, termos e demográficos." },
-        ]
+        summary: "Atualizando os dados do período selecionado.",
+        metrics: [],
       };
     }
 
-    const summary = generateExecutiveSummary(filteredCampaigns, totals);
-    const sorted = [...filteredCampaigns].sort((a, b) => b.investimento - a.investimento);
-    const best = sorted[0] || { nome: "Nenhuma", cpa: 0 };
-    const worst = sorted[sorted.length - 1] || { nome: "Nenhuma", cpa: 0 };
+    if (filteredSummary.length === 0) {
+      return {
+        summary: "Importe dados de mídia e CRM para visualizar a decisão do período.",
+        metrics: [
+          {
+            label: "Status",
+            value: "Sem dados",
+            detail: "Nenhuma métrica real está disponível no recorte atual.",
+            tone: "neutral",
+          },
+        ],
+      };
+    }
+
+    const funnelMetric = totals.qualificados > 0
+      ? {
+          label: "Leads qualificados",
+          value: number.format(Math.round(totals.qualificados)),
+          detail: [
+            totals.conversoes > 0 && `${number.format(Math.round(totals.conversoes))} agendamentos`,
+            totals.demos > 0 && `${number.format(Math.round(totals.demos))} demos`,
+          ].filter(Boolean).join(" · ") || "Resultado comercial do recorte.",
+        }
+      : totals.conversoes > 0
+        ? {
+            label: "Agendamentos",
+            value: number.format(Math.round(totals.conversoes)),
+            detail: totals.demos > 0
+              ? `${number.format(Math.round(totals.demos))} demos realizadas`
+              : "Resultado comercial do recorte.",
+          }
+        : {
+            label: "Leads captados",
+            value: number.format(Math.round(totals.leads)),
+            detail: totals.cliques > 0
+              ? `${number.format(Math.round(totals.cliques))} cliques em anúncios`
+              : "Resultado de mídia do recorte.",
+          };
+
+    const efficiencyMetric = totals.conversoes > 0 && totals.investimento > 0
+      ? {
+          label: "CPA médio",
+          value: brl.format(totals.cpa),
+          detail: `${brl.format(totals.investimento)} investidos`,
+        }
+      : totals.leads > 0 && totals.investimento > 0
+        ? {
+            label: "CPL médio",
+            value: brl.format(totals.cpl),
+            detail: `${brl.format(totals.investimento)} investidos`,
+          }
+        : totals.cliques > 0 && totals.investimento > 0
+          ? {
+              label: "CPC médio",
+              value: brl.format(totals.cpc),
+              detail: `${brl.format(totals.investimento)} investidos`,
+            }
+          : {
+              label: "Eficiência",
+              value: "Sem base",
+              detail: "Ainda não há resultado atribuído para calcular o custo.",
+            };
+
+    const comparableCampaigns = filteredCampaigns
+      .filter(item => item.investimento > 0 && item.conversoes > 0 && item.cpa > 0)
+      .sort((a, b) => a.cpa - b.cpa);
+    const mostEfficientCampaign = comparableCampaigns[0];
+    const leastEfficientCampaign = comparableCampaigns[comparableCampaigns.length - 1];
+
+    let decisionMetric = {
+      label: "Próxima decisão",
+      value: "Medir resultados",
+      detail: "Associe conversões às campanhas antes de redistribuir verba.",
+      tone: "neutral",
+    };
+
+    if (
+      mostEfficientCampaign
+      && leastEfficientCampaign
+      && mostEfficientCampaign !== leastEfficientCampaign
+      && leastEfficientCampaign.cpa > mostEfficientCampaign.cpa * 1.2
+    ) {
+      const costGap = Math.round(((leastEfficientCampaign.cpa / mostEfficientCampaign.cpa) - 1) * 100);
+      decisionMetric = {
+        label: "Prioridade",
+        value: `Revisar ${leastEfficientCampaign.nome}`,
+        detail: `CPA ${costGap}% acima de ${mostEfficientCampaign.nome}.`,
+        tone: "attention",
+      };
+    } else if (mostEfficientCampaign) {
+      decisionMetric = {
+        label: "Campanha a acompanhar",
+        value: mostEfficientCampaign.nome,
+        detail: `Menor CPA do recorte: ${brl.format(mostEfficientCampaign.cpa)}.`,
+        tone: "positive",
+      };
+    }
+
+    const investmentSentence = totals.investimento > 0
+      ? `${brl.format(totals.investimento)} investidos para ${funnelMetric.value} ${funnelMetric.label.toLowerCase()}.`
+      : `${funnelMetric.value} ${funnelMetric.label.toLowerCase()} no recorte atual.`;
 
     return {
-      summary,
-      list: [
-        { title: "Destaque de Agendamentos", text: `"${best.nome}" lidera o mix com maior volume de investimento (${brl.format(best.investimento)}).` },
-        { title: "Oportunidade de Otimização", text: worst.cpa > 0 && worst.investimento > 0 ? `"${worst.nome}" apresenta CPA de ${brl.format(worst.cpa)} — avalie ajuste de segmentação.` : "Ajuste lances em horários ociosos do heatmap." },
-        { title: "Ação Estratégica", text: "Consulte o heatmap cronológico e o mapa regional abaixo para calibrar criativos por localização." }
-      ]
+      summary: investmentSentence,
+      metrics: [
+        { ...funnelMetric, tone: "primary" },
+        { ...efficiencyMetric, tone: "efficiency" },
+        decisionMetric,
+      ],
     };
   };
 
   const insights = getDynamicInsights();
-  const filteredSummary = marketingDb.fact_marketing_summary.filter(matchesCoreFilters);
 
   // ----------------------------------------------------
   // Event Handlers & ETL Upload Orchestrator
@@ -2663,28 +2718,28 @@ export default function Home() {
           <>
 
             <section className="hero-grid" id="visao-geral">
-            <article className={`intelligence-panel ${isIntelligenceUpdating ? "is-updating" : ""}`}>
+            <article className={`intelligence-panel executive-panel ${isIntelligenceUpdating ? "is-updating" : ""}`}>
               <div className="panel-heading">
                 <div>
-                  <p className="eyebrow">Diagnóstico da IA</p>
-                  <h2>Resumo estratégico consolidado</h2>
+                  <p className="eyebrow">Resumo executivo</p>
+                  <h2>Decisões do período</h2>
                 </div>
-                {base64Files.length > 0 && (
-                  <span className="confidence" style={{ background: "var(--surface-info)", color: "var(--info)", borderColor: "var(--border-info)" }}>
-                    {base64Files.length} anexo(s) carregado(s)
-                  </span>
-                )}
-                <span className="confidence">99% precisão</span>
+                <span className="confidence">
+                  {isDataLoading ? "Atualizando dados" : "Dados do recorte"}
+                </span>
               </div>
-              <p id="executiveSummary">{insights.summary}</p>
-              <div className="insight-list">
-                {insights.list.map((ins, index) => (
-                  <div key={index} className="insight-card">
-                    <strong>{ins.title}</strong>
-                    <span>{ins.text}</span>
-                  </div>
-                ))}
-              </div>
+              <p className="executive-brief">{insights.summary}</p>
+              {insights.metrics.length > 0 && (
+                <div className="executive-metrics">
+                  {insights.metrics.map((metric) => (
+                    <div key={metric.label} className={`executive-metric executive-metric--${metric.tone || "neutral"}`}>
+                      <span className="executive-metric-label">{metric.label}</span>
+                      <strong className="executive-metric-value" title={metric.value}>{metric.value}</strong>
+                      <span className="executive-metric-detail">{metric.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </article>
 
             <UploadZone files={files} onFilesSelected={handleFilesSelected} />
