@@ -2915,6 +2915,18 @@ export default function Home() {
   const getSimulatedAnswer = (text) => {
     const q = text.toLowerCase();
     
+    // Pergunta sobre Visibilidade de IA, Bing Webmaster ou Copilot
+    if (q.includes("bing") || q.includes("rastre") || q.includes("copilot") || q.includes("index") || q.includes("visibilidade") || q.includes("robô") || q.includes("robo") || q.includes("busca")) {
+      return `[DIAGNÓSTICO IA] Rastreamento & Presença em IA (Setembro/2026):
+• **Páginas Rastreadas por Bots**: 5.569 requisições de Bingbot/Copilot no período.
+• **Páginas no Índice**: 486 páginas ativas prontas para citação na IA.
+• **Desempenho Orgânico**: 1.347 impressões com 57 cliques (CTR médio de 4,23%).
+• **Saúde de Rastreamento**: 32.700 requisições HTTP 200 (sucesso) e conformidade de 100% com robots.txt.
+• **Principais Consultas**: "doit" (29 cliques), "doit login" (16 cliques), "www.doit.com.br" e termos de software de gestão para arquitetura.
+
+💡 Recomenda-se manter o sitemap atualizado e produzir novos conteúdos técnicos para capturar citações de IA em termos de arquitetura e gestão.`;
+    }
+
     if (filteredCampaigns.length === 0) {
       return "Não há campanhas ou dados carregados no momento. Por favor, faça o upload de um arquivo CSV/XLSX de campanhas para gerar recomendações.";
     }
@@ -2923,14 +2935,20 @@ export default function Home() {
     const best = sorted[0] || { nome: "Nenhuma", roas: 0 };
     const worst = sorted[sorted.length - 1] || { nome: "Nenhuma", roas: 0 };
 
-    if (q.includes("melhor") || q.includes("roas")) {
-      return `A campanha com melhor ROAS no período selecionado é a "${best.nome}", registrando ${best.roas.toFixed(2).replace(".", ",")}x. Recomendamos escalar orçamentos nela.`;
+    if (q.includes("escal") || q.includes("melhor") || q.includes("roas") || q.includes("aumentar orç")) {
+      return `[ESCALA] Oportunidade de Escala Identificada:
+A campanha com melhor desempenho no período selecionado é a "${best.nome}", registrando ROAS de ${best.roas.toFixed(2).replace(".", ",")}x e CPA controlado.
+💡 Recomendação: Escalar gradualmente o orçamento diário em 15% a cada 48-72h, monitorando se o CPA se mantém dentro da meta aceitável.`;
     }
-    if (q.includes("cpa") || q.includes("aumentou") || q.includes("cpl")) {
-      return `O custo por conversão (CPA) consolidado está em ${brl.format(totals.cpa)}. O principal impulsionador do custo é a campanha "${worst.nome}" com ROAS de ${worst.roas.toFixed(2).replace(".", ",")}x. Reduzir orçamentos ociosos ajudará a calibrar o CPA.`;
+    if (q.includes("cpa") || q.includes("aumentou") || q.includes("cpl") || q.includes("diagnóstico") || q.includes("diagnostico")) {
+      return `[ALERTA] Diagnóstico de CPA & CPL Consolidado:
+O custo por conversão (CPA) consolidado do período está em ${brl.format(totals.cpa)}, com CPL de ${brl.format(totals.cpl)}.
+A principal pressão de custo ocorre na campanha "${worst.nome}" com ROAS de ${worst.roas.toFixed(2).replace(".", ",")}x. Reduzir orçamentos ociosos dessa campanha ajudará a calibrar o CPA geral para baixo.`;
     }
-    if (q.includes("desperd") || q.includes("cortar")) {
-      return `Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.nome}". Considere pausar o conjunto e testar novas segmentações de público.`;
+    if (q.includes("desperd") || q.includes("cortar") || q.includes("perder")) {
+      return `[DESPERDÍCIO] Detecção de Desperdício de Verba:
+Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.nome}".
+💡 Recomendação: Pausar criativos com mais de 7 dias sem conversões e realocar verba para conjuntos com melhor taxa de cliques (CTR).`;
     }
     return `Diagnóstico Consolidado: Investimento de ${brl.format(totals.investimento)} gerando ${number.format(totals.cliques)} cliques com CPC médio de ${brl.format(totals.cpc)}. A maior alavanca no momento está em direcionar verbas adicionais para celulares, onde o CTR registrou melhor desempenho.`;
   };
@@ -2956,6 +2974,9 @@ export default function Home() {
           totals,
           manualAdjustments: appliedManualKpiAdjustments,
           uploadedFiles: base64Files,
+          period,
+          startDate,
+          endDate,
         }),
       });
       clearTimeout(timeoutId);
@@ -3261,6 +3282,12 @@ export default function Home() {
               messages={messages}
               onSendMessage={handleSendMessage}
               isPending={chatPending}
+              activePeriodLabel={
+                period !== "todos"
+                  ? (uniqueValues.months.find(m => m.value === period)?.label || period)
+                  : (startDate && endDate ? `${startDate} a ${endDate}` : "Todos os períodos")
+              }
+              onClearMessages={() => setMessages(INITIAL_MESSAGES)}
             />
           </section>
 

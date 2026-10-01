@@ -4956,6 +4956,50 @@ html[data-theme="light"] .filter-shell--compact .filter-advanced-row--open {
   border-color: #f59e0b !important;
   color: #ffd481 !important;
 }
+.insight-box.escala {
+  background: rgba(139, 92, 246, 0.08) !important;
+  border-color: #8b5cf6 !important;
+  color: #c4b5fd !important;
+}
+.insight-box.diagnostico-ia {
+  background: rgba(14, 165, 233, 0.08) !important;
+  border-color: #0ea5e9 !important;
+  color: #7dd3fc !important;
+}
+
+/* Prompt Chips */
+.quick-prompt-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-soft);
+  scrollbar-width: none;
+}
+.quick-prompt-chips::-webkit-scrollbar {
+  display: none;
+}
+.quick-prompt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--hover-bg, rgba(255,255,255,0.04));
+  border: 1px solid var(--border-soft, rgba(255,255,255,0.08));
+  border-radius: 99px;
+  padding: 5px 11px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.quick-prompt-chip:hover {
+  background: var(--surface-hover, rgba(255,255,255,0.08));
+  border-color: var(--border-strong, rgba(255,255,255,0.18));
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
 
 /* Copy floating button */
 .copy-insight-btn {
