@@ -79,6 +79,7 @@ function firstEvidence(row, definitions) {
 export function resolveLeadAttribution(row = {}) {
   const sourceEvidence = firstEvidence(row, [
     { field: "lead_source", value: row.lead_source, allowUnknown: true },
+    { field: "customer_journey", value: row["Jornada do cliente"] || row["jornada do cliente"] || row.customer_journey || row.jornada_do_cliente || row.jornada, allowUnknown: true },
     { field: "source", value: row.source, allowUnknown: true },
     { field: "origem", value: row.origem, allowUnknown: true },
     { field: "utm_source", value: row.utm_source, allowUnknown: true },

@@ -369,7 +369,7 @@ export default function Home() {
         { key: "phone", label: "Telefone", required: false, description: "Telefone de contato." },
         { key: "date", label: "Data de Criação (Criado)", required: true, description: "Data de conversão/entrada do lead." },
         { key: "lead_status", label: "Etapa / Status (Obrigatório)", required: true, description: "A etapa do lead (ex: Demonstração)." },
-        { key: "lead_source", label: "Origem (Como ficou sabendo)", required: true, description: "Origem / Como ficou sabendo do DOit." },
+        { key: "lead_source", label: "Origem / Jornada do cliente", required: true, description: "Coluna que indica de onde veio o cliente (ex: Jornada do cliente, Origem, Como ficou sabendo)." },
         { key: "lead_medium", label: "UTM Medium", required: false, description: "Meio / UTM Medium." },
         { key: "lead_campaign", label: "UTM Campaign", required: false, description: "Campanha associada." },
         { key: "lead_industry", label: "Indústria / Segmento", required: false, description: "Coluna que indica o setor ou indústria da empresa/negócio." },
