@@ -612,12 +612,12 @@ export const SYNONYMS = {
     "Compras (pixel do Facebook)", "compras (pixel do facebook)",
     "Compras no Facebook", "compras no facebook",
     "Conversões de compras", "conversões de compras",
-    // Google Ads PT-BR — PRIORIDADE 1: Conversões primárias (meta principal de negócio)
-    "Conversões", "conversões", "Conversoes", "conversoes", "Conversao", "conversao",
-    "Conv.", "conv.",
-    // Google Ads PT-BR — PRIORIDADE 2: Todas as conv. (secundárias / micro-conversões, usado apenas se não houver coluna Conversões)
+    // Google Ads PT-BR — PRIORIDADE 1: Todas as conv. (captura todos os disparos e ações do site, ex: 12 leads)
     "Todas as conv.", "todas as conv.", "Todas as conversões", "todas as conversões",
     "Conversões totais", "conversões totais",
+    // Google Ads PT-BR — PRIORIDADE 2: Conversões (apenas meta primária específica)
+    "Conversões", "conversões", "Conversoes", "conversoes", "Conversao", "conversao",
+    "Conv.", "conv.",
     // English
     "Conversions", "conversions", "Total conversions", "total conversions", "All conversions", "all conversions",
     // DOitSA
