@@ -18,11 +18,16 @@ function parseBingDate(dStr) {
   return new Date(parseInt(match[1], 10));
 }
 
+import bingSeptemberSnapshot from "./bing-september-2026.json";
+
 export async function fetchBingMonthlyData(targetMonth) {
   const apiKey = process.env.BING_WEBMASTER_API_KEY;
   const siteUrl = process.env.BING_SITE_URL || "http://www.doit.com.br/";
 
   if (!apiKey) {
+    if (targetMonth === "2026-09") {
+      return bingSeptemberSnapshot;
+    }
     return null;
   }
 
@@ -140,6 +145,9 @@ export async function fetchBingMonthlyData(targetMonth) {
     };
   } catch (err) {
     console.error("[BingAPI] Falha ao consultar Bing Webmaster:", err);
+    if (targetMonth === "2026-09") {
+      return bingSeptemberSnapshot;
+    }
     return null;
   }
 }

@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { fetchBingMonthlyData } from "@/lib/bing-webmaster";
+import bingSeptemberSnapshot from "@/lib/bing-september-2026.json";
 
 // =============================================================================
-// DADOS MENSAIS DO CLARITY — AI VISIBILITY (doit.com.br)
+// DADOS MENSAIS DO CLARITY / BING — AI VISIBILITY (doit.com.br)
 // =============================================================================
-// Extraídos do painel Microsoft Clarity > Visibilidade de IA > período completo do mês.
-// Para adicionar um novo mês: copie a estrutura e preencha com os dados do screenshot.
+// Extraídos do painel Microsoft Clarity > Visibilidade de IA e Bing Webmaster Tools.
 // =============================================================================
 
 const MONTHLY_DATA = {
+  // Setembro 2026 — Telemetria Oficial Bing Webmaster & Copilot (tempo real + snapshot)
+  "2026-09": bingSeptemberSnapshot,
   // Agosto 2026 — exportações manuais do Microsoft Clarity (Citation + Overview)
   "2026-08": {
     dataType: "clarity-export",
@@ -304,32 +306,62 @@ const MONTHLY_DATA = {
 // ENDPOINT
 // =============================================================================
 
+function extractTargetMonth(str) {
+  if (!str) return null;
+  const s = String(str).trim();
+  // YYYY-MM
+  if (/^\d{4}-\d{2}$/.test(s)) return s;
+  // YYYY-MM-DD
+  const isoMatch = s.match(/^(\d{4})-(\d{2})/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}`;
+  // DD/MM/YYYY ou D/M/YYYY (formato brasileiro)
+  const brMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (brMatch) return `${brMatch[3]}-${brMatch[2].padStart(2, "0")}`;
+  // YYYY/MM/DD
+  const slashIsoMatch = s.match(/^(\d{4})\/(\d{2})/);
+  if (slashIsoMatch) return `${slashIsoMatch[1]}-${slashIsoMatch[2]}`;
+  return null;
+}
+
 export async function POST(request) {
   try {
-    const { startDate, endDate } = await request.json();
+    const { startDate, endDate, period, source } = await request.json();
 
-    // Determinar o mês alvo a partir das datas do filtro
+    // Determinar o mês alvo a partir de period, startDate ou endDate
     let targetMonth = null;
 
-    if (startDate) {
-      targetMonth = startDate.substring(0, 7);
-    } else if (endDate) {
-      targetMonth = endDate.substring(0, 7);
+    if (period && period !== "todos") {
+      targetMonth = extractTargetMonth(period);
+    }
+    if (!targetMonth && startDate) {
+      targetMonth = extractTargetMonth(startDate);
+    }
+    if (!targetMonth && endDate) {
+      targetMonth = extractTargetMonth(endDate);
     }
 
-    // Se não há filtro, usa o mês mais recente
+    // Se não há filtro de data ativo, usa o mês mais recente disponível (Setembro/2026)
     if (!targetMonth) {
-      const months = Object.keys(MONTHLY_DATA).sort().reverse();
-      targetMonth = months[0] || null;
+      const allKnownMonths = Object.keys(MONTHLY_DATA).sort().reverse();
+      targetMonth = allKnownMonths[0] || "2026-09";
     }
 
-    let monthData = targetMonth ? MONTHLY_DATA[targetMonth] : null;
+    const hasClarity = !!(targetMonth && MONTHLY_DATA[targetMonth]);
+    let monthData = null;
 
-    // Se não há dados do Clarity para o mês selecionado, busca na API oficial do Bing Webmaster
-    if (!monthData && targetMonth) {
-      const bingData = await fetchBingMonthlyData(targetMonth);
-      if (bingData) {
-        monthData = bingData;
+    // Se o usuário solicitou explicitamente Bing Webmaster
+    if (source === "bing") {
+      monthData = (await fetchBingMonthlyData(targetMonth)) || MONTHLY_DATA[targetMonth];
+    } else if (source === "clarity" && hasClarity && MONTHLY_DATA[targetMonth]?.dataType === "clarity-export") {
+      monthData = MONTHLY_DATA[targetMonth];
+    } else {
+      // Automático: se o mês tiver exportação de Clarity, usa Clarity
+      if (hasClarity && MONTHLY_DATA[targetMonth]?.dataType === "clarity-export") {
+        monthData = MONTHLY_DATA[targetMonth];
+      } else {
+        // Tenta buscar ao vivo na API do Bing; se indisponível, usa o snapshot registrado
+        const liveBing = await fetchBingMonthlyData(targetMonth);
+        monthData = liveBing || MONTHLY_DATA[targetMonth] || null;
       }
     }
 
@@ -339,6 +371,8 @@ export async function POST(request) {
         noData: true,
         targetMonth,
         availableMonths,
+        hasClarity,
+        hasBing: false,
         message: `Dados de AI Visibility não disponíveis para ${targetMonth}`,
       });
     }
@@ -346,6 +380,9 @@ export async function POST(request) {
     return NextResponse.json({
       noData: false,
       targetMonth,
+      hasClarity,
+      hasBing: true,
+      currentSource: monthData.dataType === "bing-webmaster" ? "bing" : "clarity",
       ...monthData,
       updatedAt: monthData.dataType === "clarity-export" ? null : new Date().toISOString(),
       dataAsOf: monthData.periodLabel || null,

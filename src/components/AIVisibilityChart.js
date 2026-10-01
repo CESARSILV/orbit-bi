@@ -52,7 +52,7 @@ function formatMonth(ym) {
   return `${MONTH_NAMES[month] || month}/${year}`;
 }
 
-export default function AIVisibilityChart({ startDate, endDate }) {
+export default function AIVisibilityChart({ startDate, endDate, period }) {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const [data, setData] = useState(null);
@@ -73,7 +73,7 @@ export default function AIVisibilityChart({ startDate, endDate }) {
         const res = await fetch("/api/clarity-ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ startDate, endDate }),
+          body: JSON.stringify({ startDate, endDate, period }),
         });
         if (!res.ok) throw new Error("Falha ao buscar dados");
         const json = await res.json();
@@ -90,7 +90,7 @@ export default function AIVisibilityChart({ startDate, endDate }) {
     }
     fetchClarity();
     return () => { active = false; };
-  }, [startDate, endDate]);
+  }, [startDate, endDate, period]);
 
   const C = useMemo(() => ({
     text: isLight ? "#0f172a" : "rgba(245,247,251,0.92)",

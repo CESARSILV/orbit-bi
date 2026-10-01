@@ -1,0 +1,425 @@
+{
+  "dataType": "bing-webmaster",
+  "targetMonth": "2026-09",
+  "periodLabel": "01/09/2026 a 30/09/2026",
+  "sourceLabel": "API Oficial do Microsoft Bing Webmaster",
+  "metrics": {
+    "totalCrawled": 5569,
+    "inIndex": 486,
+    "inLinks": 91,
+    "crawlErrors": 1281,
+    "totalClicks": 57,
+    "totalImpressions": 1347,
+    "ctr": 4.231625835189309
+  },
+  "health": {
+    "code2xx": 32700,
+    "code301": 11079,
+    "code4xx": 492,
+    "code5xx": 126,
+    "blockedRobots": 26,
+    "compliancePct": 100
+  },
+  "topQueries": [
+    {
+      "query": "doit",
+      "clicks": 29,
+      "impressions": 229,
+      "ctr": 12.663755458515283,
+      "avgPosition": 3.8
+    },
+    {
+      "query": "doitrodrigosobreiro doit com br",
+      "clicks": 1,
+      "impressions": 33,
+      "ctr": 3.0303030303030303,
+      "avgPosition": 5.5
+    },
+    {
+      "query": "doit login",
+      "clicks": 16,
+      "impressions": 24,
+      "ctr": 66.66666666666666,
+      "avgPosition": 2
+    },
+    {
+      "query": "logo doit",
+      "clicks": 0,
+      "impressions": 10,
+      "ctr": 0,
+      "avgPosition": 2
+    },
+    {
+      "query": "www.doit.com.br",
+      "clicks": 1,
+      "impressions": 7,
+      "ctr": 14.285714285714285,
+      "avgPosition": 6
+    },
+    {
+      "query": "como adicionar meu aniversario no doit",
+      "clicks": 1,
+      "impressions": 6,
+      "ctr": 16.666666666666664,
+      "avgPosition": 3
+    },
+    {
+      "query": "doit.com.br",
+      "clicks": 0,
+      "impressions": 6,
+      "ctr": 0,
+      "avgPosition": 5
+    },
+    {
+      "query": "doit vavas",
+      "clicks": 0,
+      "impressions": 6,
+      "ctr": 0,
+      "avgPosition": 10
+    },
+    {
+      "query": "doit login portal",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "avgPosition": 3.5
+    },
+    {
+      "query": "sistema de gestão para escritorio de arquitetura",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "avgPosition": 31
+    },
+    {
+      "query": "doit :: login",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "avgPosition": 2
+    },
+    {
+      "query": "pedi design parametrico para projetar a arquitetura e parametros controldos pelo script, nao o campo design parametrico do desenho industrial",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "avgPosition": 6
+    },
+    {
+      "query": "ia substitui arquitetos mercado de trabalho arquitetura 2026",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "avgPosition": 2
+    },
+    {
+      "query": "design parametrico",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "avgPosition": 9.5
+    },
+    {
+      "query": "sistema para escritorio de arquitetura",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "avgPosition": 26
+    },
+    {
+      "query": "sistema doit arquitetura",
+      "clicks": 0,
+      "impressions": 3,
+      "ctr": 0,
+      "avgPosition": 4
+    },
+    {
+      "query": "doiut",
+      "clicks": 0,
+      "impressions": 3,
+      "ctr": 0,
+      "avgPosition": 7
+    },
+    {
+      "query": "doit software de gestão arquitetura tem api",
+      "clicks": 0,
+      "impressions": 3,
+      "ctr": 0,
+      "avgPosition": 4
+    },
+    {
+      "query": "doit cloud",
+      "clicks": 0,
+      "impressions": 3,
+      "ctr": 0,
+      "avgPosition": 3
+    },
+    {
+      "query": "doit'",
+      "clicks": 2,
+      "impressions": 2,
+      "ctr": 100,
+      "avgPosition": 2
+    },
+    {
+      "query": "doit entrar",
+      "clicks": 1,
+      "impressions": 2,
+      "ctr": 50,
+      "avgPosition": 2
+    },
+    {
+      "query": "login doit",
+      "clicks": 1,
+      "impressions": 2,
+      "ctr": 50,
+      "avgPosition": 2
+    },
+    {
+      "query": "banco doit",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "avgPosition": 10
+    },
+    {
+      "query": "dotit",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "avgPosition": 7
+    },
+    {
+      "query": "laçamento recorrentes",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "avgPosition": 2
+    },
+    {
+      "query": "sistema de design de interiores para escritórios",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "avgPosition": 2
+    },
+    {
+      "query": "arquitetura sensorial",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "avgPosition": 7
+    },
+    {
+      "query": "sistema para escritório de arquitetura e urbanismo",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "avgPosition": 50
+    },
+    {
+      "query": "arquitetura dos sentidos",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "avgPosition": 6
+    },
+    {
+      "query": "do 'it",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "avgPosition": 5
+    },
+    {
+      "query": "demonstração do to do ist para usar com equipes",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "avgPosition": 8
+    },
+    {
+      "query": "do ity",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "avgPosition": 7
+    },
+    {
+      "query": "doit gestao evwntos",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "avgPosition": 2
+    },
+    {
+      "query": "gaaz doit",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "avgPosition": 4
+    },
+    {
+      "query": "plataforma do.it",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "avgPosition": 5
+    },
+    {
+      "query": "filmes so re arquitetura",
+      "clicks": 1,
+      "impressions": 1,
+      "ctr": 100,
+      "avgPosition": 2
+    },
+    {
+      "query": "doit contas a receber banco",
+      "clicks": 1,
+      "impressions": 1,
+      "ctr": 100,
+      "avgPosition": 2
+    },
+    {
+      "query": "textos sobre arquitetura em filmes",
+      "clicks": 1,
+      "impressions": 1,
+      "ctr": 100,
+      "avgPosition": 1
+    },
+    {
+      "query": "arquitetura da pausa",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 8
+    },
+    {
+      "query": "doit br",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 1
+    },
+    {
+      "query": "data:#R##N#  recorrência...#R##N##R##N##R##N#serviço#TAB#profissional#TAB#tempo#TAB#início#TAB#fim#TAB#valor (r$)#R##N#aluguel roupões noiva / madrinhas e daminhas -#R##N#30#R##N#min.#R##N##R##N##R##N#bia#R##N##R##N# sem preferência#TAB##TAB##TAB##TAB##R##N#adicionar serviço forçar encaixe#R##N#total (r$): 130.00#R##N##R##N#etiqueta customizada:#R##N#+ editar etiqueta customizada#R##N##R##N##R##N#observações: 255/255",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 6
+    },
+    {
+      "query": "gak!",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 5
+    },
+    {
+      "query": "do it software",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 9
+    },
+    {
+      "query": "sobre arquitetura de locais deserticos",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 8
+    },
+    {
+      "query": "doit.com",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 7
+    },
+    {
+      "query": "projectos arquitectonicos em zonas costeiras",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 2
+    },
+    {
+      "query": "erp arquitetura",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 1
+    },
+    {
+      "query": "meu projeto",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 10
+    },
+    {
+      "query": "qual sistema de gestão de escritorio arquitetura",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 2
+    },
+    {
+      "query": "reformule o prazo para finalização dessa tarefa é ate o dia 15/10 conforme o tecnico alinhou na planilha de cyber",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 7
+    },
+    {
+      "query": "como fazer design parametrico",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 1
+    },
+    {
+      "query": "filmes para trablhar panoptico modelo de arquitetura",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 4
+    },
+    {
+      "query": "do it?",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 4
+    },
+    {
+      "query": "projetos iconicos de arquitetura",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 5
+    },
+    {
+      "query": "filmes sobre arquitetura e urbanismo",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 1
+    },
+    {
+      "query": "servidores architec lotados",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 7
+    },
+    {
+      "query": "arquitetura de salas de concertos grandes",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "avgPosition": 76
+    }
+  ],
+  "siteUrl": "http://www.doit.com.br/"
+}

@@ -687,6 +687,11 @@ export default function Home() {
       }
     });
 
+    // Garante que Setembro/2026 esteja disponível no seletor de meses
+    if (!monthsMap["2026-09"]) {
+      monthsMap["2026-09"] = "Setembro/2026";
+    }
+
     const months = Object.entries(monthsMap)
       .map(([val, label]) => ({
         value: val,
@@ -3232,7 +3237,7 @@ export default function Home() {
           </section>
 
           <section className="segmentation-grid">
-            <AIVisibilityChart key={`ai-${dashboardResetKey}`} startDate={startDate} endDate={endDate} />
+            <AIVisibilityChart key={`ai-${dashboardResetKey}`} startDate={startDate} endDate={endDate} period={period} />
             {timeData && (
               <TimeHeatmap
                 key={`time-${dashboardResetKey}`}
