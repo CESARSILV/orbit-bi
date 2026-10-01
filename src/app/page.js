@@ -732,13 +732,29 @@ export default function Home() {
   }, [marketingDb]);
 
   // Normaliza string de data para YYYY-MM-DD para comparação segura
-  // Evita falsos positivos quando row.date está em formatos variantes (YYYY-MM, YYYY-MM-DD, etc.)
+  // Trunca timestamps ISO (YYYY-MM-DDTHH:mm:ss ou YYYY-MM-DD HH:mm:ss) para YYYY-MM-DD
+  // e converte DD/MM/YYYY para YYYY-MM-DD
   const normalizeDateStr = (d) => {
     if (!d) return "";
     const s = String(d).trim();
-    // YYYY-MM → YYYY-MM-01 (garante comparação uniforme)
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
     if (/^\d{4}-\d{2}$/.test(s)) return `${s}-01`;
+    const dmyMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (dmyMatch) {
+      return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, "0")}-${dmyMatch[1].padStart(2, "0")}`;
+    }
     return s;
+  };
+
+  const getRowMonthKey = (row) => {
+    if (row.reference_month && /^\d{4}-\d{2}$/.test(row.reference_month)) {
+      return row.reference_month;
+    }
+    const dStr = normalizeDateStr(row.date || "");
+    if (/^\d{4}-\d{2}-\d{2}/.test(dStr)) {
+      return dStr.substring(0, 7);
+    }
+    return row.reference_month || "";
   };
 
   const isInsideSelectedDateRange = (row) => {
@@ -755,7 +771,7 @@ export default function Home() {
       return true;
     }
 
-    // Normal daily records: comparação com datas normalizadas
+    // Normal daily records: comparação com datas normalizadas (apenas YYYY-MM-DD)
     if (startDate && rowDate < startDate) return false;
     if (endDate && rowDate > endDate) return false;
     return true;
@@ -770,7 +786,8 @@ export default function Home() {
     } else if (platform !== "todas" && row.platform !== platform) {
       return false;
     }
-    if (period !== "todos" && row.reference_month !== period) return false;
+    const rowMonth = getRowMonthKey(row);
+    if (period !== "todos" && rowMonth !== period) return false;
     if (!isInsideSelectedDateRange(row)) return false;
     if (campaign !== "todas" && row.campaign_name !== campaign) return false;
     return true;
@@ -3097,11 +3114,35 @@ Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.no
             startDate={startDate}
             onStartDateChange={(value) => {
               setStartDate(value);
+              if (value && endDate) {
+                const sMonth = value.substring(0, 7);
+                const eMonth = endDate.substring(0, 7);
+                if (sMonth === eMonth && value.endsWith("-01")) {
+                  const [y, m] = sMonth.split("-").map(Number);
+                  const lastDay = new Date(y, m, 0).getDate();
+                  if (endDate === `${sMonth}-${String(lastDay).padStart(2, "0")}`) {
+                    setPeriod(sMonth);
+                    return;
+                  }
+                }
+              }
               setPeriod("todos");
             }}
             endDate={endDate}
             onEndDateChange={(value) => {
               setEndDate(value);
+              if (startDate && value) {
+                const sMonth = startDate.substring(0, 7);
+                const eMonth = value.substring(0, 7);
+                if (sMonth === eMonth && startDate.endsWith("-01")) {
+                  const [y, m] = sMonth.split("-").map(Number);
+                  const lastDay = new Date(y, m, 0).getDate();
+                  if (value === `${sMonth}-${String(lastDay).padStart(2, "0")}`) {
+                    setPeriod(sMonth);
+                    return;
+                  }
+                }
+              }
               setPeriod("todos");
             }}
             campaign={campaign}
