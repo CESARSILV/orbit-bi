@@ -3233,6 +3233,20 @@ export default function Home() {
 
           <section className="segmentation-grid">
             <AIVisibilityChart key={`ai-${dashboardResetKey}`} startDate={startDate} endDate={endDate} />
+            {timeData && (
+              <TimeHeatmap
+                key={`time-${dashboardResetKey}`}
+                timeData={timeData}
+                onImport={() => document.getElementById("fileInput")?.click()}
+              />
+            )}
+            {geoData && (
+              <RegionalMap
+                key={`geo-${dashboardResetKey}`}
+                geoData={geoData}
+                onImport={() => document.getElementById("fileInput")?.click()}
+              />
+            )}
           </section>
 
           <section className="analytics-grid operations-grid">
