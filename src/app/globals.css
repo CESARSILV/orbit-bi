@@ -6357,7 +6357,7 @@ html[data-theme="light"] .platform-pill.bing {
 }
 
 .appointment-breakdown-dialog {
-  width: min(100%, 640px);
+  width: min(100%, 780px);
   max-height: min(720px, calc(100vh - 48px));
   overflow-y: auto;
   padding: clamp(20px, 3vw, 30px);

@@ -344,18 +344,43 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
     };
   }, [onClose]);
 
+  const [filterChannel, setFilterChannel] = useState("todos");
+  const [searchTerm, setSearchTerm] = useState("");
+
   const data = {
     total: 0,
     meta: 0,
     google: 0,
     playbooksOutras: 0,
     demosRealizadas: 0,
+    leadsList: [],
     isTotalAdjusted: false,
     isDemosAdjusted: false,
     hasUnallocatedAdjustment: false,
     effectiveConversoes: 0,
     ...breakdown,
   };
+
+  const leads = Array.isArray(data.leadsList) ? data.leadsList : [];
+  const googleCount = leads.filter((l) => l.canal === "google").length;
+  const metaCount = leads.filter((l) => l.canal === "meta").length;
+  const playbooksCount = leads.filter((l) => l.canal === "playbooks").length;
+  const realizadasCount = leads.filter((l) => l.isRealizada).length;
+
+  const filteredLeads = leads.filter((l) => {
+    if (filterChannel === "google" && l.canal !== "google") return false;
+    if (filterChannel === "meta" && l.canal !== "meta") return false;
+    if (filterChannel === "playbooks" && l.canal !== "playbooks") return false;
+    if (filterChannel === "realizadas" && !l.isRealizada) return false;
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      const matchName = String(l.nome || "").toLowerCase().includes(term);
+      const matchPhone = String(l.telefone || "").includes(term);
+      const matchSource = String(l.leadSource || "").toLowerCase().includes(term);
+      if (!matchName && !matchPhone && !matchSource) return false;
+    }
+    return true;
+  });
 
   const stats = [
     { key: "meta", label: "Meta", value: data.meta, modifier: "meta" },
@@ -436,6 +461,168 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
               <strong>{formatCount(stat.value)}</strong>
             </div>
           ))}
+        </div>
+
+        {/* ─── Lista Nominal de Clientes & Reuniões ─────────────────────────── */}
+        <div style={{ marginTop: "24px", borderTop: "1px solid var(--border-soft)", paddingTop: "18px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                Lista Nominal de Reuniões &amp; Clientes
+              </h3>
+              <p style={{ margin: "2px 0 0", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                Rastreabilidade de cada lead com canal de origem e status de realização
+              </p>
+            </div>
+            
+            <input
+              type="text"
+              placeholder="Buscar cliente ou telefone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "8px",
+                border: "1px solid var(--border-soft)",
+                background: "var(--surface-subtle)",
+                color: "var(--text-primary)",
+                fontSize: "0.82rem",
+                outline: "none",
+                minWidth: "200px",
+              }}
+            />
+          </div>
+
+          {/* Abas de filtro por canal */}
+          <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "8px", marginBottom: "12px" }}>
+            {[
+              { id: "todos", label: "Todos", count: leads.length },
+              { id: "google", label: "Google Ads", count: googleCount, color: "var(--warning)" },
+              { id: "meta", label: "Meta Ads", count: metaCount, color: "var(--info)" },
+              { id: "playbooks", label: "Playbooks", count: playbooksCount, color: "var(--accent-violet, #a855f7)" },
+              { id: "realizadas", label: "🎬 Realizadas", count: realizadasCount, color: "var(--success)" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setFilterChannel(tab.id)}
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: "99px",
+                  fontSize: "0.76rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  border: filterChannel === tab.id ? "1px solid var(--border-info, #3b82f6)" : "1px solid var(--border-soft)",
+                  background: filterChannel === tab.id ? "var(--surface-info, rgba(59,130,246,0.15))" : "var(--surface-subtle)",
+                  color: filterChannel === tab.id ? (tab.color || "var(--text-primary)") : "var(--text-secondary)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  whiteSpace: "nowrap",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span>{tab.label}</span>
+                <span style={{
+                  padding: "1px 6px",
+                  borderRadius: "99px",
+                  fontSize: "0.7rem",
+                  background: filterChannel === tab.id ? "rgba(255,255,255,0.18)" : "var(--border-soft)",
+                  fontWeight: 700,
+                }}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Tabela de Leads */}
+          {filteredLeads.length === 0 ? (
+            <div style={{ padding: "24px 16px", textAlign: "center", color: "var(--text-muted)", fontSize: "0.82rem", background: "var(--surface-subtle)", borderRadius: "var(--radius)" }}>
+              {leads.length === 0
+                ? "Nenhum registro nominal disponível para este filtro. Importe o arquivo do DOitSA ou Bitrix24 para visualizar a lista."
+                : "Nenhum cliente encontrado com os filtros selecionados."}
+            </div>
+          ) : (
+            <div style={{ maxHeight: "280px", overflowY: "auto", border: "1px solid var(--border-soft)", borderRadius: "var(--radius)", background: "var(--surface-subtle)" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", textAlign: "left" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--border-soft)", background: "var(--surface-subtle)", position: "sticky", top: 0, zIndex: 2 }}>
+                    <th style={{ padding: "9px 12px", fontWeight: 700, color: "var(--text-secondary)" }}>Cliente / Empresa</th>
+                    <th style={{ padding: "9px 10px", fontWeight: 700, color: "var(--text-secondary)" }}>Origem</th>
+                    <th style={{ padding: "9px 10px", fontWeight: 700, color: "var(--text-secondary)" }}>Status</th>
+                    <th style={{ padding: "9px 12px", fontWeight: 700, color: "var(--text-secondary)", textAlign: "right" }}>Data</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLeads.map((item, idx) => {
+                    const badgeBg = item.canal === "google"
+                      ? "rgba(251, 188, 5, 0.15)"
+                      : item.canal === "meta"
+                        ? "rgba(8, 102, 255, 0.15)"
+                        : item.canal === "playbooks"
+                          ? "rgba(168, 85, 247, 0.15)"
+                          : "rgba(100, 116, 139, 0.15)";
+                    const badgeColor = item.canal === "google"
+                      ? "var(--warning, #eab308)"
+                      : item.canal === "meta"
+                        ? "var(--info, #3b82f6)"
+                        : item.canal === "playbooks"
+                          ? "var(--accent-violet, #a855f7)"
+                          : "var(--text-muted)";
+
+                    return (
+                      <tr
+                        key={item.id || idx}
+                        style={{
+                          borderBottom: "1px solid var(--border-soft)",
+                          transition: "background 0.15s ease",
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = "var(--hover-bg, rgba(255,255,255,0.04))"}
+                        onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                      >
+                        <td style={{ padding: "8px 12px" }}>
+                          <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>{item.nome}</div>
+                          {item.telefone && item.telefone !== "—" && (
+                            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{item.telefone}</div>
+                          )}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          <span style={{
+                            display: "inline-block",
+                            padding: "2px 8px",
+                            borderRadius: "99px",
+                            fontSize: "0.72rem",
+                            fontWeight: 700,
+                            background: badgeBg,
+                            color: badgeColor,
+                            border: `1px solid ${badgeColor}33`,
+                          }}>
+                            {item.origemLabel}
+                          </span>
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          <span style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            fontSize: "0.74rem",
+                            fontWeight: 600,
+                            color: item.isRealizada ? "var(--success)" : "var(--info)",
+                          }}>
+                            {item.isRealizada ? "🎬 Realizada" : "📅 Agendada"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "8px 12px", textAlign: "right", color: "var(--text-secondary)", fontSize: "0.76rem", whiteSpace: "nowrap" }}>
+                          {item.data}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <p className="appointment-breakdown-footnote">

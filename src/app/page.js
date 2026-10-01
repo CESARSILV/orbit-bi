@@ -20,7 +20,7 @@ import ReportBuilder from "@/components/ReportBuilder";
 
 // Custom ETL & DB Ingestion Imports
 import { parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticValue, parseDate, inferReferenceMonth, isTotalOrMetadata, applyTemporalIntelligence, parseFormattedFloat, sanitizeMojibake, SYNONYMS, detectFileDateFormat, isMonthOnlySourceDate } from "@/lib/etl";
-import { getDatabase, saveDatabase, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary } from "@/lib/db";
+import { getDatabase, saveDatabase, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary, getRowReferenceMonth } from "@/lib/db";
 import { clearAnalyticsSystem } from "@/lib/clearAnalyticsSystem";
 import { useMarketingData } from "@/lib/useMarketingData";
 import {
@@ -1155,12 +1155,75 @@ export default function Home() {
     const demosRealizadas = Math.max(0, Math.round(reconciledDemos));
     const playbooksOutras = Math.max(0, Math.round(reconciledTotal - platformCounts.meta - platformCounts.google));
 
+    // Extrai registros nominais de CRM para auditoria nominal no modal
+    const targetPeriod = (period && period !== "todos")
+      ? period
+      : (startDate ? startDate.substring(0, 7) : "");
+
+    const leadsList = (marketingDb?.fact_crm || [])
+      .filter((r) => {
+        const ref = getRowReferenceMonth(r) || (r.date && String(r.date).slice(0, 7)) || (r.realized_date && String(r.realized_date).slice(0, 7));
+        if (targetPeriod && ref && ref !== targetPeriod) return false;
+        // Filtra registros que são agendamentos ou demos
+        const isScheduled = Boolean(r.date || r.reference_month || r.conversions);
+        const isDemo = Boolean(r.is_demo || r.realized_date || String(r.lead_status || "").toLowerCase().includes("demo"));
+        return isScheduled || isDemo;
+      })
+      .map((r, idx) => {
+        const attribution = resolveLeadAttribution(r);
+        const normDemo = String(r.is_demo ?? "").toLowerCase().trim();
+        const isRealizada = r.is_demo === true || r.is_demo === 1 || ["true", "verdadeiro", "sim", "1", "yes"].includes(normDemo) || Boolean(r.realized_date && !String(r.lead_status || "").toLowerCase().includes("pendente"));
+
+        let origemLabel = "Outras Origens";
+        let canal = attribution?.category || "outras";
+        const sourceLower = String(r.lead_source || r.source || r.origem || r["Jornada do cliente"] || "").toLowerCase();
+
+        if (canal === "google" || sourceLower.includes("google")) {
+          canal = "google";
+          origemLabel = "Google Ads";
+        } else if (canal === "meta" || sourceLower.includes("meta") || sourceLower.includes("face") || sourceLower.includes("insta")) {
+          canal = "meta";
+          origemLabel = "Meta Ads";
+        } else if (canal === "playbooks" || sourceLower.includes("playbook")) {
+          canal = "playbooks";
+          origemLabel = "Playbooks";
+        }
+
+        return {
+          id: r.id || `crm_${idx}`,
+          nome: r.client_name || r.nome || "Cliente sem identificação",
+          telefone: r.phone || r.telefone || "—",
+          canal,
+          origemLabel,
+          status: isRealizada ? "Demo Realizada" : "Demo Agendada",
+          isRealizada,
+          data: r.realized_date || r.date || "—",
+          leadSource: r.lead_source || r["Jornada do cliente"] || r.source || "—",
+        };
+      })
+      .reduce((acc, curr) => {
+        const key = `${curr.nome.toLowerCase().trim()}_${curr.telefone.replace(/\D/g, "")}`;
+        const existing = acc.find(item => `${item.nome.toLowerCase().trim()}_${item.telefone.replace(/\D/g, "")}` === key);
+        if (!existing) {
+          acc.push(curr);
+        } else if (curr.isRealizada && !existing.isRealizada) {
+          const index = acc.indexOf(existing);
+          acc[index] = curr;
+        }
+        return acc;
+      }, [])
+      .sort((a, b) => {
+        const order = { google: 1, meta: 2, playbooks: 3, outras: 4 };
+        return (order[a.canal] || 5) - (order[b.canal] || 5);
+      });
+
     return {
       total,
       meta: platformCounts.meta,
       google: platformCounts.google,
       playbooksOutras,
       demosRealizadas,
+      leadsList,
       isTotalAdjusted: manualKpiAdjustments.some(
         (adjustment) => adjustment.metric === "conversoes" && adjustment.isAppliedInView
       ),
