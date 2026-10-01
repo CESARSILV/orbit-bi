@@ -3017,6 +3017,13 @@ Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.no
     // C-01 FIX: NO finally block setting setChatPending(false) — each branch handles it
   };
 
+  const handleRegenerateLast = () => {
+    const lastUserMsg = [...messages].reverse().find((m) => m.type === "user");
+    if (lastUserMsg) {
+      handleSendMessage(`${lastUserMsg.text} (aprofunde os detalhes estratégicos e métricas)`);
+    }
+  };
+
   // Render AuthModal if Supabase RLS is configured and session is empty
   if (isSupabaseConfigured && !user && !authBypassed && !authChecking) {
     return <AuthModal onAuthSuccess={handleAuthSuccess} />;
@@ -3288,6 +3295,7 @@ Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.no
                   : (startDate && endDate ? `${startDate} a ${endDate}` : "Todos os períodos")
               }
               onClearMessages={() => setMessages(INITIAL_MESSAGES)}
+              onRegenerateLast={handleRegenerateLast}
             />
           </section>
 

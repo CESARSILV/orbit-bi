@@ -5025,6 +5025,103 @@ html[data-theme="light"] .filter-shell--compact .filter-advanced-row--open {
   color: var(--text-primary);
 }
 
+/* Ações de mensagem e feedback */
+.message-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-soft);
+}
+.message-action-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+.message-action-btn:hover {
+  background: var(--hover-bg, rgba(255,255,255,0.06));
+  border-color: var(--border-soft);
+  color: var(--text-primary);
+}
+.message-action-btn.active {
+  background: var(--surface-success, rgba(16,185,129,0.12));
+  border-color: var(--success, #10b981);
+  color: var(--success, #10b981);
+}
+
+/* Abas de categorias para sugestões de prompts */
+.prompt-category-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px 12px 0 12px;
+  border-top: 1px solid var(--border-soft);
+}
+.prompt-category-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 4px 8px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.prompt-category-tab:hover {
+  color: var(--text-secondary);
+}
+.prompt-category-tab.active {
+  border-bottom-color: var(--accent, #6366f1);
+  color: var(--text-primary);
+}
+
+/* Caixa animada de raciocínio da IA (Thinking Box) */
+.thinking-box {
+  background: var(--hover-bg, rgba(255,255,255,0.03));
+  border: 1px dashed var(--border-soft, rgba(255,255,255,0.1));
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.thinking-text {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.thinking-bar-track {
+  width: 100%;
+  height: 3px;
+  background: var(--border-soft, rgba(255,255,255,0.08));
+  border-radius: 99px;
+  overflow: hidden;
+  position: relative;
+}
+.thinking-bar-fill {
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, #6366f1, #06b6d4);
+  border-radius: 99px;
+  animation: thinkingSlide 1.6s ease-in-out infinite alternate;
+}
+@keyframes thinkingSlide {
+  0% { transform: translateX(0); width: 25%; }
+  100% { transform: translateX(250%); width: 45%; }
+}
+
 /* Classes de alinhamento de dados */
 .text-right {
   text-align: right !important;

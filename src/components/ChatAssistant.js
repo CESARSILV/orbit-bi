@@ -1,13 +1,30 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 
-const QUICK_PROMPTS = [
-  { icon: "🤖", label: "Visibilidade & Rastreamento IA", prompt: "Como está nossa visibilidade e o rastreamento dos bots de IA no Bing/Copilot?" },
-  { icon: "⚠️", label: "Onde cortar desperdício?", prompt: "Onde estamos perdendo verba ou com fadiga criativa?" },
-  { icon: "🚀", label: "Qual campanha escalar?", prompt: "Qual campanha tem melhor desempenho para escalar orçamento?" },
-  { icon: "🎯", label: "Diagnóstico CPA & CPL", prompt: "Faça um diagnóstico do CPA e CPL consolidados do período." },
-  { icon: "🔍", label: "Top buscas no Bing", prompt: "Quais são as principais buscas e termos que geraram cliques no Bing?" },
+const PROMPT_CATEGORIES = [
+  { id: "todos", label: "Destaques" },
+  { id: "midia", label: "Mídia & Escala" },
+  { id: "ia", label: "Visibilidade IA" },
+  { id: "diagnostico", label: "Diagnósticos" },
+];
+
+const ALL_PROMPTS = [
+  { cat: "ia", icon: "🤖", label: "Visibilidade & Rastreamento IA", prompt: "Como está nossa visibilidade e o rastreamento dos bots de IA no Bing/Copilot?" },
+  { cat: "midia", icon: "⚠️", label: "Onde cortar desperdício?", prompt: "Onde estamos perdendo verba ou com fadiga criativa?" },
+  { cat: "midia", icon: "🚀", label: "Qual campanha escalar?", prompt: "Qual campanha tem melhor desempenho para escalar orçamento?" },
+  { cat: "diagnostico", icon: "🎯", label: "Diagnóstico CPA & CPL", prompt: "Faça um diagnóstico do CPA e CPL consolidados do período." },
+  { cat: "ia", icon: "🔍", label: "Top buscas no Bing", prompt: "Quais são as principais buscas e termos que geraram cliques no Bing?" },
+  { cat: "ia", icon: "🩺", label: "Saúde HTTP & Robots.txt", prompt: "Como está a saúde técnica do rastreamento (status 2xx, 301, 4xx) e robots.txt?" },
+  { cat: "midia", icon: "⚖️", label: "Google Ads vs Meta Ads", prompt: "Compare o desempenho e retorno entre Google Ads e Meta Ads." },
+  { cat: "diagnostico", icon: "📋", label: "Resumo Executivo para Reunião", prompt: "Gere um resumo executivo com os 3 principais pontos de atenção para reunião de diretoria." },
+];
+
+const THINKING_STEPS = [
+  "🔍 Cruzando métricas de Google Ads & Meta Ads...",
+  "📊 Avaliando CPA, CPL, ROAS e taxas de conversão...",
+  "🤖 Consultando telemetria de IA e rastreamento do Bingbot...",
+  "💡 Sintetizando recomendações executivas e alavancas de escala...",
 ];
 
 // Helper para formatar negritos e caixas de insights estratégicos na interface do Chat
@@ -84,10 +101,27 @@ export default function ChatAssistant({
   isPending,
   activePeriodLabel,
   onClearMessages,
+  onRegenerateLast,
 }) {
   const [input, setInput] = useState("");
   const feedRef = useRef(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [isCopiedAll, setIsCopiedAll] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("todos");
+  const [thinkingStep, setThinkingStep] = useState(0);
+  const [feedbackState, setFeedbackState] = useState({});
+
+  // Alterna as etapas de raciocínio da IA enquanto pendente
+  useEffect(() => {
+    if (!isPending) return;
+    const interval = setInterval(() => {
+      setThinkingStep((prev) => (prev + 1) % THINKING_STEPS.length);
+    }, 1800);
+    return () => {
+      clearInterval(interval);
+      setThinkingStep(0);
+    };
+  }, [isPending]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -110,6 +144,44 @@ export default function ChatAssistant({
     });
   };
 
+  // Exporta o bate-papo completo em formato de briefing executivo
+  const handleExportChat = () => {
+    const dateStr = new Date().toLocaleDateString("pt-BR");
+    const timeStr = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    let text = `====================================================\n`;
+    text += `DOit BI — RELATÓRIO DO COPILOTO DE INSIGHTS IA\n`;
+    text += `Período Analisado: ${activePeriodLabel || "Todos os períodos"}\n`;
+    text += `Data da Consulta: ${dateStr} às ${timeStr}\n`;
+    text += `====================================================\n\n`;
+
+    messages.forEach((m) => {
+      if (m.type === "user") {
+        text += `👤 PERGUNTA:\n${m.text}\n\n`;
+      } else {
+        text += `🤖 DIAGNÓSTICO DO COPILOTO IA:\n${m.text}\n\n`;
+        text += `----------------------------------------------------\n\n`;
+      }
+    });
+
+    navigator.clipboard.writeText(text).then(() => {
+      setIsCopiedAll(true);
+      setTimeout(() => setIsCopiedAll(false), 2500);
+    });
+  };
+
+  const handleFeedback = (index, type) => {
+    setFeedbackState((prev) => ({
+      ...prev,
+      [index]: prev[index] === type ? null : type,
+    }));
+  };
+
+  // Filtra prompts de acordo com a aba de categoria
+  const filteredPrompts = useMemo(() => {
+    if (activeCategory === "todos") return ALL_PROMPTS.slice(0, 5);
+    return ALL_PROMPTS.filter((p) => p.cat === activeCategory);
+  }, [activeCategory]);
+
   // Scroll to bottom when messages list changes
   useEffect(() => {
     if (feedRef.current) {
@@ -118,8 +190,9 @@ export default function ChatAssistant({
   }, [messages, isPending]);
 
   return (
-    <article className="assistant-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "450px" }}>
-      <div className="panel-heading" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+    <article className="assistant-panel" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "470px" }}>
+      {/* Cabeçalho Executivo do Copiloto */}
+      <div className="panel-heading" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, paddingBottom: 10 }}>
         <div>
           <p className="eyebrow">Assistente nativo</p>
           <h2 style={{ margin: 0 }}>Copiloto de Insights IA</h2>
@@ -145,6 +218,16 @@ export default function ChatAssistant({
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
             Online
           </span>
+          {messages.length > 1 && (
+            <button
+              onClick={handleExportChat}
+              title="Copiar relatório completo da consulta para pauta de reunião"
+              className="action-btn"
+              style={{ padding: "3px 9px", fontSize: "0.68rem" }}
+            >
+              {isCopiedAll ? "✓ Copiado!" : "📄 Exportar"}
+            </button>
+          )}
           {onClearMessages && messages.length > 1 && (
             <button
               onClick={onClearMessages}
@@ -158,37 +241,91 @@ export default function ChatAssistant({
         </div>
       </div>
       
-      <div className="chat-feed" ref={feedRef} style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+      {/* Feed de Mensagens */}
+      <div className="chat-feed" ref={feedRef} style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
         {messages.map((msg, index) => (
-          <div key={index} className={`message ${msg.type}`}>
-            {/* Renderiza botão de copiar para mensagens da IA */}
-            {msg.type === "ai" && (
-              <button 
-                className="copy-insight-btn"
-                onClick={() => handleCopy(msg.text, index)}
-                title="Copiar insight executivo para reunião"
-              >
-                {copiedIndex === index ? "✓ Copiado!" : "📋 Copiar"}
-              </button>
-            )}
+          <div key={index} className={`message ${msg.type}`} style={{ position: "relative" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, opacity: 0.75 }}>
+              <span style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-muted)" }}>
+                {msg.type === "ai" ? "🤖 DOit Copilot" : "👤 Você"}
+              </span>
+            </div>
+
+            {/* Conteúdo formatado */}
             {formatMessageText(msg.text)}
+
+            {/* Barra de Ações Rápidas por Resposta da IA */}
+            {msg.type === "ai" && (
+              <div className="message-actions">
+                <button 
+                  className="message-action-btn"
+                  onClick={() => handleCopy(msg.text, index)}
+                  title="Copiar resposta para pauta de reunião"
+                >
+                  {copiedIndex === index ? "✓ Copiado!" : "📋 Copiar"}
+                </button>
+                <button
+                  className={`message-action-btn ${feedbackState[index] === "up" ? "active" : ""}`}
+                  onClick={() => handleFeedback(index, "up")}
+                  title="Insight útil para a gestão"
+                >
+                  👍 {feedbackState[index] === "up" ? "Útil" : ""}
+                </button>
+                <button
+                  className={`message-action-btn ${feedbackState[index] === "down" ? "active" : ""}`}
+                  onClick={() => handleFeedback(index, "down")}
+                  title="Insight pouco relevante"
+                >
+                  👎
+                </button>
+                {index === messages.length - 1 && onRegenerateLast && !isPending && (
+                  <button
+                    className="message-action-btn"
+                    onClick={onRegenerateLast}
+                    title="Recalcular com análise mais aprofundada"
+                    style={{ marginLeft: "auto" }}
+                  >
+                    🔄 Aprofundar
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         ))}
+
+        {/* Indicador de Raciocínio em Etapas */}
         {isPending && (
-          <div className="message ai" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <span style={{ fontSize: "var(--fs-caption)", color: "var(--text-muted)" }}>Analisando métricas de mídia &amp; IA...</span>
-            <div className="typing-indicator">
-              <span className="typing-dot" />
-              <span className="typing-dot" />
-              <span className="typing-dot" />
+          <div className="message ai">
+            <div className="thinking-box">
+              <div className="thinking-text">
+                <span style={{ animation: "spin 2s linear infinite" }}>⚙️</span>
+                <span>{THINKING_STEPS[thinkingStep]}</span>
+              </div>
+              <div className="thinking-bar-track">
+                <div className="thinking-bar-fill" />
+              </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Chips de Perguntas Rápidas Sugeridas */}
+      {/* Abas de Categorias de Perguntas */}
+      <div className="prompt-category-tabs">
+        {PROMPT_CATEGORIES.map((cat) => (
+          <button
+            key={cat.id}
+            type="button"
+            className={`prompt-category-tab ${activeCategory === cat.id ? "active" : ""}`}
+            onClick={() => setActiveCategory(cat.id)}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Chips de Perguntas Rápidas Filtrados */}
       <div className="quick-prompt-chips">
-        {QUICK_PROMPTS.map((qp, idx) => (
+        {filteredPrompts.map((qp, idx) => (
           <button
             key={idx}
             type="button"
@@ -203,6 +340,7 @@ export default function ChatAssistant({
         ))}
       </div>
 
+      {/* Formulário de Envio */}
       <form className="chat-form" onSubmit={handleSubmit} style={{ padding: "12px", borderTop: "1px solid var(--border-soft)", display: "flex", gap: "8px" }}>
         <input
           value={input}
