@@ -6388,6 +6388,29 @@ html[data-theme="light"] .platform-pill.bing {
   background-size: 4px 4px;
 }
 
+.appointment-breakdown-corner-grip {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 4px;
+  cursor: nwse-resize;
+  color: var(--text-muted);
+  transition: color 0.15s ease, transform 0.15s ease;
+  z-index: 10;
+  touch-action: none;
+  user-select: none;
+}
+
+.appointment-breakdown-corner-grip:hover {
+  color: var(--info);
+  transform: scale(1.2);
+}
+
 .appointment-breakdown-header {
   display: flex;
   align-items: flex-start;

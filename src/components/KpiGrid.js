@@ -347,6 +347,65 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
   const [isMaximized, setIsMaximized] = useState(false);
   const [filterChannel, setFilterChannel] = useState("todos");
   const [searchTerm, setSearchTerm] = useState("");
+  const [size, setSize] = useState({ width: 980, height: 680 });
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const dialogRef = useRef(null);
+
+  // Drag para mover a janela pelo cabeçalho
+  const handleDragStart = (e) => {
+    if (e.target.closest("button") || e.target.closest("input")) return;
+    setIsDragging(true);
+    const startX = e.clientX - position.x;
+    const startY = e.clientY - position.y;
+
+    const handleMouseMove = (moveEvent) => {
+      setPosition({
+        x: moveEvent.clientX - startX,
+        y: moveEvent.clientY - startY,
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  // Drag para redimensionar pelo puxador do canto
+  const handleResizeStart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = dialogRef.current ? dialogRef.current.offsetWidth : size.width;
+    const startHeight = dialogRef.current ? dialogRef.current.offsetHeight : size.height;
+
+    const handleMouseMove = (moveEvent) => {
+      const newWidth = Math.max(500, Math.min(window.innerWidth * 0.96, startWidth + (moveEvent.clientX - startX)));
+      const newHeight = Math.max(460, Math.min(window.innerHeight * 0.94, startHeight + (moveEvent.clientY - startY)));
+      setSize({ width: newWidth, height: newHeight });
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
 
   const data = {
     total: 0,
@@ -404,14 +463,27 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
       }}
     >
       <section
+        ref={dialogRef}
         id="appointment-breakdown-dialog"
         className={`appointment-breakdown-dialog ${isMaximized ? "is-maximized" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="appointment-breakdown-title"
         aria-describedby="appointment-breakdown-description"
+        style={isMaximized ? undefined : {
+          width: `${size.width}px`,
+          height: `${size.height}px`,
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          maxWidth: "96vw",
+          maxHeight: "94vh",
+        }}
       >
-        <header className="appointment-breakdown-header">
+        <header
+          className="appointment-breakdown-header"
+          onMouseDown={isMaximized ? undefined : handleDragStart}
+          onDoubleClick={() => setIsMaximized(!isMaximized)}
+          style={{ cursor: isMaximized ? "default" : isDragging ? "grabbing" : "grab", userSelect: "none" }}
+        >
           <div>
             <p className="appointment-breakdown-eyebrow">Agendamentos</p>
             <h2 id="appointment-breakdown-title">Dados por plataforma</h2>
@@ -556,7 +628,7 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
                 : "Nenhum cliente encontrado com os filtros selecionados."}
             </div>
           ) : (
-            <div style={{ maxHeight: isMaximized ? "calc(88vh - 340px)" : "360px", overflowY: "auto", border: "1px solid var(--border-soft)", borderRadius: "var(--radius)", background: "var(--surface-subtle)" }}>
+            <div style={{ maxHeight: isMaximized ? "calc(88vh - 340px)" : `${Math.max(220, size.height - 350)}px`, overflowY: "auto", border: "1px solid var(--border-soft)", borderRadius: "var(--radius)", background: "var(--surface-subtle)" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", textAlign: "left" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border-soft)", background: "var(--surface-subtle)", position: "sticky", top: 0, zIndex: 2 }}>
@@ -640,6 +712,21 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
         <p className="appointment-breakdown-footnote">
           Meta reúne Facebook, Instagram e WhatsApp. O saldo de Playbooks e outras origens é o total menos Meta e Google. Demos sem data de realização válida não entram no KPI.
         </p>
+
+        {!isMaximized && (
+          <div
+            className="appointment-breakdown-corner-grip"
+            onMouseDown={handleResizeStart}
+            title="Arraste para redimensionar a janela"
+            aria-label="Arraste para redimensionar a janela"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <line x1="12" y1="2" x2="2" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" />
+              <line x1="12" y1="6" x2="6" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+              <line x1="12" y1="10" x2="10" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.9" />
+            </svg>
+          </div>
+        )}
       </section>
     </div>
   );
