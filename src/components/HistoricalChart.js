@@ -201,8 +201,7 @@ export default function HistoricalChart({ timeline }) {
           const lVal  = leadsV[idx];
           const gLeads = d.googleLeads || 0;
           const mLeads = d.metaLeads || 0;
-          const crmLeads = d.crmLeads || 0;
-          const otherLeads = Math.max(0, lVal - (gLeads + mLeads + crmLeads));
+          const otherLeads = Math.max(0, lVal - (gLeads + mLeads));
           const total = gVal + mVal;
           const cpl   = lVal > 0 ? total / lVal : 0;
           const gCpl  = gLeads > 0 ? gVal / gLeads : 0;
@@ -258,15 +257,6 @@ export default function HistoricalChart({ timeline }) {
                   <strong style="color:${tText};font-weight:600">${num.format(mLeads)}</strong> <span style="font-size:11px;color:${tMuted}">(CPL: ${mLeads > 0 ? brl2.format(mCpl) : "-"})</span>
                 </span>
               </div>
-              ${crmLeads > 0 ? `
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="color:${tMuted};font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px">
-                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${tMuted}"></span>CRM / Orgânico
-                </span>
-                <span style="font-size:12px;color:${tTextSoft}">
-                  <strong style="color:${tText};font-weight:600">${num.format(crmLeads)}</strong>
-                </span>
-              </div>` : ""}
               ${otherLeads > 0 ? `
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <span style="color:${tMuted};font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px">

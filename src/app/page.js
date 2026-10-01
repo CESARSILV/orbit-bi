@@ -74,7 +74,11 @@ function calculateSummaryTotals(rows = []) {
 
   const investimento = rows.reduce((sum, item) => sum + (item.spend || 0), 0);
   const receita = rows.reduce((sum, item) => sum + (item.revenue || 0), 0);
-  const leads = rows.reduce((sum, item) => sum + (item.leads || 0), 0);
+  const leads = rows.reduce((sum, item) => {
+    const isPaid = !item.is_crm && (item.platform === "google" || item.platform === "meta");
+    const val = (item.leads && item.leads > 0) ? item.leads : (isPaid && item.conversions > 0 ? item.conversions : (item.leads || 0));
+    return sum + val;
+  }, 0);
   const conversoes = rows.reduce(
     (sum, item) => sum + (item.is_crm ? (item.conversions || 0) : 0),
     0
@@ -1347,7 +1351,8 @@ export default function Home() {
       }
 
       const spend = s.spend || 0;
-      const rowLeads = s.leads || 0;
+      const isPaid = !s.is_crm && (s.platform === "google" || s.platform === "meta");
+      const rowLeads = (s.leads && s.leads > 0) ? s.leads : (isPaid && s.conversions > 0 ? s.conversions : (s.leads || 0));
       months[mKey].receita      += s.revenue      || 0;
       months[mKey].investimento += spend;
       months[mKey].leads        += rowLeads;
@@ -1370,21 +1375,6 @@ export default function Home() {
         months[mKey].meta += spend;
         months[mKey].metaLeads += rowLeads;
         months[mKey].metaClicks += (s.clicks || 0);
-      } else if (s.is_crm) {
-        const crmCount = s.crm_leads || s.leads || 0;
-        if (s.platform === "google") {
-          months[mKey].googleLeads += crmCount;
-        } else if (s.platform === "meta") {
-          months[mKey].metaLeads += crmCount;
-        } else {
-          months[mKey].crmLeads += crmCount;
-        }
-      } else {
-        if (s.platform === "google") {
-          months[mKey].googleLeads += rowLeads;
-        } else if (s.platform === "meta") {
-          months[mKey].metaLeads += rowLeads;
-        }
       }
     });
 
@@ -2248,8 +2238,8 @@ export default function Home() {
           const leadsRawStr = wizardMapping.leads ? row[wizardMapping.leads] : undefined;
           let leads = leadsRawStr !== undefined ? Math.round(parseFormattedFloat(leadsRawStr)) : 0;
 
-          // Google Ads: se não mapeou leads explicitamente, usa conversões como leads
-          if (leads === 0 && wizardPlatform === "google" && conversions > 0) {
+          // Mídia paga (Google / Meta): se não mapeou leads explicitamente, usa conversões (Resultados) como leads
+          if (leads === 0 && (wizardPlatform === "google" || wizardPlatform === "meta") && conversions > 0) {
             leads = conversions;
           }
 
