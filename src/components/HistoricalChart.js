@@ -144,12 +144,16 @@ export default function HistoricalChart({ timeline }) {
     const lastLeads  = data[data.length - 1].leads || 0;
     const lastCpl    = lastLeads > 0 ? lastSpend / lastLeads : 0;
 
+    const totalAgendamentos = data.reduce((s, d) => s + (d.conversoes || 0), 0);
+    const totalDemos = data.reduce((s, d) => s + (d.demos || 0), 0);
+    const taxaPresenca = totalAgendamentos > 0 ? (totalDemos / totalAgendamentos) * 100 : 0;
+
     // Eficiência do CPL: CPL menor é melhor.
     const growth = (firstCpl > 0 && lastCpl > 0)
       ? ((firstCpl - lastCpl) / firstCpl) * 100
       : 0;
 
-    return { totalInvest, totalLeads, cplMedio, bestMonth, growth };
+    return { totalInvest, totalLeads, totalAgendamentos, totalDemos, taxaPresenca, cplMedio, bestMonth, growth };
   }, [data]);
 
   const growthByMonth = useMemo(() => {
@@ -424,11 +428,20 @@ export default function HistoricalChart({ timeline }) {
         <KpiMini label="Leads Totais"    value={num.format(kpis.totalLeads)}  accent={C.leads}  sub="Todos os canais" />
         <KpiMini label="CPL Médio"       value={brl2.format(kpis.cplMedio)}   accent={C.meta}   sub="Custo por lead" />
         <KpiMini label="Melhor Mês"      value={kpis.bestMonth?.mes?.split("/")[0] ?? "—"} accent={C.leads} sub={`${num.format(kpis.bestMonth?.leads || 0)} leads`} />
-        <KpiMini label="Eficiência CPL"  value={growthLabel}                  accent={growthColor} sub="Primeiro vs último mês" />
+        {kpis.totalAgendamentos > 0 ? (
+          <KpiMini
+            label="Taxa de Presença"
+            value={`${kpis.taxaPresenca.toFixed(1).replace(".", ",")}%`}
+            accent={C.leads}
+            sub={`${num.format(kpis.totalDemos)} de ${num.format(kpis.totalAgendamentos)} demos`}
+          />
+        ) : (
+          <KpiMini label="Eficiência CPL" value={growthLabel} accent={growthColor} sub="Primeiro vs último mês" />
+        )}
       </div>
 
       <p className="sr-only" id="historical-chart-summary">
-        Histórico de {data.length} períodos, com investimento total de {brl.format(kpis.totalInvest)}, {num.format(kpis.totalLeads)} leads e CPL médio de {brl2.format(kpis.cplMedio)}.
+        Histórico de {data.length} períodos, com investimento total de {brl.format(kpis.totalInvest)}, {num.format(kpis.totalLeads)} leads e CPL médio de {brl2.format(kpis.cplMedio)}{kpis.totalAgendamentos > 0 ? `, e taxa de presença de ${kpis.taxaPresenca.toFixed(1).replace(".", ",")}% nas demonstrações.` : "."}
       </p>
 
       {/* ── Gráfico ECharts ───────────────────────────────────────────────── */}
