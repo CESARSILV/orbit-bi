@@ -1176,7 +1176,8 @@ export default function Home() {
 
         let origemLabel = "Outras Origens";
         let canal = attribution?.category || "outras";
-        const sourceLower = String(r.lead_source || r.source || r.origem || r["Jornada do cliente"] || "").toLowerCase();
+        const howHeard = r["Como ficou sabendo do DOit ???"] || r["como ficou sabendo do doit ???"] || r["Como ficou sabendo"] || "";
+        const sourceLower = String(r.lead_source || r.source || r.origem || r["Jornada do cliente"] || howHeard || "").toLowerCase();
 
         if (canal === "google" || sourceLower.includes("google")) {
           canal = "google";
@@ -1198,7 +1199,7 @@ export default function Home() {
           status: isRealizada ? "Demo Realizada" : "Demo Agendada",
           isRealizada,
           data: r.realized_date || r.date || "—",
-          leadSource: r.lead_source || r["Jornada do cliente"] || r.source || "—",
+          leadSource: r.lead_source || r["Jornada do cliente"] || howHeard || r.source || "—",
         };
       })
       .reduce((acc, curr) => {
