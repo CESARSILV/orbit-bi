@@ -4975,6 +4975,12 @@ html[data-theme="light"] .filter-shell--compact .filter-advanced-row--open {
   padding: 8px 12px;
   border-top: 1px solid var(--border-soft);
   scrollbar-width: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.quick-prompt-chips.is-dragging {
+  cursor: grabbing !important;
 }
 .quick-prompt-chips::-webkit-scrollbar {
   display: none;
@@ -4992,7 +4998,13 @@ html[data-theme="light"] .filter-shell--compact .filter-advanced-row--open {
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.quick-prompt-chips.is-dragging .quick-prompt-chip {
+  cursor: grabbing !important;
+  pointer-events: auto;
 }
 .quick-prompt-chip:hover {
   background: var(--surface-hover, rgba(255,255,255,0.08));

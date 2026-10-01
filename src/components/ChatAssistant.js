@@ -130,6 +130,59 @@ export default function ChatAssistant({
     setInput("");
   };
 
+  // Refs e estados para arrastar as perguntas com o mouse (Drag-to-Scroll)
+  const chipsRef = useRef(null);
+  const isDraggingChips = useRef(false);
+  const startXChips = useRef(0);
+  const scrollLeftChips = useRef(0);
+  const hasDraggedChips = useRef(false);
+
+  const handleChipsMouseDown = (e) => {
+    if (!chipsRef.current) return;
+    isDraggingChips.current = true;
+    hasDraggedChips.current = false;
+    startXChips.current = e.pageX - chipsRef.current.offsetLeft;
+    scrollLeftChips.current = chipsRef.current.scrollLeft;
+    chipsRef.current.classList.add("is-dragging");
+  };
+
+  const handleChipsMouseMove = (e) => {
+    if (!isDraggingChips.current || !chipsRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - chipsRef.current.offsetLeft;
+    const walk = (x - startXChips.current) * 1.5; // multiplicador de arraste ágil
+    if (Math.abs(walk) > 4) {
+      hasDraggedChips.current = true;
+    }
+    chipsRef.current.scrollLeft = scrollLeftChips.current - walk;
+  };
+
+  const handleChipsMouseUpOrLeave = () => {
+    if (!chipsRef.current) return;
+    isDraggingChips.current = false;
+    chipsRef.current.classList.remove("is-dragging");
+    setTimeout(() => {
+      hasDraggedChips.current = false;
+    }, 50);
+  };
+
+  const handleChipsWheel = (e) => {
+    if (!chipsRef.current) return;
+    if (e.deltaY !== 0) {
+      chipsRef.current.scrollLeft += e.deltaY;
+    }
+  };
+
+  const handleChipClick = (e, prompt) => {
+    // Se o usuário estava arrastando com o mouse, não dispara o clique acidentalmente
+    if (hasDraggedChips.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    handleQuickPrompt(prompt);
+  };
+
   // Dispara sugestão rápida ao clicar em um chip
   const handleQuickPrompt = (prompt) => {
     if (isPending) return;
@@ -323,14 +376,23 @@ export default function ChatAssistant({
         ))}
       </div>
 
-      {/* Chips de Perguntas Rápidas Filtrados */}
-      <div className="quick-prompt-chips">
+      {/* Chips de Perguntas Rápidas Filtrados (Arrastáveis com clique do mouse para esquerda/direita) */}
+      <div
+        ref={chipsRef}
+        className="quick-prompt-chips"
+        onMouseDown={handleChipsMouseDown}
+        onMouseMove={handleChipsMouseMove}
+        onMouseUp={handleChipsMouseUpOrLeave}
+        onMouseLeave={handleChipsMouseUpOrLeave}
+        onWheel={handleChipsWheel}
+        title="Clique e arraste com o mouse para navegar pelas perguntas"
+      >
         {filteredPrompts.map((qp, idx) => (
           <button
             key={idx}
             type="button"
             className="quick-prompt-chip"
-            onClick={() => handleQuickPrompt(qp.prompt)}
+            onClick={(e) => handleChipClick(e, qp.prompt)}
             disabled={isPending}
             title={qp.prompt}
           >
