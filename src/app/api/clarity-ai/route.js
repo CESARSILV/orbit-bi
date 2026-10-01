@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fetchBingMonthlyData } from "@/lib/bing-webmaster";
 
 // =============================================================================
 // DADOS MENSAIS DO CLARITY — AI VISIBILITY (doit.com.br)
@@ -322,7 +323,15 @@ export async function POST(request) {
       targetMonth = months[0] || null;
     }
 
-    const monthData = targetMonth ? MONTHLY_DATA[targetMonth] : null;
+    let monthData = targetMonth ? MONTHLY_DATA[targetMonth] : null;
+
+    // Se não há dados do Clarity para o mês selecionado, busca na API oficial do Bing Webmaster
+    if (!monthData && targetMonth) {
+      const bingData = await fetchBingMonthlyData(targetMonth);
+      if (bingData) {
+        monthData = bingData;
+      }
+    }
 
     if (!monthData) {
       const availableMonths = Object.keys(MONTHLY_DATA).sort().reverse();
@@ -339,7 +348,7 @@ export async function POST(request) {
       targetMonth,
       ...monthData,
       updatedAt: monthData.dataType === "clarity-export" ? null : new Date().toISOString(),
-      dataAsOf: monthData.dataType === "clarity-export" ? monthData.periodLabel : null,
+      dataAsOf: monthData.periodLabel || null,
     });
   } catch (err) {
     return NextResponse.json(
