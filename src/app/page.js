@@ -1334,6 +1334,11 @@ export default function Home() {
           demos: 0,        // Demos efetivamente realizadas
           google: 0,
           meta: 0,
+          googleLeads: 0,
+          metaLeads: 0,
+          crmLeads: 0,
+          googleClicks: 0,
+          metaClicks: 0,
           leads: 0,
           cliques: 0,
           impressoes: 0,
@@ -1342,9 +1347,10 @@ export default function Home() {
       }
 
       const spend = s.spend || 0;
+      const rowLeads = s.leads || 0;
       months[mKey].receita      += s.revenue      || 0;
       months[mKey].investimento += spend;
-      months[mKey].leads        += s.leads        || 0;
+      months[mKey].leads        += rowLeads;
       months[mKey].cliques      += s.clicks       || 0;
       months[mKey].impressoes   += s.impressions  || 0;
       months[mKey].alcance      += s.reach        || 0;
@@ -1356,8 +1362,30 @@ export default function Home() {
         months[mKey].demos        += s.crm_demos   || 0;
       }
 
-      if (s.platform === "google" && !s.is_crm) months[mKey].google += spend;
-      if (s.platform === "meta"   && !s.is_crm) months[mKey].meta   += spend;
+      if (s.platform === "google" && !s.is_crm) {
+        months[mKey].google += spend;
+        months[mKey].googleLeads += rowLeads;
+        months[mKey].googleClicks += (s.clicks || 0);
+      } else if (s.platform === "meta" && !s.is_crm) {
+        months[mKey].meta += spend;
+        months[mKey].metaLeads += rowLeads;
+        months[mKey].metaClicks += (s.clicks || 0);
+      } else if (s.is_crm) {
+        const crmCount = s.crm_leads || s.leads || 0;
+        if (s.platform === "google") {
+          months[mKey].googleLeads += crmCount;
+        } else if (s.platform === "meta") {
+          months[mKey].metaLeads += crmCount;
+        } else {
+          months[mKey].crmLeads += crmCount;
+        }
+      } else {
+        if (s.platform === "google") {
+          months[mKey].googleLeads += rowLeads;
+        } else if (s.platform === "meta") {
+          months[mKey].metaLeads += rowLeads;
+        }
+      }
     });
 
     return Object.values(months)

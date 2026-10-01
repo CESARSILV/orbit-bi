@@ -195,11 +195,18 @@ export default function HistoricalChart({ timeline }) {
         formatter: (params) => {
           const idx   = params[0]?.dataIndex ?? 0;
           const month = months[idx];
+          const d     = data[idx] || {};
           const gVal  = googleV[idx];
           const mVal  = metaV[idx];
           const lVal  = leadsV[idx];
+          const gLeads = d.googleLeads || 0;
+          const mLeads = d.metaLeads || 0;
+          const crmLeads = d.crmLeads || 0;
+          const otherLeads = Math.max(0, lVal - (gLeads + mLeads + crmLeads));
           const total = gVal + mVal;
           const cpl   = lVal > 0 ? total / lVal : 0;
+          const gCpl  = gLeads > 0 ? gVal / gLeads : 0;
+          const mCpl  = mLeads > 0 ? mVal / mLeads : 0;
           const grow  = growthByMonth[idx];
           const growColor = grow >= 0 ? C.leads : C.danger;
           const growIcon  = grow >= 0 ? "▲" : "▼";
@@ -207,16 +214,78 @@ export default function HistoricalChart({ timeline }) {
           const tTextSoft = C.isDark ? "rgba(245,247,251,0.9)" : "#334155";
           const tMuted = C.isDark ? "rgba(245,247,251,0.55)" : "#64748b";
           const tBorder = C.isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.10)";
-          return `<div style="font-family:Inter,sans-serif;min-width:210px">
-            <div style="font-weight:700;font-size:13px;color:${tText};margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid ${tBorder}">${month}</div>
-            <div style="display:flex;flex-direction:column;gap:5px;">
-              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${C.google};font-size:12px">● Google Ads</span><span style="font-weight:600;color:${tTextSoft}">${brl.format(gVal)}</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${C.meta};font-size:12px">● Meta Ads</span><span style="font-weight:600;color:${tTextSoft}">${brl.format(mVal)}</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid ${tBorder}"><span style="color:${tMuted};font-size:12px">Total</span><span style="font-weight:700;color:${tText}">${brl.format(total)}</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${C.leads};font-size:12px">◆ Leads</span><span style="font-weight:600;color:${tTextSoft}">${num.format(lVal)}</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:${tMuted};font-size:12px">CPL</span><span style="font-weight:600;color:${tTextSoft}">${brl2.format(cpl)}</span></div>
-              ${idx > 0 ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid ${tBorder}"><span style="color:${tMuted};font-size:12px">Crescimento</span><span style="font-weight:700;color:${growColor}">${growIcon} ${Math.abs(grow).toFixed(1).replace(".",",")}%</span></div>` : ""}
-            </div></div>`;
+          return `<div style="font-family:Inter,sans-serif;min-width:240px;line-height:1.4">
+            <div style="font-weight:700;font-size:13px;color:${tText};margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid ${tBorder};display:flex;justify-content:space-between;align-items:center">
+              <span>${month}</span>
+              ${idx > 0 ? `<span style="font-size:11px;font-weight:700;color:${growColor}">${growIcon} ${Math.abs(grow).toFixed(1).replace(".",",")}%</span>` : ""}
+            </div>
+
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:${tMuted};margin-bottom:4px">Investimento</div>
+            <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="color:${C.google};font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${C.google}"></span>Google Ads
+                </span>
+                <span style="font-weight:600;color:${tTextSoft};font-size:12px">${brl.format(gVal)}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="color:${C.meta};font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${C.meta}"></span>Meta Ads
+                </span>
+                <span style="font-weight:600;color:${tTextSoft};font-size:12px">${brl.format(mVal)}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding-top:4px;border-top:1px dashed ${tBorder}">
+                <span style="color:${tMuted};font-size:11px;font-weight:500">Total Investido</span>
+                <span style="font-weight:700;color:${tText};font-size:12px">${brl.format(total)}</span>
+              </div>
+            </div>
+
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:${tMuted};margin-bottom:4px;padding-top:6px;border-top:1px solid ${tBorder}">Leads por Origem</div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="color:${C.google};font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${C.google}"></span>Google Ads
+                </span>
+                <span style="font-size:12px;color:${tTextSoft}">
+                  <strong style="color:${tText};font-weight:600">${num.format(gLeads)}</strong> <span style="font-size:11px;color:${tMuted}">(CPL: ${gLeads > 0 ? brl2.format(gCpl) : "-"})</span>
+                </span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="color:${C.meta};font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${C.meta}"></span>Meta Ads
+                </span>
+                <span style="font-size:12px;color:${tTextSoft}">
+                  <strong style="color:${tText};font-weight:600">${num.format(mLeads)}</strong> <span style="font-size:11px;color:${tMuted}">(CPL: ${mLeads > 0 ? brl2.format(mCpl) : "-"})</span>
+                </span>
+              </div>
+              ${crmLeads > 0 ? `
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="color:${tMuted};font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${tMuted}"></span>CRM / Orgânico
+                </span>
+                <span style="font-size:12px;color:${tTextSoft}">
+                  <strong style="color:${tText};font-weight:600">${num.format(crmLeads)}</strong>
+                </span>
+              </div>` : ""}
+              ${otherLeads > 0 ? `
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="color:${tMuted};font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${tMuted}"></span>Outros
+                </span>
+                <span style="font-size:12px;color:${tTextSoft}">
+                  <strong style="color:${tText};font-weight:600">${num.format(otherLeads)}</strong>
+                </span>
+              </div>` : ""}
+              <div style="display:flex;justify-content:space-between;align-items:center;padding-top:4px;border-top:1px dashed ${tBorder}">
+                <span style="color:${C.leads};font-weight:600;font-size:12px">Total de Leads</span>
+                <span style="font-weight:700;color:${C.leads};font-size:12px">${num.format(lVal)}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="color:${tMuted};font-size:11px;font-weight:500">CPL Médio Geral</span>
+                <span style="font-weight:700;color:${tText};font-size:12px">${brl2.format(cpl)}</span>
+              </div>
+            </div>
+          </div>`;
         },
       },
       legend: { show: false },
