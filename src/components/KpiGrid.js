@@ -344,6 +344,7 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
     };
   }, [onClose]);
 
+  const [isMaximized, setIsMaximized] = useState(false);
   const [filterChannel, setFilterChannel] = useState("todos");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -404,7 +405,7 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
     >
       <section
         id="appointment-breakdown-dialog"
-        className="appointment-breakdown-dialog"
+        className={`appointment-breakdown-dialog ${isMaximized ? "is-maximized" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="appointment-breakdown-title"
@@ -418,15 +419,26 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
               Cada cliente com ID ou telefone válido é contado uma vez por mês de agendamento. Demos entram uma vez por cliente no mês da realização válida.
             </p>
           </div>
-          <button
-            ref={closeButtonRef}
-            type="button"
-            className="appointment-breakdown-close"
-            onClick={onClose}
-            aria-label="Fechar detalhamento de agendamentos"
-          >
-            <span aria-hidden="true">×</span>
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              type="button"
+              className="appointment-breakdown-control-btn"
+              onClick={() => setIsMaximized(!isMaximized)}
+              title={isMaximized ? "Restaurar tamanho" : "Maximizar tela cheia"}
+              aria-label={isMaximized ? "Restaurar tamanho" : "Maximizar tela cheia"}
+            >
+              <span aria-hidden="true" style={{ fontSize: "1rem" }}>{isMaximized ? "⤡" : "⤢"}</span>
+            </button>
+            <button
+              ref={closeButtonRef}
+              type="button"
+              className="appointment-breakdown-close"
+              onClick={onClose}
+              aria-label="Fechar detalhamento de agendamentos"
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
         </header>
 
         <div className="appointment-breakdown-total">
@@ -544,7 +556,7 @@ function AppointmentBreakdownModal({ breakdown, onClose }) {
                 : "Nenhum cliente encontrado com os filtros selecionados."}
             </div>
           ) : (
-            <div style={{ maxHeight: "280px", overflowY: "auto", border: "1px solid var(--border-soft)", borderRadius: "var(--radius)", background: "var(--surface-subtle)" }}>
+            <div style={{ maxHeight: isMaximized ? "calc(88vh - 340px)" : "360px", overflowY: "auto", border: "1px solid var(--border-soft)", borderRadius: "var(--radius)", background: "var(--surface-subtle)" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", textAlign: "left" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border-soft)", background: "var(--surface-subtle)", position: "sticky", top: 0, zIndex: 2 }}>

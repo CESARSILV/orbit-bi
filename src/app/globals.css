@@ -6357,16 +6357,35 @@ html[data-theme="light"] .platform-pill.bing {
 }
 
 .appointment-breakdown-dialog {
-  width: min(100%, 780px);
-  max-height: min(720px, calc(100vh - 48px));
-  overflow-y: auto;
-  padding: clamp(20px, 3vw, 30px);
+  width: min(100%, 980px);
+  min-width: min(100%, 500px);
+  max-width: 96vw;
+  min-height: 520px;
+  max-height: min(88vh, 880px);
+  resize: both;
+  overflow: auto;
+  padding: clamp(20px, 3vw, 32px);
   border: 1px solid var(--border-strong);
   border-radius: calc(var(--radius) + 6px);
   background: var(--bg-elevated);
   color: var(--text-primary);
   box-shadow: var(--shadow-heavy);
   animation: appointmentBreakdownSlideUp 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  position: relative;
+}
+
+.appointment-breakdown-dialog.is-maximized {
+  width: 96vw !important;
+  max-width: 96vw !important;
+  height: 94vh !important;
+  max-height: 94vh !important;
+  resize: none !important;
+}
+
+.appointment-breakdown-dialog::-webkit-resizer {
+  background-color: transparent;
+  background-image: radial-gradient(circle, var(--text-muted) 1.5px, transparent 1.5px);
+  background-size: 4px 4px;
 }
 
 .appointment-breakdown-header {
@@ -6417,6 +6436,28 @@ html[data-theme="light"] .platform-pill.bing {
 
 .appointment-breakdown-close:hover,
 .appointment-breakdown-close:focus-visible {
+  border-color: var(--border-info);
+  background: var(--surface-info);
+  color: var(--info);
+  outline: none;
+}
+
+.appointment-breakdown-control-btn {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.appointment-breakdown-control-btn:hover,
+.appointment-breakdown-control-btn:focus-visible {
   border-color: var(--border-info);
   background: var(--surface-info);
   color: var(--info);
