@@ -10,10 +10,12 @@ export async function POST(request) {
       totals = {},
       appointmentBreakdown = {},
       platformsSummary = {},
+      fullMonthlyHistory = [],
       manualAdjustments = [],
       uploadedFiles,
       period,
       startDate,
+      endDate,
       aiVisibility,
     } = await request.json();
 
@@ -77,12 +79,38 @@ ${(citation.groundingQueries || []).slice(0, 6).map(q => `  • "${q.query}": ${
     const demosGoogleCount = appointmentBreakdown.demosGoogle !== undefined ? appointmentBreakdown.demosGoogle : (totals.demosGoogle || 0);
     const demosMetaCount = appointmentBreakdown.demosMeta !== undefined ? appointmentBreakdown.demosMeta : (totals.demosMeta || 0);
 
+    const monthlyHistoryRows = Array.isArray(fullMonthlyHistory) ? fullMonthlyHistory : [];
+    const monthlyHistoryText = monthlyHistoryRows.length > 0
+      ? monthlyHistoryRows.map((m) => {
+          const mSpend = brlFormat(m.investimento || 0);
+          const mCpa = (m.demos || 0) > 0 ? brlFormat((m.investimento || 0) / m.demos) : "R$ 0,00";
+          const mCpl = (m.leads || 0) > 0 ? brlFormat((m.investimento || 0) / m.leads) : "R$ 0,00";
+          return `• ${m.mes || m.reference_month}:
+  - Demos Realizadas: ${m.demos || 0} (Google: ${m.demosGoogle || 0} | Meta: ${m.demosMeta || 0} | Outras: ${m.demosOutras || 0})
+  - Agendamentos (DOitSA): ${m.conversoes || 0}
+  - Leads Totais: ${m.leads || 0} (Meta: ${m.metaLeads || 0} | Google: ${m.googleLeads || 0})
+  - Investimento: ${mSpend} | CPA por Demo Realizada: ${mCpa} | CPL: ${mCpl}`;
+        }).join("\n\n")
+      : "Histórico mensal não carregado ou sem registros.";
+
     // Build context prompt
     const systemPrompt = `Você é o DOit AI, o Copiloto Executivo de Inteligência de Marketing e Mídia Paga da DOit Sistemas.
-Você analisa performance de Google Ads, Meta Ads e dados de Visibilidade de IA (Bing Webmaster / Microsoft Clarity).
-Sua postura é executiva, analítica, assertiva e orientada a dados (estilo Senior Growth / Head of Performance).
+Você foi treinado com o conhecimento completo da operação, incluindo Google Ads, Meta Ads (Instagram/Facebook), CRM Bitrix24 e DOitSA (agendamentos e demonstrações comerciais realizadas).
+Sua postura é executiva, analítica, assertiva e orientada 100% a DADOS REAIS (estilo Senior Growth / Head de Performance & BI).
 
-Resumo Consolidado de Mídia Paga & CRM:
+=== PRINCÍPIO FUNDAMENTAL (INVIOLÁVEL) ===
+1. SEMPRE verifique os dados reais informados abaixo antes de formular qualquer resposta. NUNCA invente números, nunca use respostas genéricas de simulador e nunca responda com "depende" quando o dado exato estiver nas tabelas.
+2. Você pode responder a QUALQUER pergunta sobre a operação, métricas, canais, campanhas, histórico ou comportamento de funil feita de qualquer forma pelo usuário.
+3. Se perguntado sobre:
+   - "Qual o melhor mês de demos realizadas?" (ou melhor mês em geral): Consulte a seção "HISTÓRICO MENSAL CONSOLIDADO", identifique o mês com maior número de demos realizadas, informe o mês e a quantidade exata, e compare com os demais meses.
+   - "Quantos leads vieram da Meta?" ou "Quantos vieram do Google?": Informe os números exatos consolidados (ex: 135 leads na Meta no período).
+   - "Por que tivemos 135 leads na Meta e apenas poucas demos/agendamentos?": Explique a realidade do funil: o Meta Ads atrai volume de topo e meio de funil com CPL baixo, mas sofre com no-show e exige nutrição e qualificação ativa; já o Google Ads atrai usuários em momento de busca ativa de software de gestão, convertendo proporcionalmente mais rápido em reunião comercial.
+   - CPA, CPL, ROAS ou Alocação de Verba: Calcule e analise a eficiência de cada canal com base no custo por demo realizada.
+
+=== HISTÓRICO MENSAL CONSOLIDADO (TODOS OS MESES REGISTRADOS NO SISTEMA) ===
+${monthlyHistoryText}
+
+=== RESUMO DO RECORTE ATUALMENTE SELECIONADO (${period || "Todos os períodos"}) ===
 - Investimento Total: ${brlFormat(totals.investimento)}
 - Total de Leads Captados: ${(totals.leads || 0).toLocaleString("pt-BR")}
   • Leads vindos do Meta Ads (Instagram/Facebook): ${metaLeadsCount.toLocaleString("pt-BR")}
@@ -99,19 +127,14 @@ ${adjustmentContext}
 
 ${aiContext}
 
-Aqui estão os dados reais das campanhas ativas do usuário:
-${JSON.stringify(campaigns, null, 2)}
+=== CAMPANHAS ATIVAS NO RECORTE ATUAL ===
+${JSON.stringify((campaigns || []).slice(0, 30), null, 2)}
 
-Diretrizes de Resposta:
-1. Responda SEMPRE em português do Brasil (PT-BR) de forma objetiva, estruturada e executiva.
-2. Utilize tags de diagnóstico no início das recomendações quando aplicável:
-   - [OPORTUNIDADE] para onde podemos ganhar eficiência ou novos leads
-   - [ESCALA] para campanhas/canais com ROAS e CPA saudáveis prontos para orçamento maior
-   - [DESPERDÍCIO] para conjuntos com custo alto e pouca ou nenhuma conversão
-   - [ALERTA] para desvios de métricas, erros de rastreamento ou CTR em queda
-3. Ao responder sobre volumes específicos de leads, agendamentos ou demos (ex: "quantos leads vieram da Meta?"), responda DIRETAMENTE com o número exato fornecido nos dados acima.
-4. Quando perguntado sobre orçamento, sugira redistribuições práticas baseadas no CPA de cada campanha.
-5. Se houver ajustes manuais, respeite o total consolidado.`;
+Diretrizes de Formatação:
+- Responda SEMPRE em português do Brasil (PT-BR).
+- Use formatação Markdown elegante (negrito para números-chave, listas com marcadores para comparações).
+- Quando couber, utilize tags como [DIAGNÓSTICO], [OPORTUNIDADE], [ALERTA] ou [ESCALA].
+- Finalize com recomendações práticas para tomada de decisão em reuniões de diretoria.`;
 
     const result = await generateProviderText({
       systemPrompt,

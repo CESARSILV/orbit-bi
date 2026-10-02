@@ -1592,6 +1592,121 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reconciledSummary, period, startDate, endDate, campaign]);
 
+  const fullMonthlyHistory = useMemo(() => {
+    const months = {};
+    const allCrm = marketingDb?.fact_crm || [];
+    const bitrixRows = allCrm.filter((r) => r.platform !== "doitsa" && r.crm_platform !== "doitsa");
+
+    (reconciledSummary || []).forEach((s) => {
+      const mKey = s.reference_month;
+      if (!mKey) return;
+
+      if (!months[mKey]) {
+        months[mKey] = {
+          mes: s.reference_label || mKey,
+          reference_month: mKey,
+          receita: 0,
+          investimento: 0,
+          conversoes: 0,
+          qualificados: 0,
+          demos: 0,
+          marketingDemos: 0,
+          googleSpend: 0,
+          metaSpend: 0,
+          googleLeads: 0,
+          metaLeads: 0,
+          crmLeads: 0,
+          leads: 0,
+          cliques: 0,
+          impressoes: 0,
+          demosGoogle: 0,
+          demosMeta: 0,
+          demosOutras: 0,
+        };
+      }
+
+      const spend = s.spend || 0;
+      const rowLeads = getSanitaryLeadCount(s);
+      months[mKey].receita += s.revenue || 0;
+      months[mKey].investimento += spend;
+      months[mKey].leads += rowLeads;
+      months[mKey].cliques += s.clicks || 0;
+      months[mKey].impressoes += s.impressions || 0;
+
+      if (s.is_crm) {
+        months[mKey].conversoes += s.conversions || 0;
+        months[mKey].qualificados += s.crm_leads || 0;
+        months[mKey].demos += s.crm_demos || 0;
+        if (s.platform === "google" || s.platform === "meta") {
+          months[mKey].marketingDemos += s.crm_demos || 0;
+        }
+      }
+
+      if (s.platform === "google" && !s.is_crm) {
+        months[mKey].googleSpend += spend;
+        months[mKey].googleLeads += rowLeads;
+      } else if (s.platform === "meta" && !s.is_crm) {
+        months[mKey].metaSpend += spend;
+        months[mKey].metaLeads += rowLeads;
+      }
+    });
+
+    allCrm.forEach((r) => {
+      const ref = getRowReferenceMonth(r) || (r.date && String(r.date).slice(0, 7)) || (r.realized_date && String(r.realized_date).slice(0, 7));
+      if (!ref || !months[ref]) return;
+
+      const normDemo = String(r.is_demo ?? "").toLowerCase().trim();
+      const isRealizada = r.is_demo === true || r.is_demo === 1 || ["true", "verdadeiro", "sim", "1", "yes"].includes(normDemo) || Boolean(r.realized_date && !String(r.lead_status || "").toLowerCase().includes("pendente"));
+      if (!isRealizada) return;
+
+      const isDoitsa = r.platform === "doitsa" || r.crm_platform === "doitsa";
+      let match = null;
+      if (isDoitsa || !r.lead_source) {
+        const rLeadId = normalizeLeadIdForMatch(r.lead_id);
+        match = bitrixRows.find((b) => {
+          const bLeadId = normalizeLeadIdForMatch(b.lead_id);
+          if (bLeadId && rLeadId && bLeadId === rLeadId) return true;
+          if (phonesMatch(b.phone, r.phone)) return true;
+          return namesMatch(b.client_name || b.nome, r.client_name || r.nome);
+        });
+      }
+
+      const mergedRow = match ? { ...r, ...match } : r;
+      const attribution = resolveLeadAttribution(mergedRow);
+      const howHeard = mergedRow["Como ficou sabendo do DOit ???"] || mergedRow["como ficou sabendo do doit ???"] || mergedRow["Como ficou sabendo"] || "";
+      const sourceLower = String(
+        mergedRow.lead_source ||
+        mergedRow.source ||
+        mergedRow.origem ||
+        mergedRow["Jornada do cliente"] ||
+        howHeard ||
+        mergedRow.canal ||
+        mergedRow.fonte ||
+        mergedRow.utm_source ||
+        ""
+      ).toLowerCase();
+
+      let canal = attribution?.category || "outras";
+      if (canal === "google" || sourceLower.includes("google")) {
+        months[ref].demosGoogle = (months[ref].demosGoogle || 0) + 1;
+      } else if (
+        canal === "meta" ||
+        sourceLower.includes("meta") ||
+        sourceLower.includes("face") ||
+        sourceLower.includes("insta") ||
+        sourceLower.includes("wapi") ||
+        sourceLower.includes("ebook") ||
+        /\b(fb|ig|insta|face)\b/.test(sourceLower)
+      ) {
+        months[ref].demosMeta = (months[ref].demosMeta || 0) + 1;
+      } else {
+        months[ref].demosOutras = (months[ref].demosOutras || 0) + 1;
+      }
+    });
+
+    return Object.values(months).sort((a, b) => a.reference_month.localeCompare(b.reference_month));
+  }, [reconciledSummary, marketingDb?.fact_crm]);
+
   // Search keyword data filtered
   const getKeywordsDataFiltered = () => {
     return marketingDb.fact_keywords.filter(k => {
@@ -4261,6 +4376,28 @@ export default function Home() {
 💡 Recomenda-se manter o sitemap atualizado e produzir novos conteúdos técnicos para capturar citações de IA em termos de arquitetura e gestão.`;
     }
 
+    // Pergunta sobre meses, melhor mês, demos realizadas por mês ou histórico
+    if (q.includes("mes") || q.includes("mês") || q.includes("periodo") || q.includes("período") || (q.includes("demo") && (q.includes("melhor") || q.includes("pior") || q.includes("ranking") || q.includes("histórico") || q.includes("historico")))) {
+      const historyList = (fullMonthlyHistory && fullMonthlyHistory.length > 0) ? fullMonthlyHistory : timeline;
+      if (historyList && historyList.length > 0) {
+        const sortedByDemos = [...historyList].sort((a, b) => (b.demos || 0) - (a.demos || 0));
+        const bestMonth = sortedByDemos[0] || {};
+        return `[HISTÓRICO REAL DE DEMOS REALIZADAS]
+📅 **Melhor Mês de Demos Realizadas**: **${bestMonth.mes || bestMonth.reference_month || "Nenhum"}**
+• **Demos Efetivamente Realizadas**: ${bestMonth.demos || 0} reuniões comerciais
+  • Atribuídas ao Google Ads: ${bestMonth.demosGoogle || 0} demos
+  • Atribuídas ao Meta Ads: ${bestMonth.demosMeta || 0} demos
+  • Outras / Playbooks: ${bestMonth.demosOutras || 0} demos
+• **Agendamentos**: ${bestMonth.conversoes || 0}
+• **Leads Totais Capturados**: ${bestMonth.leads || 0} (Meta: ${bestMonth.metaLeads || 0} | Google: ${bestMonth.googleLeads || 0})
+• **Investimento**: ${brl.format(bestMonth.investimento || 0)}
+• **CPA Médio por Demo Realizada**: ${bestMonth.demos > 0 ? brl.format(bestMonth.investimento / bestMonth.demos) : "R$ 0,00"}
+
+📊 **Histórico Consolidado de Todos os Meses**:
+${historyList.map(m => `• **${m.mes || m.reference_month}**: ${m.demos || 0} demos realizadas (${m.demosGoogle || 0} Google | ${m.demosMeta || 0} Meta) | ${m.conversoes || 0} agendamentos | ${m.leads || 0} leads | ${brl.format(m.investimento || 0)} investidos`).join("\n")}`;
+      }
+    }
+
     if (filteredCampaigns.length === 0) {
       return "Não há campanhas ou dados carregados no momento. Por favor, faça o upload de um arquivo CSV/XLSX de campanhas para gerar recomendações.";
     }
@@ -4269,7 +4406,7 @@ export default function Home() {
     const best = sorted[0] || { nome: "Nenhuma", roas: 0 };
     const worst = sorted[sorted.length - 1] || { nome: "Nenhuma", roas: 0 };
 
-    if (q.includes("escal") || q.includes("melhor") || q.includes("roas") || q.includes("aumentar orç")) {
+    if (q.includes("escal") || (q.includes("melhor") && (q.includes("campanh") || q.includes("anúncio") || q.includes("anuncio") || q.includes("conjunto"))) || q.includes("roas") || q.includes("aumentar orç")) {
       return `[ESCALA] Oportunidade de Escala Identificada:
 A campanha com melhor desempenho no período selecionado é a "${best.nome}", registrando ROAS de ${best.roas.toFixed(2).replace(".", ",")}x e CPA controlado.
 💡 Recomendação: Escalar gradualmente o orçamento diário em 15% a cada 48-72h, monitorando se o CPA se mantém dentro da meta aceitável.`;
@@ -4308,6 +4445,7 @@ Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.no
           totals,
           appointmentBreakdown,
           platformsSummary,
+          fullMonthlyHistory,
           manualAdjustments: appliedManualKpiAdjustments,
           uploadedFiles: base64Files,
           period,

@@ -1,5 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
+import fs from "fs";
+import path from "path";
 
 const DEFAULT_OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
@@ -9,9 +11,33 @@ function cleanKey(value, placeholder) {
   return value.trim();
 }
 
+function readKeyFromEnvFile(keyName) {
+  try {
+    const envPath = path.resolve(process.cwd(), ".env.local");
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, "utf8");
+      const match = content.match(new RegExp(`^${keyName}=(.*)$`, "m"));
+      if (match && match[1]) {
+        return match[1].trim().replace(/^["']|["']$/g, "");
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return "";
+}
+
+function resolveKey(envVal, keyName, placeholder) {
+  let val = cleanKey(envVal, placeholder);
+  if (!val) {
+    val = cleanKey(readKeyFromEnvFile(keyName), placeholder);
+  }
+  return val;
+}
+
 export function getAvailableProviders() {
-  const openaiKey = cleanKey(process.env.OPENAI_API_KEY, "your-openai-api-key");
-  const geminiKey = cleanKey(process.env.GEMINI_API_KEY, "your-gemini-api-key");
+  const openaiKey = resolveKey(process.env.OPENAI_API_KEY, "OPENAI_API_KEY", "your-openai-api-key");
+  const geminiKey = resolveKey(process.env.GEMINI_API_KEY, "GEMINI_API_KEY", "your-gemini-api-key");
   const preferred = (process.env.AI_PROVIDER || "auto").toLowerCase();
   const providers = [];
 
