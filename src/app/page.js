@@ -4207,9 +4207,47 @@ export default function Home() {
     triggerToast("Monitoramento ativado: CPA, CPL, fadiga criativa e verba desperdiçada serão acompanhados.");
   };
 
+  const platformsSummary = useMemo(() => {
+    const summary = {
+      meta: { spend: 0, leads: 0, clicks: 0 },
+      google: { spend: 0, leads: 0, clicks: 0 },
+    };
+    (filteredCampaigns || []).forEach((c) => {
+      const p = String(c.platform || "").toLowerCase();
+      if (p.includes("meta") || p.includes("face") || p.includes("insta")) {
+        summary.meta.spend += Number(c.spend || 0);
+        summary.meta.leads += Number(c.leads || c.conversions || 0);
+        summary.meta.clicks += Number(c.clicks || 0);
+      } else if (p.includes("google")) {
+        summary.google.spend += Number(c.spend || 0);
+        summary.google.leads += Number(c.leads || c.conversions || 0);
+        summary.google.clicks += Number(c.clicks || 0);
+      }
+    });
+    return summary;
+  }, [filteredCampaigns]);
+
   // AI Chat Assistant simulator queries
   const getSimulatedAnswer = (text) => {
     const q = text.toLowerCase();
+
+    // Pergunta sobre Leads, Meta Ads, Google Ads ou contagens de canais
+    if (q.includes("lead") || q.includes("meta") || q.includes("google") || q.includes("quantidade") || q.includes("quantos") || q.includes("135")) {
+      const metaLeads = platformsSummary.meta.leads || totals.leads || 0;
+      const googleLeads = platformsSummary.google.leads || 0;
+      const demosMeta = appointmentBreakdown?.demosMeta !== undefined ? appointmentBreakdown.demosMeta : (totals.demosMeta || 0);
+      const demosGoogle = appointmentBreakdown?.demosGoogle !== undefined ? appointmentBreakdown.demosGoogle : (totals.demosGoogle || 0);
+
+      return `[AUDITORIA DE LEADS & ATRIBUIÇÃO]
+📊 **Dados Registrados no Período Selecionado**:
+• **Leads Meta Ads**: ${metaLeads} leads capturados.
+• **Leads Google Ads**: ${googleLeads} leads capturados.
+• **Total Consolidado de Leads**: ${totals.leads || metaLeads + googleLeads} leads.
+• **Agendamentos Confirmados (DOitSA)**: ${totals.conversoes || 0} agendamentos (Meta: ${appointmentBreakdown?.meta || 0} | Google: ${appointmentBreakdown?.google || 0}).
+• **Demos Efetivamente Realizadas**: ${demosGoogle} Google Ads | ${demosMeta} Meta Ads (Total: ${totals.demos || 0}).
+
+💡 *Para ativar respostas livres com IA conectada:* Adicione sua chave \`GEMINI_API_KEY\` ou \`OPENAI_API_KEY\` no arquivo \`.env.local\`.`;
+    }
     
     // Pergunta sobre Visibilidade de IA, Bing Webmaster ou Copilot
     if (q.includes("bing") || q.includes("rastre") || q.includes("copilot") || q.includes("index") || q.includes("visibilidade") || q.includes("robô") || q.includes("robo") || q.includes("busca")) {
@@ -4268,6 +4306,8 @@ Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.no
           messages: [...messages.slice(-9), newUserMessage],
           campaigns: filteredCampaigns,
           totals,
+          appointmentBreakdown,
+          platformsSummary,
           manualAdjustments: appliedManualKpiAdjustments,
           uploadedFiles: base64Files,
           period,

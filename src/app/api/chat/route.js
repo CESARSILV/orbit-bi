@@ -8,6 +8,8 @@ export async function POST(request) {
       messages = [],
       campaigns = [],
       totals = {},
+      appointmentBreakdown = {},
+      platformsSummary = {},
       manualAdjustments = [],
       uploadedFiles,
       period,
@@ -70,18 +72,27 @@ ${(citation.groundingQueries || []).slice(0, 6).map(q => `  • "${q.query}": ${
       }
     }
 
+    const metaLeadsCount = platformsSummary.meta?.leads || totals.metaLeads || 0;
+    const googleLeadsCount = platformsSummary.google?.leads || totals.googleLeads || 0;
+    const demosGoogleCount = appointmentBreakdown.demosGoogle !== undefined ? appointmentBreakdown.demosGoogle : (totals.demosGoogle || 0);
+    const demosMetaCount = appointmentBreakdown.demosMeta !== undefined ? appointmentBreakdown.demosMeta : (totals.demosMeta || 0);
+
     // Build context prompt
     const systemPrompt = `Você é o DOit AI, o Copiloto Executivo de Inteligência de Marketing e Mídia Paga da DOit Sistemas.
 Você analisa performance de Google Ads, Meta Ads e dados de Visibilidade de IA (Bing Webmaster / Microsoft Clarity).
 Sua postura é executiva, analítica, assertiva e orientada a dados (estilo Senior Growth / Head of Performance).
 
-Resumo dos totais atuais de mídia paga:
+Resumo Consolidado de Mídia Paga & CRM:
 - Investimento Total: ${brlFormat(totals.investimento)}
-- CPA Médio (Custo por Demo Realizada do Marketing Google + Meta): ${brlFormat(totals.cpa ?? totals.cac)}
-- Total de Leads Qualificados: ${(totals.qualificados || 0).toLocaleString("pt-BR")}
-- Total de Agendamentos: ${(totals.conversoes || 0).toLocaleString("pt-BR")}
-- Total de Demos Realizadas de Marketing (Google + Meta): ${(totals.marketingDemos || totals.demos || 0).toLocaleString("pt-BR")}
-- Total Geral de Demos Realizadas: ${(totals.demos || 0).toLocaleString("pt-BR")}
+- Total de Leads Captados: ${(totals.leads || 0).toLocaleString("pt-BR")}
+  • Leads vindos do Meta Ads (Instagram/Facebook): ${metaLeadsCount.toLocaleString("pt-BR")}
+  • Leads vindos do Google Ads: ${googleLeadsCount.toLocaleString("pt-BR")}
+- Total de Leads Qualificados no CRM (Bitrix24): ${(totals.qualificados || 0).toLocaleString("pt-BR")}
+- Total de Agendamentos (DOitSA): ${(totals.conversoes || 0).toLocaleString("pt-BR")} (Meta: ${appointmentBreakdown.meta || 0}, Google: ${appointmentBreakdown.google || 0}, Playbooks/Outras: ${appointmentBreakdown.playbooksOutras || 0})
+- Demos Efetivamente Realizadas (DOitSA): ${(totals.demos || 0).toLocaleString("pt-BR")}
+  • Demos Realizadas originárias do Google Ads: ${demosGoogleCount.toLocaleString("pt-BR")}
+  • Demos Realizadas originárias do Meta Ads: ${demosMetaCount.toLocaleString("pt-BR")}
+- CPA Médio (Custo por Demo Realizada de Marketing): ${brlFormat(totals.cpa ?? totals.cac)}
 - CPL Médio: ${brlFormat(totals.cpl)}
 - CTR Médio: ${((totals.ctr || 0) * 100).toFixed(2).replace(".", ",")}%
 ${adjustmentContext}
@@ -93,12 +104,12 @@ ${JSON.stringify(campaigns, null, 2)}
 
 Diretrizes de Resposta:
 1. Responda SEMPRE em português do Brasil (PT-BR) de forma objetiva, estruturada e executiva.
-2. Utilize tags de diagnóstico no início das recomendações para facilitar leitura visual rápida:
+2. Utilize tags de diagnóstico no início das recomendações quando aplicável:
    - [OPORTUNIDADE] para onde podemos ganhar eficiência ou novos leads
    - [ESCALA] para campanhas/canais com ROAS e CPA saudáveis prontos para orçamento maior
    - [DESPERDÍCIO] para conjuntos com custo alto e pouca ou nenhuma conversão
    - [ALERTA] para desvios de métricas, erros de rastreamento ou CTR em queda
-3. Ao responder sobre presença orgânica, indexação ou robôs de IA, mencione especificamente os dados do Bing Webmaster (ex: páginas rastreadas pelo Bingbot/Copilot, impressões, cliques e consultas ranqueadas) ou do Clarity.
+3. Ao responder sobre volumes específicos de leads, agendamentos ou demos (ex: "quantos leads vieram da Meta?"), responda DIRETAMENTE com o número exato fornecido nos dados acima.
 4. Quando perguntado sobre orçamento, sugira redistribuições práticas baseadas no CPA de cada campanha.
 5. Se houver ajustes manuais, respeite o total consolidado.`;
 
