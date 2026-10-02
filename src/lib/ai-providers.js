@@ -2,7 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 
 const DEFAULT_OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
-const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 function cleanKey(value, placeholder) {
   if (!value || value === placeholder) return "";
@@ -89,13 +89,32 @@ async function callOpenAI({ apiKey, systemPrompt, userText, uploadedFiles, wants
 
 async function callGemini({ apiKey, systemPrompt, userText, uploadedFiles, wantsJson }) {
   const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({
-    model: DEFAULT_GEMINI_MODEL,
-    contents: buildGeminiParts(systemPrompt, userText, uploadedFiles),
-    config: wantsJson ? { responseMimeType: "application/json" } : undefined,
-  });
+  const modelsToTry = [DEFAULT_GEMINI_MODEL, "gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.0-flash"];
+  const uniqueModels = [...new Set(modelsToTry)];
+  let lastError = null;
 
-  return response.text || "";
+  for (const model of uniqueModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: buildGeminiParts(systemPrompt, userText, uploadedFiles),
+        config: wantsJson ? { responseMimeType: "application/json" } : undefined,
+      });
+
+      if (response?.text) {
+        return response.text;
+      }
+    } catch (err) {
+      lastError = err;
+      // Se for erro de modelo não encontrado (404/NOT_FOUND), tenta o próximo da lista
+      const isNotFound = err.status === 404 || String(err.message || "").includes("NOT_FOUND") || String(err.message || "").includes("no longer available");
+      if (!isNotFound) {
+        throw err;
+      }
+    }
+  }
+
+  throw lastError || new Error("Falha ao comunicar com os modelos Gemini disponíveis.");
 }
 
 export async function generateProviderText({ systemPrompt, userText, uploadedFiles = [], wantsJson = false }) {
