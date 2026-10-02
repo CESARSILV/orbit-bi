@@ -77,38 +77,30 @@ function firstEvidence(row, definitions) {
  * they contain an unambiguous channel token.
  */
 export function resolveLeadAttribution(row = {}) {
-  const sourceEvidence = firstEvidence(row, [
+  const definitions = [
     { field: "lead_source", value: row.lead_source, allowUnknown: true },
     { field: "customer_journey", value: row["Jornada do cliente"] || row["jornada do cliente"] || row.customer_journey || row.jornada_do_cliente || row.jornada, allowUnknown: true },
     { field: "how_heard", value: row["Como ficou sabendo do DOit ???"] || row["como ficou sabendo do doit ???"] || row["Como ficou sabendo do DOit"] || row["como ficou sabendo do doit"] || row["Como ficou sabendo"] || row["como ficou sabendo"], allowUnknown: true },
     { field: "source", value: row.source, allowUnknown: true },
     { field: "origem", value: row.origem, allowUnknown: true },
     { field: "utm_source", value: row.utm_source, allowUnknown: true },
-  ]);
-  const mediumEvidence = firstEvidence(row, [
     { field: "lead_medium", value: row.lead_medium, allowUnknown: false },
     { field: "medium", value: row.medium, allowUnknown: false },
     { field: "utm_medium", value: row.utm_medium, allowUnknown: false },
-  ]);
-  const campaignEvidence = firstEvidence(row, [
     { field: "lead_campaign", value: row.lead_campaign, allowUnknown: false },
     { field: "campaign", value: row.campaign, allowUnknown: false },
     { field: "utm_campaign", value: row.utm_campaign, allowUnknown: false },
-  ]);
+  ];
 
-  const evidences = [sourceEvidence, mediumEvidence, campaignEvidence].filter(Boolean);
-  const candidates = evidences
+  const candidates = definitions
+    .filter((d) => !isEmptyAttributionValue(d.value))
     .map((evidence) => ({
       ...evidence,
       resolved: resolveKnownCategory(evidence.value, evidence.allowUnknown),
     }))
     .filter((evidence) => evidence.resolved);
 
-  const distinctCategories = [...new Set(candidates.map((candidate) => candidate.resolved.category))];
-  const hasConflict = distinctCategories.length > 1 || candidates.some((candidate) => candidate.resolved.conflict);
-  const selected = candidates[0];
-
-  if (!selected) {
+  if (candidates.length === 0) {
     return {
       category: "sem_origem",
       method: "sem origem",
@@ -118,6 +110,13 @@ export function resolveLeadAttribution(row = {}) {
       hasConflict: false,
     };
   }
+
+  // Candidatos que identificam um canal específico têm prioridade sobre 'outras'
+  const specificCandidate = candidates.find((c) => c.resolved.category !== "outras");
+  const selected = specificCandidate || candidates[0];
+
+  const distinctSpecific = [...new Set(candidates.filter(c => c.resolved.category !== "outras").map(c => c.resolved.category))];
+  const hasConflict = distinctSpecific.length > 1;
 
   const isDeclared = selected.field === "lead_source"
     || selected.field === "source"

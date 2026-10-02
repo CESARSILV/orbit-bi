@@ -3701,7 +3701,7 @@ export default function Home() {
                 </div>
               </div>
               <ul class="attrib-list">
-                <li><strong>100% de Presença no Google:</strong> 2 agendamentos com 2 reuniões realizadas.</li>
+                <li><strong>Presença no Google Ads:</strong> 8 contatos/agendamentos com 4 reuniões realizadas (CPA de ${brlDec(1585 / 4)}).</li>
                 <li><strong>Geração de Demanda no Meta:</strong> 12 agendamentos gerados e 5 reuniões realizadas.</li>
                 <li><strong>Geração de Ativo:</strong> 135 contatos proprietários na base comercial.</li>
                 <li><strong>Custo de Equipe SDR Adicional:</strong> R$ 0,00 (apenas verba direta de mídia).</li>
