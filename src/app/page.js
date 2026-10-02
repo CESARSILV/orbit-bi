@@ -123,11 +123,18 @@ function calculateSummaryTotals(rows = []) {
     (sum, item) => sum + (item.is_crm ? (item.crm_demos || 0) : 0),
     0
   );
+  // Demos realizadas que vieram através do marketing (Google Ads + Meta Ads)
+  const marketingDemos = rows.reduce(
+    (sum, item) => sum + (item.is_crm && (item.platform === "google" || item.platform === "meta") ? (item.crm_demos || 0) : 0),
+    0
+  );
   const cliques = rows.reduce((sum, item) => sum + (item.clicks || 0), 0);
   const impressoes = rows.reduce((sum, item) => sum + (item.impressions || 0), 0);
   const alcance = rows.reduce((sum, item) => sum + (item.reach || 0), 0);
   const lucro = receita - investimento;
-  const cpa = conversoes > 0 ? investimento / conversoes : 0;
+  // CPA por demo realizada que veio através do marketing (Google + Meta). Se marketingDemos > 0, usa marketingDemos; fallback para demos totais se > 0.
+  const effectiveCpaDemos = marketingDemos > 0 ? marketingDemos : (demos > 0 ? demos : 0);
+  const cpa = effectiveCpaDemos > 0 ? investimento / effectiveCpaDemos : 0;
 
   return {
     investimento,
@@ -139,6 +146,7 @@ function calculateSummaryTotals(rows = []) {
     conversoes,
     qualificados,
     demos,
+    marketingDemos,
     cliques,
     impressoes,
     alcance,
@@ -1449,6 +1457,7 @@ export default function Home() {
           conversoes: 0,   // Agendamentos — eventos do DOitSA
           qualificados: 0,  // Clientes únicos no primeiro agendamento
           demos: 0,        // Demos efetivamente realizadas
+          marketingDemos: 0, // Demos realizadas atribuídas ao Marketing (Google + Meta)
           google: 0,
           meta: 0,
           googleLeads: 0,
@@ -1478,6 +1487,9 @@ export default function Home() {
         months[mKey].conversoes   += s.conversions || 0;
         months[mKey].qualificados += s.crm_leads   || 0;
         months[mKey].demos        += s.crm_demos   || 0;
+        if (s.platform === "google" || s.platform === "meta") {
+          months[mKey].marketingDemos += s.crm_demos || 0;
+        }
       }
 
       if (s.platform === "google" && !s.is_crm) {
@@ -2822,9 +2834,9 @@ export default function Home() {
       <div class="kpi-sub">Impressões: ${numFmt(totals.impressoes)}</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">CPA Médio (Demo/Agend.)</div>
+      <div class="kpi-label">CPA Médio (Demo Realizada)</div>
       <div class="kpi-value">${brlFmt(totals.cpa ?? totals.cac)}</div>
-      <div class="kpi-sub">Custo de aquisição de reunião</div>
+      <div class="kpi-sub">Custo por demo de marketing</div>
     </div>
   </div>
 
@@ -3965,7 +3977,7 @@ export default function Home() {
       ["CPC Geral (R$)", formulaWithOverride("cpc", "=SEERRO(B6/B7;0)"), "=Investimento/Cliques", descriptionWithOverride("cpc", "Custo médio por clique")],
       ["CPM Geral (R$)", formulaWithOverride("cpm", "=SEERRO((B6/B8)*1000;0)"), "=Investimento/Impressões×1000", descriptionWithOverride("cpm", "Custo por mil impressões")],
       ["CPL Geral (R$)", formulaWithOverride("cpl", "=SEERRO(B6/B9;0)"), "=Investimento/Leads", descriptionWithOverride("cpl", "Custo por lead")],
-      ["CPA Geral (R$)", formulaWithOverride("cpa", "=SEERRO(B6/B11;0)"), "=Investimento/Agendamentos", descriptionWithOverride("cpa", "Custo por agendamento")],
+      ["CPA Geral (R$)", formulaWithOverride("cpa", "=SEERRO(B6/B12;0)"), "=Investimento/Demos Realizadas", descriptionWithOverride("cpa", "Custo por demo realizada de marketing (Google + Meta)")],
     ];
 
     const rows = [
@@ -3996,7 +4008,7 @@ export default function Home() {
           `=SEERRO(E${rowNum}/F${rowNum};0)`,
           `=SEERRO((E${rowNum}/G${rowNum})*1000;0)`,
           `=SEERRO(E${rowNum}/H${rowNum};0)`,
-          `=SEERRO(E${rowNum}/J${rowNum};0)`,
+          `=SEERRO(E${rowNum}/K${rowNum};0)`,
           safeSpreadsheetText(item.status),
         ];
       }),
@@ -4117,7 +4129,7 @@ A campanha com melhor desempenho no período selecionado é a "${best.nome}", re
     }
     if (q.includes("cpa") || q.includes("aumentou") || q.includes("cpl") || q.includes("diagnóstico") || q.includes("diagnostico")) {
       return `[ALERTA] Diagnóstico de CPA & CPL Consolidado:
-O custo por conversão (CPA) consolidado do período está em ${brl.format(totals.cpa)}, com CPL de ${brl.format(totals.cpl)}.
+O custo por demo realizada (CPA) consolidado do marketing está em ${brl.format(totals.cpa)}, com CPL de ${brl.format(totals.cpl)}.
 A principal pressão de custo ocorre na campanha "${worst.nome}" com ROAS de ${worst.roas.toFixed(2).replace(".", ",")}x. Reduzir orçamentos ociosos dessa campanha ajudará a calibrar o CPA geral para baixo.`;
     }
     if (q.includes("desperd") || q.includes("cortar") || q.includes("perder")) {

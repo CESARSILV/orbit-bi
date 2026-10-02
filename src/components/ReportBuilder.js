@@ -34,7 +34,7 @@ const KPI_DEFS = [
   { key: "qualificados", label: "Leads Qualificados", icon: "🔮", fmt: (v) => num.format(v), desc: "Clientes únicos que chegaram ao primeiro agendamento" },
   { key: "conversoes",   label: "Agendamentos", icon: "✅", fmt: (v) => num.format(v), desc: "Clientes únicos por mês com agendamento" },
   { key: "demos",        label: "Demos Realizadas", icon: "🎬", fmt: (v) => num.format(v), desc: "Uma demo por cliente e mês de realização válida" },
-  { key: "cpa",          label: "CPA",            icon: "🏷️", fmt: (v) => brl2.format(v), desc: "Custo por agendamento" },
+  { key: "cpa",          label: "CPA (Demo Realizada)", icon: "🏷️", fmt: (v) => brl2.format(v), desc: "Custo por demo realizada de marketing (Google + Meta)" },
   { key: "cpl",          label: "CPL",            icon: "📋", fmt: (v) => brl2.format(v), desc: "Custo por lead" },
   { key: "alcance",      label: "Alcance",        icon: "🌐", fmt: (v) => num.format(v),  desc: "Pessoas alcançadas" },
 ];
@@ -61,6 +61,8 @@ function calcRowKpis(row) {
   const conversoes   = row.conversoes  || 0;
   const alcance      = row.alcance     || 0;
   const demos        = row.demos       || 0;
+  const marketingDemos = row.marketingDemos !== undefined ? row.marketingDemos : demos;
+  const effectiveCpaDemos = marketingDemos > 0 ? marketingDemos : (demos > 0 ? demos : 0);
 
   return {
     investimento,
@@ -73,7 +75,8 @@ function calcRowKpis(row) {
     qualificados,
     conversoes,
     demos,
-    cpa:      conversoes > 0 ? investimento / conversoes : 0,
+    marketingDemos,
+    cpa:      effectiveCpaDemos > 0 ? investimento / effectiveCpaDemos : 0,
     cpl:      leads      > 0 ? investimento / leads      : 0,
     alcance,
   };
@@ -84,6 +87,7 @@ function calcTotalRow(rows) {
   const total = {
     investimento: 0, cliques: 0, impressoes: 0,
     leads: 0, qualificados: 0, conversoes: 0, alcance: 0, demos: 0,
+    marketingDemos: 0,
   };
   rows.forEach(r => {
     total.investimento += r.investimento || 0;
@@ -94,6 +98,7 @@ function calcTotalRow(rows) {
     total.conversoes   += r.conversoes   || 0;
     total.alcance      += r.alcance      || 0;
     total.demos        += r.demos        || 0;
+    total.marketingDemos += (r.marketingDemos !== undefined ? r.marketingDemos : (r.demos || 0));
   });
   return calcRowKpis(total);
 }
@@ -344,6 +349,7 @@ export default function ReportBuilder({
         conversoes:   row.conversoes   || 0,
         alcance:      row.alcance      || 0,
         demos:        row.demos        || 0,
+        marketingDemos: row.marketingDemos !== undefined ? row.marketingDemos : row.demos,
       }),
     }));
   }, [timeline]);

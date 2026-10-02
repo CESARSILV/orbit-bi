@@ -77,10 +77,11 @@ Sua postura é executiva, analítica, assertiva e orientada a dados (estilo Seni
 
 Resumo dos totais atuais de mídia paga:
 - Investimento Total: ${brlFormat(totals.investimento)}
-- CPA Médio: ${brlFormat(totals.cpa ?? totals.cac)}
+- CPA Médio (Custo por Demo Realizada do Marketing Google + Meta): ${brlFormat(totals.cpa ?? totals.cac)}
 - Total de Leads Qualificados: ${(totals.qualificados || 0).toLocaleString("pt-BR")}
 - Total de Agendamentos: ${(totals.conversoes || 0).toLocaleString("pt-BR")}
-- Total de Demos Realizadas: ${(totals.demos || 0).toLocaleString("pt-BR")}
+- Total de Demos Realizadas de Marketing (Google + Meta): ${(totals.marketingDemos || totals.demos || 0).toLocaleString("pt-BR")}
+- Total Geral de Demos Realizadas: ${(totals.demos || 0).toLocaleString("pt-BR")}
 - CPL Médio: ${brlFormat(totals.cpl)}
 - CTR Médio: ${((totals.ctr || 0) * 100).toFixed(2).replace(".", ",")}%
 ${adjustmentContext}

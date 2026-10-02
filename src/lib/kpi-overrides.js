@@ -14,7 +14,7 @@ export const KPI_OVERRIDE_DEFINITIONS = Object.freeze({
   cpc: { label: "CPC Médio", kind: "derived", input: "currency" },
   cpm: { label: "CPM Médio", kind: "derived", input: "currency" },
   cpl: { label: "CPL Médio", kind: "derived", input: "currency" },
-  cpa: { label: "CPA Médio", kind: "derived", input: "currency" },
+  cpa: { label: "CPA Médio (Demo Realizada)", kind: "derived", input: "currency" },
 });
 
 export const KPI_OVERRIDE_KEYS = Object.freeze(Object.keys(KPI_OVERRIDE_DEFINITIONS));
@@ -67,8 +67,11 @@ function calculateDerivedTotals(values) {
   const impressoes = toFiniteNumber(values.impressoes);
   const leads = toFiniteNumber(values.leads);
   const conversoes = toFiniteNumber(values.conversoes);
+  const demos = toFiniteNumber(values.demos);
+  const marketingDemos = toFiniteNumber(values.marketingDemos ?? values.demos);
+  const effectiveCpaDemos = marketingDemos > 0 ? marketingDemos : (demos > 0 ? demos : 0);
   const lucro = receita - investimento;
-  const cpa = conversoes > 0 ? investimento / conversoes : 0;
+  const cpa = effectiveCpaDemos > 0 ? investimento / effectiveCpaDemos : 0;
 
   return {
     ...values,
@@ -79,7 +82,8 @@ function calculateDerivedTotals(values) {
     leads,
     conversoes,
     qualificados: toFiniteNumber(values.qualificados),
-    demos: toFiniteNumber(values.demos),
+    demos,
+    marketingDemos,
     alcance: toFiniteNumber(values.alcance),
     ctr: impressoes > 0 ? cliques / impressoes : 0,
     cpc: cliques > 0 ? investimento / cliques : 0,
@@ -543,7 +547,7 @@ export function applyKpiOverrides(baseTotals = {}, overrides = {}) {
   if (overrideMap.cliques) ["ctr", "cpc"].forEach((metric) => recalculatedMetricKeys.add(metric));
   if (overrideMap.impressoes) ["ctr", "cpm"].forEach((metric) => recalculatedMetricKeys.add(metric));
   if (overrideMap.leads) recalculatedMetricKeys.add("cpl");
-  if (overrideMap.conversoes) recalculatedMetricKeys.add("cpa");
+  if (overrideMap.conversoes || overrideMap.demos) recalculatedMetricKeys.add("cpa");
 
   const adjustedMetricKeys = KPI_OVERRIDE_KEYS.filter((metric) => Boolean(overrideMap[metric]));
   const adjustments = adjustedMetricKeys.map((metric) => {

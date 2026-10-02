@@ -28,7 +28,7 @@ const IMPACT_MESSAGES = {
   cpc: "Este valor manual passa a valer no total do recorte; as linhas continuam com o CPC recalculado a partir de investimento e cliques.",
   cpm: "Este valor manual passa a valer no total do recorte; as linhas continuam com o CPM recalculado a partir de investimento e impressões.",
   cpl: "Este valor manual passa a valer no total do recorte; as linhas continuam com o CPL recalculado a partir de investimento e leads.",
-  cpa: "Este valor manual passa a valer no total do recorte; as linhas continuam com o CPA recalculado a partir de investimento e agendamentos.",
+  cpa: "Este valor manual passa a valer no total do recorte; as linhas continuam com o CPA recalculado a partir de investimento e demos realizadas do marketing.",
 };
 
 function valueForInput(kpi, value) {
@@ -841,10 +841,10 @@ export default function KpiGrid({
     },
     {
       key: "cpa",
-      label: "CPA Médio",
+      label: "CPA Médio (Demo)",
       value: totals.cpa ?? totals.cac ?? 0,
       formatFn: (value) => brl2.format(value || 0),
-      meta: "Custo por agendamento",
+      meta: "Custo por demo de marketing (Google + Meta)",
       accent: "#ffd481",
     },
     {
