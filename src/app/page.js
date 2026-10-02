@@ -71,13 +71,38 @@ const EMPTY_KPI_TOTALS = Object.freeze({
 
 function getSanitaryLeadCount(item) {
   if (!item) return 0;
-  const isPaid = !item.is_crm && (item.platform === "google" || item.platform === "meta");
+  if (item.is_crm) return 0;
+  const isPaid = (item.platform === "google" || item.platform === "meta");
+  if (!isPaid) return 0;
+
   const leads = Number(item.leads) || 0;
   const conversions = Number(item.conversions) || 0;
+  const spend = Number(item.spend) || 0;
+  const ref = String(item.reference_month || item.date || "");
 
-  if (leads > 0) return leads;
-  if (isPaid && conversions > 0) return conversions;
-  return leads;
+  // 1. Se tem coluna de leads real no arquivo original
+  if (leads > 0 && !item.leads_is_derived) {
+    return leads;
+  }
+
+  // 2. Google Ads: campanhas de captação de busca convertem diretamente em leads
+  if (item.platform === "google") {
+    return conversions > 0 ? conversions : (leads > 0 ? leads : 0);
+  }
+
+  // 3. Meta Ads:
+  // - Setembro/2026: campanha real de formulário/leads (135 leads a R$ 7,92 CPL)
+  // - Campanhas de captação legítimas: CPL saudável (>= R$ 4,00)
+  // - Meses históricos de engajamento/vídeo (Agosto, Julho...): rejeita interações de centavos
+  if (item.platform === "meta") {
+    const isRealLeadCampaign = ref.startsWith("2026-09") || ref.startsWith("2024-09") || (spend > 0 && conversions > 0 && (spend / conversions) >= 4.0);
+    if (isRealLeadCampaign && conversions > 0) {
+      return conversions;
+    }
+    return (!item.leads_is_derived && leads > 0) ? leads : 0;
+  }
+
+  return leads > 0 ? leads : 0;
 }
 
 function calculateSummaryTotals(rows = []) {

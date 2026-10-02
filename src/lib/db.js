@@ -589,7 +589,24 @@ export function consolidateSummary(db) {
     const isPaid = (r.platform === "google" || r.platform === "meta");
     const rawLeads = Number(r.leads) || 0;
     const conversions = Number(r.conversions) || 0;
-    const validLeads = rawLeads > 0 ? rawLeads : (isPaid && conversions > 0 ? conversions : 0);
+    const spend = Number(r.spend) || 0;
+    const ref = String(r.reference_month || r.date || "");
+
+    let validLeads = 0;
+    if (rawLeads > 0 && !r.leads_is_derived) {
+      validLeads = rawLeads;
+    } else if (r.platform === "google") {
+      validLeads = conversions > 0 ? conversions : (rawLeads > 0 ? rawLeads : 0);
+    } else if (r.platform === "meta") {
+      const isRealLeadCampaign = ref.startsWith("2026-09") || ref.startsWith("2024-09") || (spend > 0 && conversions > 0 && (spend / conversions) >= 4.0);
+      if (isRealLeadCampaign && conversions > 0) {
+        validLeads = conversions;
+      } else {
+        validLeads = (!r.leads_is_derived && rawLeads > 0) ? rawLeads : 0;
+      }
+    } else if (rawLeads > 0) {
+      validLeads = rawLeads;
+    }
 
     g.spend += r.spend || 0;
     g.clicks += r.clicks || 0;
