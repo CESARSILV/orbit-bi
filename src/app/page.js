@@ -69,20 +69,33 @@ const EMPTY_KPI_TOTALS = Object.freeze({
   cac: 0,
 });
 
+function getSanitaryLeadCount(item) {
+  if (!item) return 0;
+  const isPaid = !item.is_crm && (item.platform === "google" || item.platform === "meta");
+  const leads = Number(item.leads) || 0;
+  const conversions = Number(item.conversions) || 0;
+  const clicks = Number(item.clicks) || 0;
+
+  // 1. Se tem leads declarado e válido (leads <= clicks se houver cliques)
+  if (leads > 0 && (!isPaid || clicks === 0 || leads <= clicks)) {
+    return leads;
+  }
+
+  // 2. Se leads for 0 ou derivado, aceita conversions de mídia paga (ex: formulário de cadastro Meta Ads 'Resultados' = 135)
+  // desde que passe na trava de sanidade física (conversions <= clicks)
+  if (isPaid && conversions > 0 && clicks > 0 && conversions <= clicks) {
+    return conversions;
+  }
+
+  return 0;
+}
+
 function calculateSummaryTotals(rows = []) {
   if (rows.length === 0) return { ...EMPTY_KPI_TOTALS };
 
   const investimento = rows.reduce((sum, item) => sum + (item.spend || 0), 0);
   const receita = rows.reduce((sum, item) => sum + (item.revenue || 0), 0);
-  const leads = rows.reduce((sum, item) => {
-    const isPaid = !item.is_crm && (item.platform === "google" || item.platform === "meta");
-    const itemLeads = Number(item.leads) || 0;
-    const itemClicks = Number(item.clicks) || 0;
-    if (item.leads_is_derived) return sum;
-    // Trava de sanidade física: em mídia paga, leads nunca pode exceder cliques (evita contaminação de engajamento/Resultados)
-    if (isPaid && itemClicks > 0 && itemLeads > itemClicks) return sum;
-    return sum + itemLeads;
-  }, 0);
+  const leads = rows.reduce((sum, item) => sum + getSanitaryLeadCount(item), 0);
   const conversoes = rows.reduce(
     (sum, item) => sum + (item.is_crm ? (item.conversions || 0) : 0),
     0
@@ -1437,14 +1450,7 @@ export default function Home() {
 
       const spend = s.spend || 0;
       const isPaid = !s.is_crm && (s.platform === "google" || s.platform === "meta");
-      const rawLeads = Number(s.leads) || 0;
-      const clicks = Number(s.clicks) || 0;
-      // Trava de sanidade e descarte de fallback distorcido:
-      // Nunca herda conversões genéricas de mídia paga como leads.
-      // Leads não pode superar cliques em mídia paga (anomalia de engajamentos/visualizações da Meta).
-      const rowLeads = (!s.leads_is_derived && !(isPaid && clicks > 0 && rawLeads > clicks))
-        ? rawLeads
-        : 0;
+      const rowLeads = getSanitaryLeadCount(s);
       months[mKey].receita      += s.revenue      || 0;
       months[mKey].investimento += spend;
       months[mKey].leads        += rowLeads;

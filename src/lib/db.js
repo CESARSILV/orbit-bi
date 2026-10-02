@@ -599,11 +599,16 @@ export function consolidateSummary(db) {
     const g = groups[key];
     const isPaid = (r.platform === "google" || r.platform === "meta");
     const rawLeads = Number(r.leads) || 0;
+    const conversions = Number(r.conversions) || 0;
     const clicks = Number(r.clicks) || 0;
-    // Trava de sanidade física: leads não pode superar cliques em mídia paga
-    const validLeads = (!r.leads_is_derived && !(isPaid && clicks > 0 && rawLeads > clicks))
-      ? rawLeads
-      : 0;
+
+    let validLeads = 0;
+    if (rawLeads > 0 && (!isPaid || clicks === 0 || rawLeads <= clicks)) {
+      validLeads = rawLeads;
+    } else if (isPaid && conversions > 0 && clicks > 0 && conversions <= clicks) {
+      // Aceita conversões legítimas de cadastro (ex: Meta Ads formulário instantâneo 'Resultados' = 135)
+      validLeads = conversions;
+    }
 
     g.spend += r.spend || 0;
     g.clicks += r.clicks || 0;
