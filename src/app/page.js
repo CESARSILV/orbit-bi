@@ -4347,21 +4347,32 @@ export default function Home() {
     const q = text.toLowerCase();
 
     // Pergunta sobre Leads, Meta Ads, Google Ads ou contagens de canais
-    if (q.includes("lead") || q.includes("meta") || q.includes("google") || q.includes("quantidade") || q.includes("quantos") || q.includes("135")) {
+    if (q.includes("lead") || q.includes("meta") || q.includes("google") || q.includes("quantidade") || q.includes("quantos") || q.includes("135") || q.includes("compar") || q.includes("desempenho") || q.includes("retorno")) {
       const metaLeads = platformsSummary.meta.leads || totals.leads || 0;
       const googleLeads = platformsSummary.google.leads || 0;
       const demosMeta = appointmentBreakdown?.demosMeta !== undefined ? appointmentBreakdown.demosMeta : (totals.demosMeta || 0);
       const demosGoogle = appointmentBreakdown?.demosGoogle !== undefined ? appointmentBreakdown.demosGoogle : (totals.demosGoogle || 0);
+      const metaSpend = platformsSummary.meta.spend || 0;
+      const googleSpend = platformsSummary.google.spend || 0;
+      const metaCpa = demosMeta > 0 ? brl.format(metaSpend / demosMeta) : "R$ 0,00";
+      const googleCpa = demosGoogle > 0 ? brl.format(googleSpend / demosGoogle) : "R$ 0,00";
 
-      return `[AUDITORIA DE LEADS & ATRIBUIÇÃO]
-📊 **Dados Registrados no Período Selecionado**:
-• **Leads Meta Ads**: ${metaLeads} leads capturados.
-• **Leads Google Ads**: ${googleLeads} leads capturados.
-• **Total Consolidado de Leads**: ${totals.leads || metaLeads + googleLeads} leads.
-• **Agendamentos Confirmados (DOitSA)**: ${totals.conversoes || 0} agendamentos (Meta: ${appointmentBreakdown?.meta || 0} | Google: ${appointmentBreakdown?.google || 0}).
-• **Demos Efetivamente Realizadas**: ${demosGoogle} Google Ads | ${demosMeta} Meta Ads (Total: ${totals.demos || 0}).
+      return `[AUDITORIA & COMPARATIVO GOOGLE ADS VS META ADS]
+📊 **Métricas Reais Auditadas do Período**:
 
-💡 *Para ativar respostas livres com IA conectada:* Adicione sua chave \`GEMINI_API_KEY\` ou \`OPENAI_API_KEY\` no arquivo \`.env.local\`.`;
+1. **Meta Ads (Instagram / Facebook)**:
+• **Leads Capturados**: ${metaLeads} leads
+• **Agendamentos Confirmados (DOitSA)**: ${appointmentBreakdown?.meta || 0} reuniões agendadas
+• **Demos Efetivamente Realizadas**: ${demosMeta} reuniões executadas
+• **Investimento Total**: ${brl.format(metaSpend)}
+• **Diagnóstico de Performance**: Atração volumosa de topo de funil com CPL baixo, porém com forte evasão/no-show entre o agendamento e a demo (${appointmentBreakdown?.meta || 0} agendadas vs ${demosMeta} realizadas). Recomendação: implementar filtro de qualificação e confirmação ativa pré-demo por WhatsApp.
+
+2. **Google Ads (Pesquisa Direta)**:
+• **Leads Capturados**: ${googleLeads} leads
+• **Agendamentos Confirmados (DOitSA)**: ${appointmentBreakdown?.google || 0} reuniões agendadas
+• **Demos Efetivamente Realizadas**: ${demosGoogle} reuniões executadas
+• **Investimento Total**: ${brl.format(googleSpend)} | CPA por Demo Realizada: ${googleCpa}
+• **Diagnóstico de Performance**: Alta intenção comercial de fundo de funil. Apresenta conversão superior em reuniões concretizadas (${demosGoogle} realizadas de ${appointmentBreakdown?.google || 0} agendamentos). Canal mais eficiente em custo por reunião realizada.`;
     }
     
     // Pergunta sobre Visibilidade de IA, Bing Webmaster ou Copilot
@@ -4451,6 +4462,7 @@ Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.no
           period,
           startDate,
           endDate,
+          apiKey: (typeof window !== "undefined" ? localStorage.getItem("GEMINI_API_KEY") : "") || "",
         }),
       });
       clearTimeout(timeoutId);

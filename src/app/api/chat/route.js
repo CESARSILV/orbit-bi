@@ -17,6 +17,7 @@ export async function POST(request) {
       startDate,
       endDate,
       aiVisibility,
+      apiKey,
     } = await request.json();
 
     const appliedManualAdjustments = Array.isArray(manualAdjustments) ? manualAdjustments : [];
@@ -140,6 +141,7 @@ Diretrizes de Formatação:
       systemPrompt,
       userText: latestUserMsg,
       uploadedFiles,
+      overrideKey: apiKey ? { geminiKey: apiKey } : {},
     });
 
     return NextResponse.json({ reply: result.text, provider: result.provider });
