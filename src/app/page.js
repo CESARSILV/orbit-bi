@@ -9,11 +9,9 @@ import ControlStrip from "@/components/ControlStrip";
 import KpiGrid from "@/components/KpiGrid";
 import HistoricalChart from "@/components/HistoricalChart";
 import DonutChart from "@/components/DonutChart";
-import CampaignTable from "@/components/CampaignTable";
 import ChatAssistant from "@/components/ChatAssistant";
 import UploadZone from "@/components/UploadZone";
 import AuthModal from "@/components/AuthModal";
-import AIVisibilityChart from "@/components/AIVisibilityChart";
 import TimeHeatmap from "@/components/TimeHeatmap";
 import RegionalMap from "@/components/RegionalMap";
 import ReportBuilder from "@/components/ReportBuilder";
@@ -4587,26 +4585,26 @@ Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.no
             <DonutChart key={`donut-${dashboardResetKey}`} campaigns={Object.values(allCampaigns)} timeline={timeline} />
           </section>
 
-          <section className="segmentation-grid">
-            <AIVisibilityChart key={`ai-${dashboardResetKey}`} startDate={startDate} endDate={endDate} period={period} />
-            {timeData && (
-              <TimeHeatmap
-                key={`time-${dashboardResetKey}`}
-                timeData={timeData}
-                onImport={() => document.getElementById("fileInput")?.click()}
-              />
-            )}
-            {geoData && (
-              <RegionalMap
-                key={`geo-${dashboardResetKey}`}
-                geoData={geoData}
-                onImport={() => document.getElementById("fileInput")?.click()}
-              />
-            )}
-          </section>
+          {(timeData || geoData) && (
+            <section className="segmentation-grid">
+              {timeData && (
+                <TimeHeatmap
+                  key={`time-${dashboardResetKey}`}
+                  timeData={timeData}
+                  onImport={() => document.getElementById("fileInput")?.click()}
+                />
+              )}
+              {geoData && (
+                <RegionalMap
+                  key={`geo-${dashboardResetKey}`}
+                  geoData={geoData}
+                  onImport={() => document.getElementById("fileInput")?.click()}
+                />
+              )}
+            </section>
+          )}
 
-          <section className="analytics-grid operations-grid">
-            <CampaignTable key={`table-${dashboardResetKey}`} campaigns={filteredCampaigns} />
+          <section className="analytics-grid" style={{ gridTemplateColumns: "1fr" }}>
             <ChatAssistant
               key={`chat-${dashboardResetKey}`}
               messages={messages}
@@ -4620,36 +4618,6 @@ Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.no
               onClearMessages={() => setMessages(INITIAL_MESSAGES)}
               onRegenerateLast={handleRegenerateLast}
             />
-          </section>
-
-
-          <section className="report-grid" id="relatorios">
-            <article>
-              <p className="eyebrow">Relatório & Apresentação Executiva</p>
-              <h2>Exportações prontas para a diretoria</h2>
-              <p>Gere slides horizontais para apresentação ao vivo ou relatório formal com KPIs, atribuição de canais e recomendações com IA em PT-BR.</p>
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "14px" }}>
-                <button 
-                  className="primary-btn" 
-                  id="btnSlidesBottom" 
-                  onClick={handleGenerateSlides}
-                  style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)", border: "none" }}
-                >
-                  🖥️ Apresentação em Slides (16:9)
-                </button>
-                <button className="secondary-btn" id="btnReportBottom" onClick={handleGenerateReport}>
-                  📄 Relatório A4 (PDF)
-                </button>
-              </div>
-            </article>
-            <article id="automacoes">
-              <p className="eyebrow">Automações inteligentes</p>
-              <h2>Alertas de performance</h2>
-              <p>Monitore aumento de CPA, fadiga criativa, desperdício de verba e oportunidades de escala antes que virem problema.</p>
-              <button className="ghost-btn" id="btnAutomation" onClick={handleToggleAutomation}>
-                Ativar monitoramento
-              </button>
-            </article>
           </section>
 
           {/* ── FIM do bloco condicional (não-relatórios) ──── */}
