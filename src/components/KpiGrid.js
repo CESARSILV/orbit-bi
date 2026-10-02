@@ -759,22 +759,6 @@ export default function KpiGrid({
       accent: "#b99cff",
     },
     {
-      key: "cliques",
-      label: "Cliques Totais",
-      value: totals.cliques || 0,
-      formatFn: formatCount,
-      meta: "Cliques em anúncios",
-      accent: "#ffd481",
-    },
-    {
-      key: "impressoes",
-      label: "Impressões Totais",
-      value: totals.impressoes || 0,
-      formatFn: formatCount,
-      meta: "Exibições de anúncios",
-      accent: "#7bb7ff",
-    },
-    {
       key: "leads",
       label: "Leads",
       value: totals.leads || 0,
@@ -816,22 +800,6 @@ export default function KpiGrid({
       accent: "#ffd481",
     },
     {
-      key: "cpc",
-      label: "CPC Médio",
-      value: totals.cpc || 0,
-      formatFn: (value) => brl2.format(value || 0),
-      meta: "Custo por clique médio",
-      accent: "#7cf7be",
-    },
-    {
-      key: "cpm",
-      label: "CPM Médio",
-      value: totals.cpm || 0,
-      formatFn: (value) => brl2.format(value || 0),
-      meta: "Custo por mil impressões",
-      accent: "#b99cff",
-    },
-    {
       key: "cpl",
       label: "CPL Médio",
       value: totals.cpl || 0,
@@ -846,14 +814,6 @@ export default function KpiGrid({
       formatFn: (value) => brl2.format(value || 0),
       meta: "Custo por demo de marketing (Google + Meta)",
       accent: "#ffd481",
-    },
-    {
-      key: "alcance",
-      label: "Alcance",
-      value: totals.alcance || 0,
-      formatFn: formatCount,
-      meta: "Pessoas únicas impactadas",
-      accent: "#b99cff",
     },
   ];
 
