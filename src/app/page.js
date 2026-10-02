@@ -781,11 +781,20 @@ export default function Home() {
 
   const uniqueValues = useMemo(() => {
     const monthsMap = {};
-    marketingDb.fact_marketing_summary.forEach(s => {
-      if (s.reference_month && s.reference_label) {
-        monthsMap[s.reference_month] = s.reference_label;
+    const registerMonth = (s) => {
+      const ref = getRowReferenceMonth(s) || (s.reference_month && /^\d{4}-\d{2}$/.test(s.reference_month) ? s.reference_month : "");
+      if (ref && /^\d{4}-\d{2}$/.test(ref)) {
+        if (!monthsMap[ref]) {
+          const [y, m] = ref.split("-").map(Number);
+          const label = s.reference_label || (m >= 1 && m <= 12 ? `${MONTHS_PT[m - 1]}/${y}` : ref);
+          monthsMap[ref] = label;
+        }
       }
-    });
+    };
+
+    (marketingDb.fact_marketing_summary || []).forEach(registerMonth);
+    (marketingDb.fact_campaigns || []).forEach(registerMonth);
+    (marketingDb.fact_crm || []).forEach(registerMonth);
 
     // Garante que Setembro/2026 esteja disponível no seletor de meses
     if (!monthsMap["2026-09"]) {
@@ -797,9 +806,6 @@ export default function Home() {
         value: val,
         label
       }))
-      // O dashboard deve exibir todos os períodos realmente importados.
-      // Não usamos a data do sistema para ocultar dados válidos, pois um
-      // relatório futuro/agendado também precisa ser auditável.
       .sort((a, b) => a.value.localeCompare(b.value));
 
     const campaigns = [...new Set(marketingDb.fact_marketing_summary.map(s => s.campaign_name))].filter(Boolean);
@@ -842,7 +848,16 @@ export default function Home() {
     return s;
   };
 
+  const getMonthEndDate = (refMonth) => {
+    if (!refMonth || !/^\d{4}-\d{2}$/.test(refMonth)) return "";
+    const [y, m] = refMonth.split("-").map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    return `${refMonth}-${String(lastDay).padStart(2, "0")}`;
+  };
+
   const getRowMonthKey = (row) => {
+    const stdMonth = getRowReferenceMonth(row);
+    if (stdMonth) return stdMonth;
     if (row.reference_month && /^\d{4}-\d{2}$/.test(row.reference_month)) {
       return row.reference_month;
     }
@@ -854,22 +869,26 @@ export default function Home() {
   };
 
   const isInsideSelectedDateRange = (row) => {
-    const rawRowDate = row.date || (row.reference_month ? `${row.reference_month}-01` : "");
-    const rowDate = normalizeDateStr(rawRowDate);
-    if (!rowDate) return true;
+    if (!startDate && !endDate) return true;
 
-    // FIX: Detect Meta Ads aggregate reports (com data de início e fim)
-    if (row.report_end_date && row.report_end_date !== rawRowDate) {
-      const reportStart = rowDate;
-      const reportEnd = normalizeDateStr(row.report_end_date);
-      if (startDate && reportEnd < startDate) return false;
-      if (endDate && reportStart > endDate) return false;
-      return true;
+    const refMonth = getRowReferenceMonth(row) || (row.reference_month && /^\d{4}-\d{2}$/.test(row.reference_month) ? row.reference_month : "");
+    const rawStart = row.date || (refMonth ? `${refMonth}-01` : "");
+    const rowStart = normalizeDateStr(rawStart);
+    if (!rowStart) return true;
+
+    // Se o registro é um dia diário específico isolado (série temporal diária)
+    const isSingleDay = (row.dataset_type === "daily_time_series" || (row.day && row.day > 1)) && /^\d{4}-\d{2}-\d{2}$/.test(rowStart);
+
+    let rowEnd = rowStart;
+    if (row.report_end_date) {
+      rowEnd = normalizeDateStr(row.report_end_date);
+    } else if (!isSingleDay && refMonth) {
+      rowEnd = getMonthEndDate(refMonth);
     }
 
-    // Normal daily records: comparação com datas normalizadas (apenas YYYY-MM-DD)
-    if (startDate && rowDate < startDate) return false;
-    if (endDate && rowDate > endDate) return false;
+    // Interseção temporal do intervalo do registro [rowStart, rowEnd] com o filtro [startDate, endDate]
+    if (startDate && rowEnd < startDate) return false;
+    if (endDate && rowStart > endDate) return false;
     return true;
   };
 
@@ -1054,7 +1073,8 @@ export default function Home() {
     return donutSummary
       .filter(r => {
         if (!isValidName(r.campaign_name)) return false;
-        if (period !== "todos" && r.reference_month !== period) return false;
+        const rMonth = getRowMonthKey(r);
+        if (period !== "todos" && rMonth !== period) return false;
         if (!isInsideSelectedDateRange(r)) return false;
         if (campaign !== "todas" && r.campaign_name !== campaign) return false;
         return true;
@@ -1258,20 +1278,22 @@ export default function Home() {
       : Math.max(0, Math.round(reconciledTotal));
     const demosRealizadas = Math.max(0, Math.round(reconciledDemos));
     // Extrai registros nominais de CRM para auditoria nominal no modal
-    const targetPeriod = (period && period !== "todos")
-      ? period
-      : (startDate ? startDate.substring(0, 7) : "");
-
     const allCrm = marketingDb?.fact_crm || [];
     const bitrixRows = allCrm.filter((r) => r.platform !== "doitsa" && r.crm_platform !== "doitsa");
 
     const leadsList = allCrm
       .filter((r) => {
         const ref = getRowReferenceMonth(r) || (r.date && String(r.date).slice(0, 7)) || (r.realized_date && String(r.realized_date).slice(0, 7));
-        if (targetPeriod && ref && ref !== targetPeriod) return false;
+        if (period && period !== "todos" && ref && ref !== period) return false;
+
+        const rawDate = r.realized_date || r.date || (ref ? `${ref}-01` : "");
+        const itemDate = normalizeDateStr(rawDate);
+        if (startDate && itemDate && itemDate < startDate) return false;
+        if (endDate && itemDate && itemDate > endDate) return false;
+
         // Filtra registros que são agendamentos ou demos
         const isScheduled = Boolean(r.date || r.reference_month || r.conversions);
-        const isDemo = Boolean(r.is_demo || r.realized_date || String(r.lead_status || "").toLowerCase().includes("demo"));
+        const isDemo = Boolean(r.is_demo || r.realized_date || String(r.lead_status || "").toLowerCase().includes("demo") || r.is_realization_event);
         return isScheduled || isDemo;
       })
       .map((r, idx) => {
@@ -4629,13 +4651,18 @@ Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.no
             startDate={startDate}
             onStartDateChange={(value) => {
               setStartDate(value);
-              if (value && endDate) {
+              let newEnd = endDate;
+              if (value && endDate && value > endDate) {
+                newEnd = value;
+                setEndDate(value);
+              }
+              if (value && newEnd) {
                 const sMonth = value.substring(0, 7);
-                const eMonth = endDate.substring(0, 7);
+                const eMonth = newEnd.substring(0, 7);
                 if (sMonth === eMonth && value.endsWith("-01")) {
                   const [y, m] = sMonth.split("-").map(Number);
                   const lastDay = new Date(y, m, 0).getDate();
-                  if (endDate === `${sMonth}-${String(lastDay).padStart(2, "0")}`) {
+                  if (newEnd === `${sMonth}-${String(lastDay).padStart(2, "0")}`) {
                     setPeriod(sMonth);
                     return;
                   }
@@ -4646,10 +4673,15 @@ Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.no
             endDate={endDate}
             onEndDateChange={(value) => {
               setEndDate(value);
-              if (startDate && value) {
-                const sMonth = startDate.substring(0, 7);
+              let newStart = startDate;
+              if (startDate && value && value < startDate) {
+                newStart = value;
+                setStartDate(value);
+              }
+              if (newStart && value) {
+                const sMonth = newStart.substring(0, 7);
                 const eMonth = value.substring(0, 7);
-                if (sMonth === eMonth && startDate.endsWith("-01")) {
+                if (sMonth === eMonth && newStart.endsWith("-01")) {
                   const [y, m] = sMonth.split("-").map(Number);
                   const lastDay = new Date(y, m, 0).getDate();
                   if (value === `${sMonth}-${String(lastDay).padStart(2, "0")}`) {
