@@ -20,7 +20,7 @@ import ReportBuilder from "@/components/ReportBuilder";
 
 // Custom ETL & DB Ingestion Imports
 import { parseCsv, parseExcelFile, detectPlatform, detectDataset, getSemanticValue, parseDate, inferReferenceMonth, isTotalOrMetadata, applyTemporalIntelligence, parseFormattedFloat, sanitizeMojibake, SYNONYMS, detectFileDateFormat, isMonthOnlySourceDate } from "@/lib/etl";
-import { getDatabase, saveDatabase, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary, getRowReferenceMonth } from "@/lib/db";
+import { getDatabase, saveDatabase, checkFileDuplicate, INITIAL_DB, createInitialDb, consolidateSummary, getRowReferenceMonth, cleanPhoneForMatch, phonesMatch, namesMatch, normalizeLeadIdForMatch } from "@/lib/db";
 import { clearAnalyticsSystem } from "@/lib/clearAnalyticsSystem";
 import { useMarketingData } from "@/lib/useMarketingData";
 import {
@@ -1217,14 +1217,15 @@ export default function Home() {
       ? Math.max(0, effectiveConversoes)
       : Math.max(0, Math.round(reconciledTotal));
     const demosRealizadas = Math.max(0, Math.round(reconciledDemos));
-    const playbooksOutras = Math.max(0, Math.round(reconciledTotal - platformCounts.meta - platformCounts.google));
-
     // Extrai registros nominais de CRM para auditoria nominal no modal
     const targetPeriod = (period && period !== "todos")
       ? period
       : (startDate ? startDate.substring(0, 7) : "");
 
-    const leadsList = (marketingDb?.fact_crm || [])
+    const allCrm = marketingDb?.fact_crm || [];
+    const bitrixRows = allCrm.filter((r) => r.platform !== "doitsa" && r.crm_platform !== "doitsa");
+
+    const leadsList = allCrm
       .filter((r) => {
         const ref = getRowReferenceMonth(r) || (r.date && String(r.date).slice(0, 7)) || (r.realized_date && String(r.realized_date).slice(0, 7));
         if (targetPeriod && ref && ref !== targetPeriod) return false;
@@ -1234,19 +1235,67 @@ export default function Home() {
         return isScheduled || isDemo;
       })
       .map((r, idx) => {
-        const attribution = resolveLeadAttribution(r);
+        // Se for registro do DOitSA ou estiver sem origem declarada, cruza com o Bitrix por ID, telefone ou nome
+        const isDoitsa = r.platform === "doitsa" || r.crm_platform === "doitsa";
+        let match = null;
+        if (isDoitsa || !r.lead_source) {
+          const rLeadId = normalizeLeadIdForMatch(r.lead_id);
+          match = bitrixRows.find((b) => {
+            const bLeadId = normalizeLeadIdForMatch(b.lead_id);
+            if (bLeadId && rLeadId && bLeadId === rLeadId) return true;
+            if (phonesMatch(b.phone, r.phone)) return true;
+            return namesMatch(b.client_name || b.nome, r.client_name || r.nome);
+          });
+        }
+
+        const mergedRow = match ? {
+          ...r,
+          lead_source: r.lead_source || match.lead_source || "",
+          lead_medium: r.lead_medium || match.lead_medium || "",
+          lead_campaign: r.lead_campaign || match.lead_campaign || "",
+          "Jornada do cliente": r["Jornada do cliente"] || match["Jornada do cliente"] || match.customer_journey || "",
+          "Como ficou sabendo do DOit ???": r["Como ficou sabendo do DOit ???"] || match["Como ficou sabendo do DOit ???"] || match["Como ficou sabendo"] || "",
+          source: r.source || match.source || "",
+          origem: r.origem || match.origem || "",
+          canal: r.canal || match.canal || "",
+          fonte: r.fonte || match.fonte || "",
+          utm_source: r.utm_source || match.utm_source || "",
+          utm_medium: r.utm_medium || match.utm_medium || "",
+          utm_campaign: r.utm_campaign || match.utm_campaign || "",
+          observacoes: r.observacoes || match.observacoes || "",
+        } : r;
+
+        const attribution = resolveLeadAttribution(mergedRow);
         const normDemo = String(r.is_demo ?? "").toLowerCase().trim();
         const isRealizada = r.is_demo === true || r.is_demo === 1 || ["true", "verdadeiro", "sim", "1", "yes"].includes(normDemo) || Boolean(r.realized_date && !String(r.lead_status || "").toLowerCase().includes("pendente"));
 
         let origemLabel = "Outras Origens";
         let canal = attribution?.category || "outras";
-        const howHeard = r["Como ficou sabendo do DOit ???"] || r["como ficou sabendo do doit ???"] || r["Como ficou sabendo"] || "";
-        const sourceLower = String(r.lead_source || r.source || r.origem || r["Jornada do cliente"] || howHeard || "").toLowerCase();
+        const howHeard = mergedRow["Como ficou sabendo do DOit ???"] || mergedRow["como ficou sabendo do doit ???"] || mergedRow["Como ficou sabendo"] || "";
+        const sourceLower = String(
+          mergedRow.lead_source ||
+          mergedRow.source ||
+          mergedRow.origem ||
+          mergedRow["Jornada do cliente"] ||
+          howHeard ||
+          mergedRow.canal ||
+          mergedRow.fonte ||
+          mergedRow.utm_source ||
+          ""
+        ).toLowerCase();
 
         if (canal === "google" || sourceLower.includes("google")) {
           canal = "google";
           origemLabel = "Google Ads";
-        } else if (canal === "meta" || sourceLower.includes("meta") || sourceLower.includes("face") || sourceLower.includes("insta")) {
+        } else if (
+          canal === "meta" ||
+          sourceLower.includes("meta") ||
+          sourceLower.includes("face") ||
+          sourceLower.includes("insta") ||
+          sourceLower.includes("wapi") ||
+          sourceLower.includes("ebook") ||
+          /\b(fb|ig|insta|face)\b/.test(sourceLower)
+        ) {
           canal = "meta";
           origemLabel = "Meta Ads";
         } else if (canal === "playbooks" || sourceLower.includes("playbook")) {
@@ -1256,14 +1305,14 @@ export default function Home() {
 
         return {
           id: r.id || `crm_${idx}`,
-          nome: r.client_name || r.nome || "Cliente sem identificação",
-          telefone: r.phone || r.telefone || "—",
+          nome: r.client_name || r.nome || match?.client_name || match?.nome || "Cliente sem identificação",
+          telefone: r.phone || r.telefone || match?.phone || match?.telefone || "—",
           canal,
           origemLabel,
           status: isRealizada ? "Demo Realizada" : "Demo Agendada",
           isRealizada,
           data: r.realized_date || r.date || "—",
-          leadSource: r.lead_source || r["Jornada do cliente"] || howHeard || r.source || "—",
+          leadSource: mergedRow.lead_source || mergedRow["Jornada do cliente"] || howHeard || mergedRow.source || match?.lead_source || "—",
         };
       })
       .reduce((acc, curr) => {
@@ -1285,10 +1334,18 @@ export default function Home() {
     const demosGoogle = leadsList.filter((l) => l.canal === "google" && l.isRealizada).length;
     const demosMeta = leadsList.filter((l) => l.canal === "meta" && l.isRealizada).length;
 
+    const effectiveMetaAppointments = platformCounts.meta > 0
+      ? platformCounts.meta
+      : leadsList.filter((l) => l.canal === "meta").length;
+    const effectiveGoogleAppointments = platformCounts.google > 0
+      ? platformCounts.google
+      : leadsList.filter((l) => l.canal === "google").length;
+    const playbooksOutras = Math.max(0, Math.round(reconciledTotal - effectiveMetaAppointments - effectiveGoogleAppointments));
+
     return {
       total,
-      meta: platformCounts.meta,
-      google: platformCounts.google,
+      meta: effectiveMetaAppointments,
+      google: effectiveGoogleAppointments,
       playbooksOutras,
       demosRealizadas,
       demosGoogle,

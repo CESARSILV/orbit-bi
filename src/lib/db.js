@@ -451,6 +451,80 @@ export async function insertDataset(db, fileMeta, rows, action = "replace") {
 }
 
 // ----------------------------------------------------
+// CRM Matching & Identity Helpers
+// ----------------------------------------------------
+
+export const normalizeLeadIdForMatch = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized || /^(?:0|null|undefined|n\/a|na|-)$/i.test(normalized)) return "";
+  return normalized;
+};
+
+export const cleanPhoneForMatch = (p) => {
+  const digits = String(p || "").replace(/\D/g, "");
+  // Telefones curtos ou formados apenas por zeros são placeholders, não
+  // identidades confiáveis para deduplicar clientes.
+  if (!digits || /^0+$/.test(digits) || digits.length < 8) return "";
+  // Unifica formatos brasileiros com ou sem o código do país.
+  if (digits.startsWith("0055") && digits.length >= 13) return digits.slice(-11);
+  if (digits.startsWith("55") && digits.length >= 12) return digits.slice(-11);
+  return digits;
+};
+
+export const phonesMatch = (p1, p2) => {
+  const d1 = cleanPhoneForMatch(p1);
+  const d2 = cleanPhoneForMatch(p2);
+  if (!d1 || !d2) return false;
+  if (d1 === d2) return true;
+  const last8_1 = d1.slice(-8);
+  const last8_2 = d2.slice(-8);
+  if (last8_1 === last8_2 && last8_1.length === 8) {
+    if (d1.length >= 10 && d2.length >= 10) {
+      const ddd1 = d1.slice(-11, -9) || d1.slice(-10, -8);
+      const ddd2 = d2.slice(-11, -9) || d2.slice(-10, -8);
+      return ddd1 === ddd2;
+    }
+    return true;
+  }
+  return false;
+};
+
+export const normalizeNameForMatch = (value) => String(value || "")
+  .toLowerCase()
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/\b(ltda|me|eireli|arquitetura|arquitetos|arquiteto|interiores|engenharia|construtora|studio|estudio|escritorio|design|usuarios|usuario|servicos)\b/g, " ")
+  .replace(/\d+/g, " ")
+  .replace(/[^a-z]/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
+
+export const getNameAliases = (value) => String(value || "")
+  .split("|")
+  .map(normalizeNameForMatch)
+  .filter(Boolean);
+
+// O nome confirma correspondência por igualdade exata ou por primeiro e último nome (mínimo 2 palavras).
+export const namesMatch = (left, right) => {
+  const leftAliases = getNameAliases(left);
+  const rightAliases = getNameAliases(right);
+
+  return leftAliases.some(a => rightAliases.some(b => {
+    const compactA = a.replace(/\s+/g, "");
+    const compactB = b.replace(/\s+/g, "");
+    if (compactA && compactB && compactA === compactB) return true;
+    const wordsA = a.split(" ").filter(w => w.length > 2);
+    const wordsB = b.split(" ").filter(w => w.length > 2);
+    if (wordsA.length >= 2 && wordsB.length >= 2) {
+      if (wordsA[0] === wordsB[0] && wordsA[wordsA.length - 1] === wordsB[wordsB.length - 1]) {
+        return true;
+      }
+    }
+    return false;
+  }));
+};
+
+// ----------------------------------------------------
 // Aggregation & Consolidation Engine
 // ----------------------------------------------------
 
@@ -628,76 +702,7 @@ export function consolidateSummary(db) {
   }
 
   // 3º: processa fact_crm (leads e demonstrações do CRM Bitrix24 & DOitSA)
-  // Cruzamento automático de dados para evitar duplicidade
-  const normalizeLeadIdForMatch = (value) => {
-    const normalized = String(value || "").trim().toLowerCase();
-    if (!normalized || /^(?:0|null|undefined|n\/a|na|-)$/i.test(normalized)) return "";
-    return normalized;
-  };
-
-  const cleanPhoneForMatch = (p) => {
-    const digits = String(p || "").replace(/\D/g, "");
-    // Telefones curtos ou formados apenas por zeros são placeholders, não
-    // identidades confiáveis para deduplicar clientes.
-    if (!digits || /^0+$/.test(digits) || digits.length < 8) return "";
-    // Unifica formatos brasileiros com ou sem o código do país.
-    if (digits.startsWith("0055") && digits.length >= 13) return digits.slice(-11);
-    if (digits.startsWith("55") && digits.length >= 12) return digits.slice(-11);
-    return digits;
-  };
-
-  const phonesMatch = (p1, p2) => {
-    const d1 = cleanPhoneForMatch(p1);
-    const d2 = cleanPhoneForMatch(p2);
-    if (!d1 || !d2) return false;
-    if (d1 === d2) return true;
-    const last8_1 = d1.slice(-8);
-    const last8_2 = d2.slice(-8);
-    if (last8_1 === last8_2 && last8_1.length === 8) {
-      if (d1.length >= 10 && d2.length >= 10) {
-        const ddd1 = d1.slice(-11, -9) || d1.slice(-10, -8);
-        const ddd2 = d2.slice(-11, -9) || d2.slice(-10, -8);
-        return ddd1 === ddd2;
-      }
-      return true;
-    }
-    return false;
-  };
-
-  const normalizeNameForMatch = (value) => String(value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\b(ltda|me|eireli|arquitetura|arquitetos|arquiteto|interiores|engenharia|construtora|studio|estudio|escritorio|design|usuarios|usuario|servicos)\b/g, " ")
-    .replace(/\d+/g, " ")
-    .replace(/[^a-z]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  const getNameAliases = (value) => String(value || "")
-    .split("|")
-    .map(normalizeNameForMatch)
-    .filter(Boolean);
-
-  // O nome confirma correspondência por igualdade exata ou por primeiro e último nome (mínimo 2 palavras).
-  const namesMatch = (left, right) => {
-    const leftAliases = getNameAliases(left);
-    const rightAliases = getNameAliases(right);
-
-    return leftAliases.some(a => rightAliases.some(b => {
-      const compactA = a.replace(/\s+/g, "");
-      const compactB = b.replace(/\s+/g, "");
-      if (compactA && compactB && compactA === compactB) return true;
-      const wordsA = a.split(" ").filter(w => w.length > 2);
-      const wordsB = b.split(" ").filter(w => w.length > 2);
-      if (wordsA.length >= 2 && wordsB.length >= 2) {
-        if (wordsA[0] === wordsB[0] && wordsA[wordsA.length - 1] === wordsB[wordsB.length - 1]) {
-          return true;
-        }
-      }
-      return false;
-    }));
-  };
+  // Cruzamento automático de dados para evitar duplicidade (helpers exportados acima)
 
   const isQualifiedBitrixStage = (stage) => {
     const normalized = normalizeNameForMatch(stage).replace(/\s+/g, "");
@@ -1034,7 +1039,6 @@ export function consolidateSummary(db) {
     const dPhone = cleanPhoneForMatch(d.phone);
     const dLeadId = normalizeLeadIdForMatch(d.lead_id);
     const match = bitrixRows.find((b) => {
-      const bPhone = cleanPhoneForMatch(b.phone);
       const bLeadId = normalizeLeadIdForMatch(b.lead_id);
 
       if (bLeadId && dLeadId && bLeadId === dLeadId) return true;
@@ -1051,6 +1055,16 @@ export function consolidateSummary(db) {
         lead_medium: match?.lead_medium || d.lead_medium || "",
         lead_campaign: match?.lead_campaign || d.lead_campaign || "",
         lead_industry: match?.lead_industry || d.lead_industry || "",
+        "Jornada do cliente": match?.["Jornada do cliente"] || match?.customer_journey || d["Jornada do cliente"] || "",
+        "Como ficou sabendo do DOit ???": match?.["Como ficou sabendo do DOit ???"] || match?.["Como ficou sabendo do DOit"] || match?.how_heard || d["Como ficou sabendo do DOit ???"] || "",
+        source: match?.source || d.source || "",
+        origem: match?.origem || match?.Origem || d.origem || "",
+        canal: match?.canal || match?.Canal || d.canal || "",
+        fonte: match?.fonte || match?.Fonte || d.fonte || "",
+        utm_source: match?.utm_source || d.utm_source || "",
+        utm_medium: match?.utm_medium || d.utm_medium || "",
+        utm_campaign: match?.utm_campaign || d.utm_campaign || "",
+        observacoes: match?.observacoes || d.observacoes || "",
       },
     };
   };
@@ -1158,7 +1172,17 @@ export function consolidateSummary(db) {
       // A origem não exclui o cliente do funil. Indicação, Playbooks e origens
       // não pagas continuam contando como qualificados/agendados; a origem serve
       // apenas para atribuição de canal.
-      const sourceStr = String(r.lead_source || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      const sourceStr = String(
+        r.lead_source ||
+        r["Jornada do cliente"] ||
+        r["Como ficou sabendo do DOit ???"] ||
+        r.source ||
+        r.origem ||
+        r.canal ||
+        r.fonte ||
+        r.utm_source ||
+        ""
+      ).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
       let detectedPlatform = r.crm_platform === "doitsa" ? "doitsa" : "bitrix";
       const attribution = resolveLeadAttribution(r);
@@ -1174,7 +1198,14 @@ export function consolidateSummary(db) {
         // Compatibilidade com o cruzamento legado de Bitrix/DOitSA.
         if (sourceStr.includes("google")) {
           detectedPlatform = "google";
-        } else if (sourceStr.includes("instagram") || sourceStr.includes("facebook") || sourceStr.includes("meta")) {
+        } else if (
+          sourceStr.includes("instagram") ||
+          sourceStr.includes("facebook") ||
+          sourceStr.includes("meta") ||
+          sourceStr.includes("wapi") ||
+          sourceStr.includes("ebook") ||
+          /\b(fb|ig|insta|face)\b/.test(sourceStr)
+        ) {
           detectedPlatform = "meta";
         }
       }
