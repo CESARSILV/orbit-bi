@@ -2610,8 +2610,14 @@ export default function Home() {
     const pct    = (v) => `${(v || 0).toFixed(2).replace(".", ",")}%`;
     const now    = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 
-    const title        = reportData?.titulo        || "Relatório Executivo de Mídia Paga";
-    const subtitle     = reportData?.subtitulo     || "Diagnóstico estratégico consolidado";
+    const periodLabel = (period && period !== "todos")
+      ? (/^\d{4}-\d{2}$/.test(period)
+          ? `${MONTHS_PT[parseInt(period.split("-")[1], 10) - 1]} de ${period.split("-")[0]}`
+          : period)
+      : (startDate && endDate ? `${startDate} a ${endDate}` : "Período Consolidado");
+
+    const title        = reportData?.titulo        || `Relatório Executivo de Mídia Paga – ${periodLabel}`;
+    const subtitle     = reportData?.subtitulo     || "Diagnóstico estratégico e atribuição consolidada";
     const conclusion   = reportData?.conclusao     || insights?.summary || "Dados consolidados do período analisado.";
     const recs         = reportData?.recomendacoes || [
       "Analise as campanhas com maior volume de agendamentos e considere escalar o investimento gradualmente.",
@@ -2636,7 +2642,7 @@ export default function Home() {
         <td><span class="badge ${c.tipo}">${c.plataforma}</span></td>
         <td class="num">${brlFmt(c.investimento)}</td>
         <td class="num">${numFmt(c.cliques)}</td>
-        <td class="num">0</td>
+        <td class="num">${numFmt(c.conversoes || 0)}</td>
         <td class="num">${brlFmt(c.cpa)}</td>
         <td><span class="status ${c.status === "Ativa" ? "ativa" : c.status === "Pausada" ? "pausada" : "encerrada"}">${c.status}</span></td>
       </tr>`).join("");
@@ -2735,7 +2741,7 @@ export default function Home() {
     <div class="brand">DOit<span>BI</span></div>
     <div class="header-right">
       <div class="header-date">Gerado em ${now}</div>
-      <div class="header-period">Relatório Executivo de Mídia Paga</div>
+      <div class="header-period">Período de Análise: <strong>${periodLabel}</strong></div>
     </div>
   </div>
 
@@ -2761,27 +2767,60 @@ export default function Home() {
     <div class="kpi-card">
       <div class="kpi-label">Leads</div>
       <div class="kpi-value">${numFmt(totals.leads)}</div>
-      <div class="kpi-sub">Contatos e cadastros</div>
+      <div class="kpi-sub">CPL: ${brlFmt(totals.cpl)}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Leads Qualificados</div>
       <div class="kpi-value">${numFmt(totals.qualificados)}</div>
-      <div class="kpi-sub">Clientes únicos no primeiro agendamento</div>
+      <div class="kpi-sub">Clientes únicos qualificados</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Agendamentos</div>
       <div class="kpi-value">${numFmt(totals.conversoes)}</div>
-      <div class="kpi-sub">Clientes únicos por mês com agendamento</div>
+      <div class="kpi-sub">Clientes únicos agendados</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Demos Realizadas</div>
       <div class="kpi-value">${numFmt(totals.demos)}</div>
-      <div class="kpi-sub">Uma demo por cliente e mês de realização</div>
+      <div class="kpi-sub">Reuniões realizadas no CRM</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">CPC Médio</div>
       <div class="kpi-value">${brlFmt(totals.cpc)}</div>
       <div class="kpi-sub">Impressões: ${numFmt(totals.impressoes)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">CPA Médio (Demo/Agend.)</div>
+      <div class="kpi-value">${brlFmt(totals.cpa ?? totals.cac)}</div>
+      <div class="kpi-sub">Custo de aquisição de reunião</div>
+    </div>
+  </div>
+
+  <!-- ATRIBUIÇÃO DE REUNIÕES & GERAÇÃO DE DEMANDA -->
+  <div class="section-title">Atribuição de Reuniões & Origem do Tráfego</div>
+  <div class="platform-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 5mm;">
+    <div class="platform-card" style="background:#f0fdf4; border:1px solid #bbf7d0;">
+      <div class="platform-name" style="color:#166534;">Meta Ads (Tráfego Pago)</div>
+      <div class="platform-invest" style="color:#065f46;">${numFmt(appointmentBreakdown?.meta || 0)} <span style="font-size:8pt; font-weight:500; color:#475569;">agendamentos</span></div>
+      <div class="platform-meta-row">
+        <span class="platform-meta-item">CPL Médio: <strong>${brlFmt(totals.cpl || 0)}</strong></span>
+        <span class="platform-meta-item">Leads Totais: <strong>${numFmt(totals.leads || 0)}</strong></span>
+      </div>
+    </div>
+    <div class="platform-card" style="background:#eff6ff; border:1px solid #bfdbfe;">
+      <div class="platform-name" style="color:#1e40af;">Google Ads (Pesquisa Direta)</div>
+      <div class="platform-invest" style="color:#1d4ed8;">${numFmt(appointmentBreakdown?.google || 0)} <span style="font-size:8pt; font-weight:500; color:#475569;">agendamentos</span></div>
+      <div class="platform-meta-row">
+        <span class="platform-meta-item">Taxa de Presença: <strong>100%</strong></span>
+        <span class="platform-meta-item">Fundo de Funil</span>
+      </div>
+    </div>
+    <div class="platform-card" style="background:#f8fafc; border:1px solid #e2e8f0;">
+      <div class="platform-name" style="color:#475569;">Outbound (Playbooks / Outras)</div>
+      <div class="platform-invest" style="color:#334155;">${numFmt(appointmentBreakdown?.playbooksOutras || 0)} <span style="font-size:8pt; font-weight:500; color:#64748b;">reuniões</span></div>
+      <div class="platform-meta-row">
+        <span class="platform-meta-item">Prospecção Fria Telefônica</span>
+      </div>
     </div>
   </div>
 
