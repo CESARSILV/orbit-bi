@@ -80,8 +80,12 @@ ${(citation.groundingQueries || []).slice(0, 6).map(q => `  • "${q.query}": ${
 
     const metaLeadsCount = platformsSummary.meta?.leads || totals.metaLeads || 0;
     const googleLeadsCount = platformsSummary.google?.leads || totals.googleLeads || 0;
-    const demosGoogleCount = appointmentBreakdown.demosGoogle !== undefined ? appointmentBreakdown.demosGoogle : (totals.demosGoogle || 0);
-    const demosMetaCount = appointmentBreakdown.demosMeta !== undefined ? appointmentBreakdown.demosMeta : (totals.demosMeta || 0);
+    const demosGoogleCount = totals.demosGoogle !== undefined && totals.demosGoogle > 0
+      ? totals.demosGoogle
+      : (appointmentBreakdown.demosGoogle || 0);
+    const demosMetaCount = totals.demosMeta !== undefined && totals.demosMeta > 0
+      ? totals.demosMeta
+      : (appointmentBreakdown.demosMeta || 0);
 
     const monthlyHistoryRows = Array.isArray(fullMonthlyHistory) ? fullMonthlyHistory : [];
     const monthlyHistoryText = monthlyHistoryRows.length > 0

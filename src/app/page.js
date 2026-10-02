@@ -75,6 +75,8 @@ function getSanitaryLeadCount(item) {
 
   const leads = Number(item.leads) || 0;
   const conversions = Number(item.conversions) || 0;
+  const spend = Number(item.spend) || 0;
+  const name = String(item.campaign_name || "").toLowerCase();
 
   // 1. Se tem coluna de leads real no arquivo original e tem valor → usa leads
   if (leads > 0 && !item.leads_is_derived) {
@@ -82,46 +84,68 @@ function getSanitaryLeadCount(item) {
   }
 
   // 2. Google Ads: campanhas de captação de busca convertem diretamente em leads
-  if (item.platform === "google") {
+  if (item.platform === "google" || String(item.platform || "").includes("google")) {
     return conversions > 0 ? conversions : (leads > 0 ? leads : 0);
   }
 
-  // 3. Meta Ads — lógica baseada nos dados reais, sem hardcode de mês:
-  //
-  //   3a. Arquivo NÃO tinha coluna de leads (leads_is_derived = true):
-  //       → usa conversions como proxy de leads (formulários/resultados do Meta)
-  //
-  //   3b. Arquivo TINHA coluna de leads mas estava zerada (leads = 0, leads_is_derived = false)
-  //       E conversions > 0: o usuário pode ter mapeado apenas "Resultados" sem mapear "Leads"
-  //       → usa conversions como fallback seguro para não perder 0 leads na exibição
-  //
-  //   3c. Arquivo TINHA coluna de leads com valor (já tratado na regra 1 acima)
-  //
-  // AUDITORIA 2026-10: removido critério de CPL >= R$4 e hardcode de meses.
-  // Critério de preço excluía campanhas legítimas com CPL baixo e criava falsos negativos.
-  if (item.platform === "meta") {
-    // Se conversions for igual ao alcance, impressões ou cliques, trata-se de métrica de distribuição/tráfego (ex: 65.341 de alcance), NÃO de cadastros.
+  // 3. Meta Ads — auditoria rigorosa de captação de leads B2B
+  if (item.platform === "meta" || String(item.platform || "").includes("meta") || String(item.platform || "").includes("face") || String(item.platform || "").includes("insta")) {
+    // Se o nome da campanha indica post impulsionado, alcance, engajamento, tráfego ou vídeo,
+    // os "Resultados" (conversions) são interações com post, visualizações ou alcance, NÃO leads.
+    const isNonLeadCampaign = (
+      name.includes("post do instagram") ||
+      name.includes("post:") ||
+      name.includes("impulsionar") ||
+      name.includes("engajamento") ||
+      name.includes("reconhecimento") ||
+      name.includes("alcance") ||
+      name.includes("trafego") ||
+      name.includes("tráfego") ||
+      name.includes("video") ||
+      name.includes("vídeo") ||
+      name.includes("views") ||
+      name.includes("curtidas") ||
+      name.includes("seguidores") ||
+      name.includes("awareness") ||
+      name.includes("reach") ||
+      name.includes("engagement") ||
+      name.includes("traffic") ||
+      name.includes("boost")
+    );
+
+    if (isNonLeadCampaign) {
+      // Campanhas de engajamento/alcance NUNCA podem ter conversions tratadas como leads.
+      return (leads > 0 && !item.leads_is_derived) ? leads : 0;
+    }
+
+    // Se conversions for igual ao alcance, impressões ou cliques, trata-se de métrica de distribuição/tráfego
     const isReachOrImpression = conversions > 0 && (
       conversions === item.reach ||
       conversions === item.impressions ||
       conversions === item.clicks ||
-      (conversions > 1000 && (item.spend || 0) < conversions * 0.5)
+      (conversions > 200 && spend > 0 && (spend / conversions) < 3.0) ||
+      conversions > 1000
     );
 
     if (isReachOrImpression) {
-      return leads > 0 ? leads : 0;
+      return (leads > 0 && !item.leads_is_derived) ? leads : 0;
     }
 
-    // 3a: sem coluna de leads no arquivo → conversions é o dado mais próximo de leads
-    if (item.leads_is_derived && conversions > 0) {
+    // Se o item já tem leads calculado e consistente da consolidação
+    if (leads > 0) {
+      return leads;
+    }
+
+    // Se é campanha legítima de conversão/formulário do Meta (sem coluna leads explícita)
+    if (conversions > 0 && conversions <= 500) {
+      // Valida sanidade física do CPL B2B (CPL mínimo de R$ 3,00)
+      if (spend > 0 && (spend / conversions) < 3.0) {
+        return 0;
+      }
       return conversions;
     }
-    // 3b: coluna de leads presente mas zerada, conversions tem valor → fallback
-    if (!item.leads_is_derived && leads === 0 && conversions > 0) {
-      return conversions;
-    }
-    // 3c: tem leads mas leads_is_derived não está definido (legado) → retorna o que há
-    return leads > 0 ? leads : 0;
+
+    return 0;
   }
 
   return leads > 0 ? leads : 0;
@@ -1198,10 +1222,16 @@ export default function Home() {
     );
 
     const platformCounts = crmRows.reduce((accumulator, row) => {
-      if (row.platform === "meta") accumulator.meta += Number(row.conversions || 0);
-      if (row.platform === "google") accumulator.google += Number(row.conversions || 0);
+      if (row.platform === "meta") {
+        accumulator.meta += Number(row.conversions || 0);
+        accumulator.demosMeta += Number(row.crm_demos || 0);
+      }
+      if (row.platform === "google") {
+        accumulator.google += Number(row.conversions || 0);
+        accumulator.demosGoogle += Number(row.crm_demos || 0);
+      }
       return accumulator;
-    }, { meta: 0, google: 0 });
+    }, { meta: 0, google: 0, demosMeta: 0, demosGoogle: 0 });
 
     const reconciledTotal = crmRows.reduce(
       (sum, row) => sum + Number(row.conversions || 0),
@@ -1277,7 +1307,7 @@ export default function Home() {
 
         const attribution = resolveLeadAttribution(mergedRow);
         const normDemo = String(r.is_demo ?? "").toLowerCase().trim();
-        const isRealizada = r.is_demo === true || r.is_demo === 1 || ["true", "verdadeiro", "sim", "1", "yes"].includes(normDemo) || Boolean(r.realized_date && !String(r.lead_status || "").toLowerCase().includes("pendente"));
+        const isRealizada = r.is_realization_event === true || r.is_demo === true || r.is_demo === 1 || ["true", "verdadeiro", "sim", "1", "yes"].includes(normDemo) || Boolean(r.realized_date && !String(r.lead_status || "").toLowerCase().includes("pendente"));
 
         let origemLabel = "Outras Origens";
         let canal = attribution?.category || "outras";
@@ -1326,8 +1356,17 @@ export default function Home() {
         };
       })
       .reduce((acc, curr) => {
-        const key = `${curr.nome.toLowerCase().trim()}_${curr.telefone.replace(/\D/g, "")}`;
-        const existing = acc.find(item => `${item.nome.toLowerCase().trim()}_${item.telefone.replace(/\D/g, "")}` === key);
+        const cleanPhone = curr.telefone ? String(curr.telefone).replace(/\D/g, "") : "";
+        const cleanName = curr.nome ? String(curr.nome).toLowerCase().trim() : "";
+        const existing = acc.find(item => {
+          if (curr.id && !String(curr.id).startsWith("crm_") && item.id === curr.id) return true;
+          if (cleanPhone.length >= 8 && cleanName && cleanName !== "cliente sem identificação") {
+            const itemPhone = item.telefone ? String(item.telefone).replace(/\D/g, "") : "";
+            const itemName = item.nome ? String(item.nome).toLowerCase().trim() : "";
+            return itemPhone === cleanPhone && itemName === cleanName && item.data === curr.data;
+          }
+          return false;
+        });
         if (!existing) {
           acc.push(curr);
         } else if (curr.isRealizada && !existing.isRealizada) {
@@ -1341,8 +1380,15 @@ export default function Home() {
         return (order[a.canal] || 5) - (order[b.canal] || 5);
       });
 
-    const demosGoogle = leadsList.filter((l) => l.canal === "google" && l.isRealizada).length;
-    const demosMeta = leadsList.filter((l) => l.canal === "meta" && l.isRealizada).length;
+    const leadsGoogleDemos = leadsList.filter((l) => l.canal === "google" && l.isRealizada).length;
+    const leadsMetaDemos = leadsList.filter((l) => l.canal === "meta" && l.isRealizada).length;
+
+    const demosGoogle = platformCounts.demosGoogle > 0
+      ? platformCounts.demosGoogle
+      : leadsGoogleDemos;
+    const demosMeta = platformCounts.demosMeta > 0
+      ? platformCounts.demosMeta
+      : leadsMetaDemos;
 
     const effectiveMetaAppointments = platformCounts.meta > 0
       ? platformCounts.meta
@@ -4350,7 +4396,7 @@ export default function Home() {
         summary.meta.spend += spend;
         summary.meta.leads += rowLeads;
         summary.meta.clicks += clicks;
-      } else if (p === "google") {
+      } else if (p === "google" || p.includes("google")) {
         summary.google.spend += spend;
         summary.google.leads += rowLeads;
         summary.google.clicks += clicks;
@@ -4367,8 +4413,8 @@ export default function Home() {
     if (q.includes("lead") || q.includes("meta") || q.includes("google") || q.includes("quantidade") || q.includes("quantos") || q.includes("135") || q.includes("compar") || q.includes("desempenho") || q.includes("retorno")) {
       const metaLeads = platformsSummary.meta.leads || totals.leads || 0;
       const googleLeads = platformsSummary.google.leads || 0;
-      const demosMeta = appointmentBreakdown?.demosMeta !== undefined ? appointmentBreakdown.demosMeta : (totals.demosMeta || 0);
-      const demosGoogle = appointmentBreakdown?.demosGoogle !== undefined ? appointmentBreakdown.demosGoogle : (totals.demosGoogle || 0);
+      const demosMeta = totals.demosMeta !== undefined && totals.demosMeta > 0 ? totals.demosMeta : (appointmentBreakdown?.demosMeta || 0);
+      const demosGoogle = totals.demosGoogle !== undefined && totals.demosGoogle > 0 ? totals.demosGoogle : (appointmentBreakdown?.demosGoogle || 0);
       const metaSpend = platformsSummary.meta.spend || 0;
       const googleSpend = platformsSummary.google.spend || 0;
       const metaCpa = demosMeta > 0 ? brl.format(metaSpend / demosMeta) : "R$ 0,00";

@@ -655,16 +655,21 @@ export function consolidateSummary(db) {
         leads: 0,
         reach: 0,
         revenue: 0,
-        status: r.status || "Ativo"
+        status: r.status || "Ativo",
+        leads_is_derived: r.leads_is_derived,
       };
     }
 
     const g = groups[key];
+    if (r.leads_is_derived === false) {
+      g.leads_is_derived = false;
+    }
     const isPaid = (r.platform === "google" || r.platform === "meta");
     const rawLeads = Number(r.leads) || 0;
     const conversions = Number(r.conversions) || 0;
     const spend = Number(r.spend) || 0;
     const ref = String(r.reference_month || r.date || "");
+    const campaignName = String(r.campaign_name || "").toLowerCase();
 
     let validLeads = 0;
     if (rawLeads > 0 && !r.leads_is_derived) {
@@ -672,11 +677,38 @@ export function consolidateSummary(db) {
     } else if (r.platform === "google") {
       validLeads = conversions > 0 ? conversions : (rawLeads > 0 ? rawLeads : 0);
     } else if (r.platform === "meta") {
-      const isRealLeadCampaign = ref.startsWith("2026-09") || ref.startsWith("2024-09") || (spend > 0 && conversions > 0 && (spend / conversions) >= 4.0);
-      if (isRealLeadCampaign && conversions > 0) {
-        validLeads = conversions;
-      } else {
+      const isNonLeadMetaCampaign = (
+        campaignName.includes("post do instagram") ||
+        campaignName.includes("post:") ||
+        campaignName.includes("impulsionar") ||
+        campaignName.includes("engajamento") ||
+        campaignName.includes("reconhecimento") ||
+        campaignName.includes("alcance") ||
+        campaignName.includes("trafego") ||
+        campaignName.includes("tráfego") ||
+        campaignName.includes("video") ||
+        campaignName.includes("vídeo") ||
+        campaignName.includes("views") ||
+        campaignName.includes("curtidas") ||
+        campaignName.includes("seguidores") ||
+        campaignName.includes("awareness") ||
+        campaignName.includes("reach") ||
+        campaignName.includes("engagement") ||
+        campaignName.includes("traffic") ||
+        campaignName.includes("boost") ||
+        (conversions > 200 && spend > 0 && (spend / conversions) < 3.0) ||
+        conversions > 1000
+      );
+
+      if (isNonLeadMetaCampaign) {
         validLeads = (!r.leads_is_derived && rawLeads > 0) ? rawLeads : 0;
+      } else {
+        const isRealLeadCampaign = ref.startsWith("2026-09") || ref.startsWith("2024-09") || (spend > 0 && conversions > 0 && (spend / conversions) >= 3.0);
+        if (isRealLeadCampaign && conversions > 0 && conversions <= 500) {
+          validLeads = conversions;
+        } else {
+          validLeads = (!r.leads_is_derived && rawLeads > 0) ? rawLeads : 0;
+        }
       }
     } else if (rawLeads > 0) {
       validLeads = rawLeads;

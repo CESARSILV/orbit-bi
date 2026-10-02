@@ -330,13 +330,13 @@ export default function KpiGrid({
   const googleRealizadasDemos = leads.filter((l) => l.canal === "google" && l.isRealizada).length;
   const metaRealizadasDemos = leads.filter((l) => l.canal === "meta" && l.isRealizada).length;
 
-  const googleDemosCount = appointmentBreakdown?.demosGoogle !== undefined
-    ? appointmentBreakdown.demosGoogle
-    : (totals.demosGoogle !== undefined ? totals.demosGoogle : googleRealizadasDemos);
+  const googleDemosCount = totals.demosGoogle !== undefined && totals.demosGoogle > 0
+    ? totals.demosGoogle
+    : (appointmentBreakdown?.demosGoogle !== undefined ? appointmentBreakdown.demosGoogle : googleRealizadasDemos);
 
-  const metaDemosCount = appointmentBreakdown?.demosMeta !== undefined
-    ? appointmentBreakdown.demosMeta
-    : (totals.demosMeta !== undefined ? totals.demosMeta : metaRealizadasDemos);
+  const metaDemosCount = totals.demosMeta !== undefined && totals.demosMeta > 0
+    ? totals.demosMeta
+    : (appointmentBreakdown?.demosMeta !== undefined ? appointmentBreakdown.demosMeta : metaRealizadasDemos);
 
   const kpis = [
     {
