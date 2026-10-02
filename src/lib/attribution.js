@@ -34,15 +34,30 @@ function findCategories(value) {
   if (!normalized || EMPTY_ATTRIBUTION_VALUES.has(normalized)) return [];
 
   const categories = [];
-  if (/(facebook|instagram|whatsapp|meta|paid social|social paid)/.test(normalized)) {
+
+  // Meta Ads: Facebook, Instagram, WhatsApp, Wapi, Ebook (Lead Gen), Formulários e variações
+  if (
+    /(facebook|instagram|whatsapp|meta|paid social|social paid|wapi|ebook|lead\s*ads|leadads|form\s*ads|anuncio\s*meta|meta\s*ads|cpc\s*meta|stories|reels)/.test(normalized) ||
+    /\b(fb|ig|insta|face)\b/.test(normalized)
+  ) {
     categories.push("meta");
   }
-  if (/(google|adwords|gads)/.test(normalized)) {
+
+  // Google Ads: Pesquisa, PMax, AdWords, GAds
+  if (
+    /(google|adwords|gads|pmax|performance\s*max|rede\s*de\s*pesquisa|google\s*search|cpc\s*google)/.test(normalized) ||
+    /\b(g_ads|googleads|gsearch)\b/.test(normalized)
+  ) {
     categories.push("google");
   }
-  if (normalized.includes("playbook")) {
+
+  // Playbooks / Outbound / Prospecção Telefônica
+  if (
+    /(playbook|playbooks|outbound|prospeccao|cold\s*call|ligacao|telefone|sdr)/.test(normalized)
+  ) {
     categories.push("playbooks");
   }
+
   return [...new Set(categories)];
 }
 
@@ -82,7 +97,9 @@ export function resolveLeadAttribution(row = {}) {
     { field: "customer_journey", value: row["Jornada do cliente"] || row["jornada do cliente"] || row.customer_journey || row.jornada_do_cliente || row.jornada, allowUnknown: true },
     { field: "how_heard", value: row["Como ficou sabendo do DOit ???"] || row["como ficou sabendo do doit ???"] || row["Como ficou sabendo do DOit"] || row["como ficou sabendo do doit"] || row["Como ficou sabendo"] || row["como ficou sabendo"], allowUnknown: true },
     { field: "source", value: row.source, allowUnknown: true },
-    { field: "origem", value: row.origem, allowUnknown: true },
+    { field: "origem", value: row.origem || row["Origem"] || row["origem_do_lead"] || row["Origem do Lead"], allowUnknown: true },
+    { field: "canal", value: row.canal || row["Canal"] || row["Canal de Aquisição"], allowUnknown: true },
+    { field: "fonte", value: row.fonte || row["Fonte"], allowUnknown: true },
     { field: "utm_source", value: row.utm_source, allowUnknown: true },
     { field: "lead_medium", value: row.lead_medium, allowUnknown: false },
     { field: "medium", value: row.medium, allowUnknown: false },
@@ -90,6 +107,7 @@ export function resolveLeadAttribution(row = {}) {
     { field: "lead_campaign", value: row.lead_campaign, allowUnknown: false },
     { field: "campaign", value: row.campaign, allowUnknown: false },
     { field: "utm_campaign", value: row.utm_campaign, allowUnknown: false },
+    { field: "observacoes", value: row.observacoes || row["Observações"] || row["Observação"] || row["Obs"], allowUnknown: false },
   ];
 
   const candidates = definitions

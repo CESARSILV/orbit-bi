@@ -646,6 +646,24 @@ export function consolidateSummary(db) {
     return digits;
   };
 
+  const phonesMatch = (p1, p2) => {
+    const d1 = cleanPhoneForMatch(p1);
+    const d2 = cleanPhoneForMatch(p2);
+    if (!d1 || !d2) return false;
+    if (d1 === d2) return true;
+    const last8_1 = d1.slice(-8);
+    const last8_2 = d2.slice(-8);
+    if (last8_1 === last8_2 && last8_1.length === 8) {
+      if (d1.length >= 10 && d2.length >= 10) {
+        const ddd1 = d1.slice(-11, -9) || d1.slice(-10, -8);
+        const ddd2 = d2.slice(-11, -9) || d2.slice(-10, -8);
+        return ddd1 === ddd2;
+      }
+      return true;
+    }
+    return false;
+  };
+
   const normalizeNameForMatch = (value) => String(value || "")
     .toLowerCase()
     .normalize("NFD")
@@ -661,8 +679,7 @@ export function consolidateSummary(db) {
     .map(normalizeNameForMatch)
     .filter(Boolean);
 
-  // O nome só pode confirmar uma correspondência quando for exatamente igual.
-  // Casamentos por distância ou por trecho de texto podem unir clientes distintos.
+  // O nome confirma correspondência por igualdade exata ou por primeiro e último nome (mínimo 2 palavras).
   const namesMatch = (left, right) => {
     const leftAliases = getNameAliases(left);
     const rightAliases = getNameAliases(right);
@@ -670,7 +687,15 @@ export function consolidateSummary(db) {
     return leftAliases.some(a => rightAliases.some(b => {
       const compactA = a.replace(/\s+/g, "");
       const compactB = b.replace(/\s+/g, "");
-      return Boolean(compactA && compactB && compactA === compactB);
+      if (compactA && compactB && compactA === compactB) return true;
+      const wordsA = a.split(" ").filter(w => w.length > 2);
+      const wordsB = b.split(" ").filter(w => w.length > 2);
+      if (wordsA.length >= 2 && wordsB.length >= 2) {
+        if (wordsA[0] === wordsB[0] && wordsA[wordsA.length - 1] === wordsB[wordsB.length - 1]) {
+          return true;
+        }
+      }
+      return false;
     }));
   };
 
@@ -726,13 +751,30 @@ export function consolidateSummary(db) {
     }
 
     const rawDate = String(value ?? "").trim();
+    if (!rawDate) return "";
+
+    // Números de série do Excel representam datas válidas (ex: 45550)
+    if (/^\d+(?:\.0+)?$/.test(rawDate) && Number(rawDate) >= 35000 && Number(rawDate) <= 65000) {
+      const excelDate = new Date(Math.round((Number(rawDate) - 25569) * 86400 * 1000));
+      if (!Number.isNaN(excelDate.getTime())) {
+        const y = excelDate.getUTCFullYear();
+        const m = String(excelDate.getUTCMonth() + 1).padStart(2, "0");
+        const d = String(excelDate.getUTCDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+      }
+    }
+
     const isoMatch = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s]|$)/);
     const brazilianMatch = rawDate.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:\s|$)/);
+    const brazilian2DigitMatch = rawDate.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2})(?:\s|$)/);
+
     const parts = isoMatch
       ? { year: Number(isoMatch[1]), month: Number(isoMatch[2]), day: Number(isoMatch[3]) }
       : brazilianMatch
         ? { year: Number(brazilianMatch[3]), month: Number(brazilianMatch[2]), day: Number(brazilianMatch[1]) }
-        : null;
+        : brazilian2DigitMatch
+          ? { year: 2000 + Number(brazilian2DigitMatch[3]), month: Number(brazilian2DigitMatch[2]), day: Number(brazilian2DigitMatch[1]) }
+          : null;
 
     if (!parts) return "";
 
@@ -996,7 +1038,7 @@ export function consolidateSummary(db) {
       const bLeadId = normalizeLeadIdForMatch(b.lead_id);
 
       if (bLeadId && dLeadId && bLeadId === dLeadId) return true;
-      if (bPhone && dPhone && bPhone === dPhone) return true;
+      if (phonesMatch(b.phone, d.phone)) return true;
       return namesMatch(b.client_name, d.client_name);
     });
 

@@ -995,6 +995,8 @@ export default function Home() {
         ctr,
         cpc,
         conversoes: g.conversoes,
+        cliques: g.cliques,
+        impressions: g.impressions,
         status,
         lastMonthWithSpend: g.lastMonthWithSpend,
       };
@@ -2972,12 +2974,18 @@ export default function Home() {
     const subtitle     = reportData?.subtitulo     || `Resultados Consolidados e Atribuição Estratégica – ${periodLabel}`;
     const conclusion   = reportData?.conclusao     || insights?.summary || `No ciclo de ${periodLabel}, o investimento em mídia paga gerou um custo médio por reunião realizada de ${brlDec(totals.cpa ?? totals.cac)}, abastecendo o pipeline com ${numFmt(totals.leads)} novos leads qualificados e comprovando a alta eficiência dos canais digitais.`;
     const recs         = reportData?.recomendacoes || [
-      "Escalar gradualmente as campanhas com melhor volume de agendamentos mantendo o CPA controlado abaixo de R$ 250.",
-      "Ativar cadência comercial rápida para os mais de 130 leads captados via Meta Ads a R$ 7,92.",
-      "Manter o investimento contínuo nas campanhas de busca de alta intenção do Google Ads.",
+      totals.conversoes > 0
+        ? `Escalar gradualmente as campanhas com melhor volume de agendamentos mantendo o CPA controlado.`
+        : `Otimizar criativos e segmentações de audiência para alavancar taxa de agendamento no funil.`,
+      totals.leads > 0
+        ? `Ativar cadência comercial rápida para os ${numFmt(totals.leads)} leads captados via mídia paga (CPL médio de ${brlDec(totals.cpl)}).`
+        : `Estruturar campanhas focadas em captação contínua de novos contatos qualificados.`,
+      googleInvest > 0
+        ? `Manter o investimento contínuo nas campanhas de busca de alta intenção do Google Ads.`
+        : `Ativar presença na rede de pesquisa do Google Ads para captar intenção de contratação direta.`,
     ];
     const steps        = reportData?.proximosPassos || [
-      "Apresentar a proposta de escala de verba para alcançar 15+ reuniões no próximo ciclo.",
+      "Apresentar a proposta de escala de verba alinhada com as metas de reuniões do próximo ciclo.",
       "Alinhar com o time de vendas o SLA de contato imediato para leads de mídia paga.",
       "Implementar réguas automáticas de confirmação de presença para sustentar taxa de no-show próxima de zero.",
     ];
@@ -3004,6 +3012,26 @@ export default function Home() {
 
     const metaInvest = filteredCampaigns.filter(c => c.tipo === "meta").reduce((s, c) => s + c.investimento, 0);
     const googleInvest = filteredCampaigns.filter(c => c.tipo === "google").reduce((s, c) => s + c.investimento, 0);
+
+    const leadsList = appointmentBreakdown?.leadsList || [];
+    const metaDemosCount = leadsList.filter(l => l.canal === "meta" && l.isRealizada).length;
+    const googleDemosCount = leadsList.filter(l => l.canal === "google" && l.isRealizada).length;
+    const playbooksDemosCount = leadsList.filter(l => l.canal === "playbooks" && l.isRealizada).length;
+    const outrasDemosCount = leadsList.filter(l => l.canal === "outras" && l.isRealizada).length;
+    const outboundDemosCount = playbooksDemosCount + outrasDemosCount;
+    const marketingDemosCount = metaDemosCount + googleDemosCount;
+
+    const metaAppointments = appointmentBreakdown?.meta || 0;
+    const googleAppointments = appointmentBreakdown?.google || 0;
+    const outboundAppointmentsCount = appointmentBreakdown?.playbooksOutras || 0;
+
+    const metaLeadsCount = reconciledSummary.filter(r => r.platform === "meta" && !r.is_crm && matchesCoreFilters(r)).reduce((s, r) => s + getSanitaryLeadCount(r), 0);
+    const googleLeadsCount = reconciledSummary.filter(r => r.platform === "google" && !r.is_crm && matchesCoreFilters(r)).reduce((s, r) => s + getSanitaryLeadCount(r), 0);
+
+    const metaCpa = metaDemosCount > 0 ? metaInvest / metaDemosCount : 0;
+    const googleCpa = googleDemosCount > 0 ? googleInvest / googleDemosCount : 0;
+    const marketingCpa = marketingDemosCount > 0 ? (metaInvest + googleInvest) / marketingDemosCount : (totals.cpa ?? totals.cac ?? 0);
+    const metaCpl = metaLeadsCount > 0 ? metaInvest / metaLeadsCount : (totals.cpl || 0);
 
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -3614,7 +3642,7 @@ export default function Home() {
           <div class="cover-stats-row">
             <div class="cover-stat-card">
               <div class="cover-stat-lbl">Demos Realizadas (Marketing)</div>
-              <div class="cover-stat-val">7 Reuniões</div>
+              <div class="cover-stat-val">${numFmt(marketingDemosCount > 0 ? marketingDemosCount : totals.demos)} Reuniões</div>
               <div class="cover-stat-sub">100% atração qualificada</div>
             </div>
             <div class="cover-stat-card">
@@ -3691,8 +3719,8 @@ export default function Home() {
       <div class="slide-header">
         <div>
           <div class="slide-tag">02. Auditoria de Atribuição</div>
-          <div class="slide-h1">Origem &amp; Qualidade das 18 Reuniões</div>
-          <div class="slide-sub">Diferenciação auditável entre Atração Ativa (Marketing) vs Prospecção Fria (Playbooks)</div>
+          <div class="slide-h1">Origem &amp; Qualidade das Reuniões (${numFmt(appointmentBreakdown?.demosRealizadas || totals.demos)} Realizadas)</div>
+          <div class="slide-sub">Diferenciação auditável entre Atração Ativa (Marketing) vs Prospecção Outbound / Outras</div>
         </div>
         <div class="slide-meta-right">Atribuição de Receita</div>
       </div>
@@ -3705,17 +3733,17 @@ export default function Home() {
               <div class="attrib-stats">
                 <div class="as-item">
                   <div class="as-lbl">Demos Realizadas</div>
-                  <div class="as-val" style="color:#34d399">7 Reuniões</div>
+                  <div class="as-val" style="color:#34d399">${numFmt(marketingDemosCount)} Reuniões</div>
                 </div>
                 <div class="as-item">
                   <div class="as-lbl">Custo por Demo</div>
-                  <div class="as-val">${brlDec(totals.cpa ?? totals.cac)}</div>
+                  <div class="as-val">${marketingCpa > 0 ? brlDec(marketingCpa) : "—"}</div>
                 </div>
               </div>
               <ul class="attrib-list">
-                <li><strong>Presença no Google Ads:</strong> 8 contatos/agendamentos com 4 reuniões realizadas (CPA de ${brlDec(1585 / 4)}).</li>
-                <li><strong>Geração de Demanda no Meta:</strong> 12 agendamentos gerados e 5 reuniões realizadas.</li>
-                <li><strong>Geração de Ativo:</strong> 135 contatos proprietários na base comercial.</li>
+                <li><strong>Presença no Google Ads:</strong> ${numFmt(googleAppointments)} agendamento(s) com ${numFmt(googleDemosCount)} reunião(ões) realizada(s)${googleCpa > 0 ? ` (CPA de ${brlDec(googleCpa)})` : ""}.</li>
+                <li><strong>Geração de Demanda no Meta:</strong> ${numFmt(metaAppointments)} agendamento(s) gerado(s) e ${numFmt(metaDemosCount)} reunião(ões) realizada(s).</li>
+                <li><strong>Geração de Ativo:</strong> ${numFmt(totals.leads)} contatos proprietários na base comercial.</li>
                 <li><strong>Custo de Equipe SDR Adicional:</strong> R$ 0,00 (apenas verba direta de mídia).</li>
               </ul>
             </div>
@@ -3726,33 +3754,32 @@ export default function Home() {
 
           <div class="attrib-card outbound">
             <div>
-              <span class="attrib-badge out">Terceirização Outbound</span>
-              <div class="attrib-title">Playbooks (Prospecção Telefônica)</div>
+              <span class="attrib-badge out">Outbound &amp; Outras Origens</span>
+              <div class="attrib-title">Prospecção / Playbooks / Outras</div>
               <div class="attrib-stats">
                 <div class="as-item">
                   <div class="as-lbl">Demos Realizadas</div>
-                  <div class="as-val">11 Reuniões</div>
+                  <div class="as-val">${numFmt(outboundDemosCount)} Reuniões</div>
                 </div>
                 <div class="as-item">
-                  <div class="as-lbl">Ocorrências / Perdas</div>
-                  <div class="as-val" style="color:#f59e0b">2 Perdas</div>
+                  <div class="as-lbl">Agendamentos Totais</div>
+                  <div class="as-val" style="color:#38bdf8">${numFmt(outboundAppointmentsCount)} Reuniões</div>
                 </div>
               </div>
               <ul class="attrib-list warn">
-                <li>12 reuniões agendadas no total com 1 no-show (cliente não compareceu).</li>
-                <li>1 perfil desqualificado na ponta da venda ("escritório pequeno" sem fit).</li>
-                <li>Prospecção fria via telefone (interrupção sem solicitação prévia).</li>
-                <li>Custo de mercado de assessoria: ~R$ 600 a R$ 1.000+ por demo realizada.</li>
+                <li>${numFmt(outboundAppointmentsCount)} reuniões registradas no pipeline comercial via outbound / outras.</li>
+                <li>Prospecção ativa e contatos complementares via telefone / parcerias.</li>
+                <li>Canal com custo de equipe dedicada e esforço de abordagem ativa.</li>
               </ul>
             </div>
             <div style="font-size:11px;color:#94a3b8;margin-top:10px">
-              Canal complementar, porém substancialmente mais custoso e sem geração de lista.
+              Canal complementar, exigindo equipe dedicada e sem geração de lista proprietária de marketing.
             </div>
           </div>
         </div>
       </div>
       <div class="slide-footer">
-        <span>Auditoria nominal baseada nas colunas de rastreamento do Bitrix24</span>
+        <span>Auditoria nominal baseada nos dados consolidados de CRM e Mídia</span>
         <span>Slide 03 / 06</span>
       </div>
     </div>
@@ -3779,14 +3806,14 @@ export default function Home() {
                 <span class="badge meta">Meta</span>
               </div>
               <div class="chan-metrics">
-                <div class="cm-box"><div class="cm-lbl">Investimento</div><div class="cm-val">${brlFmt(metaInvest || 1069.2)}</div></div>
-                <div class="cm-box"><div class="cm-lbl">Leads Captados</div><div class="cm-val">${numFmt(totals.leads || 135)}</div></div>
-                <div class="cm-box"><div class="cm-lbl">CPL Médio</div><div class="cm-val" style="color:#34d399">${brlDec(totals.cpl || 7.92)}</div></div>
-                <div class="cm-box"><div class="cm-lbl">Demos Realizadas</div><div class="cm-val">5 Demos</div></div>
+                <div class="cm-box"><div class="cm-lbl">Investimento</div><div class="cm-val">${brlFmt(metaInvest)}</div></div>
+                <div class="cm-box"><div class="cm-lbl">Leads Captados</div><div class="cm-val">${numFmt(metaLeadsCount)}</div></div>
+                <div class="cm-box"><div class="cm-lbl">CPL Médio</div><div class="cm-val" style="color:#34d399">${brlDec(metaCpl)}</div></div>
+                <div class="cm-box"><div class="cm-lbl">Demos Realizadas</div><div class="cm-val">${numFmt(metaDemosCount)} Demos</div></div>
               </div>
             </div>
             <p style="font-size:11px;color:#cbd5e1;line-height:1.5">
-              Custo por demo realizada de <strong>R$ 213,84</strong>, alimentando a esteira comercial com contatos extremamente baratos e gerando presença de marca contínua.
+              ${metaDemosCount > 0 ? `Custo por demo realizada de <strong>${brlDec(metaCpa)}</strong>, alimentando a esteira comercial com contatos de baixo custo.` : `Captação ativa de leads e geração de presença contínua de marca no topo do funil.`}
             </p>
           </div>
 
@@ -3800,14 +3827,14 @@ export default function Home() {
                 <span class="badge google">Google</span>
               </div>
               <div class="chan-metrics">
-                <div class="cm-box"><div class="cm-lbl">Investimento</div><div class="cm-val">${brlFmt(googleInvest || 499.65)}</div></div>
-                <div class="cm-box"><div class="cm-lbl">Agendamentos Primários</div><div class="cm-val">2</div></div>
-                <div class="cm-box"><div class="cm-lbl">Taxa de Presença</div><div class="cm-val" style="color:#34d399">100%</div></div>
-                <div class="cm-box"><div class="cm-lbl">Demos Realizadas</div><div class="cm-val">2 Demos</div></div>
+                <div class="cm-box"><div class="cm-lbl">Investimento</div><div class="cm-val">${brlFmt(googleInvest)}</div></div>
+                <div class="cm-box"><div class="cm-lbl">Agendamentos Primários</div><div class="cm-val">${numFmt(googleAppointments)}</div></div>
+                <div class="cm-box"><div class="cm-lbl">Leads / Contatos</div><div class="cm-val" style="color:#34d399">${numFmt(googleLeadsCount)}</div></div>
+                <div class="cm-box"><div class="cm-lbl">Demos Realizadas</div><div class="cm-val">${numFmt(googleDemosCount)} Demos</div></div>
               </div>
             </div>
             <p style="font-size:11px;color:#cbd5e1;line-height:1.5">
-              CPA por demo realizada de <strong>R$ 249,82</strong>. Clientes que buscaram ativamente pela solução e compareceram pontualmente à reunião de demonstração.
+              ${googleDemosCount > 0 ? `CPA por demo realizada de <strong>${brlDec(googleCpa)}</strong>. Clientes que buscaram ativamente pela solução.` : `Tráfego qualificado de alta intenção focado em conversão direta de agendamentos.`}
             </p>
           </div>
         </div>
@@ -4011,7 +4038,7 @@ export default function Home() {
           item.spend,
           item.clicks,
           item.impressions,
-          item.leads,
+          getSanitaryLeadCount(item),
           item.is_crm ? (item.crm_leads || 0) : 0,
           item.is_crm ? (item.conversions || 0) : 0,
           item.is_crm ? (item.crm_demos || 0) : 0,
