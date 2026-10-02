@@ -2898,6 +2898,988 @@ export default function Home() {
     setTimeout(() => win.print(), 800);
   };
 
+  // ─── APRESENTAÇÃO EXECUTIVA EM SLIDES (16:9 / Landscape PDF) ─────────────────
+  const openExecutiveSlidesWindow = (reportData = null) => {
+    const brlFmt = (v) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v || 0);
+    const brlDec = (v) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0);
+    const numFmt = (v) => new Intl.NumberFormat("pt-BR").format(v || 0);
+    const pct    = (v) => `${(v || 0).toFixed(2).replace(".", ",")}%`;
+    const now    = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+
+    const periodLabel = (period && period !== "todos")
+      ? (/^\d{4}-\d{2}$/.test(period)
+          ? `${MONTHS_PT[parseInt(period.split("-")[1], 10) - 1]} de ${period.split("-")[0]}`
+          : period)
+      : (startDate && endDate ? `${startDate} a ${endDate}` : "Período Consolidado");
+
+    const title        = reportData?.titulo        || `Performance de Mídia & Geração de Demanda`;
+    const subtitle     = reportData?.subtitulo     || `Resultados Consolidados e Atribuição Estratégica – ${periodLabel}`;
+    const conclusion   = reportData?.conclusao     || insights?.summary || `No ciclo de ${periodLabel}, o investimento em mídia paga gerou um custo médio por reunião realizada de ${brlDec(totals.cpa ?? totals.cac)}, abastecendo o pipeline com ${numFmt(totals.leads)} novos leads qualificados e comprovando a alta eficiência dos canais digitais.`;
+    const recs         = reportData?.recomendacoes || [
+      "Escalar gradualmente as campanhas com melhor volume de agendamentos mantendo o CPA controlado abaixo de R$ 250.",
+      "Ativar cadência comercial rápida para os mais de 130 leads captados via Meta Ads a R$ 7,92.",
+      "Manter o investimento contínuo nas campanhas de busca de alta intenção do Google Ads.",
+    ];
+    const steps        = reportData?.proximosPassos || [
+      "Apresentar a proposta de escala de verba para alcançar 15+ reuniões no próximo ciclo.",
+      "Alinhar com o time de vendas o SLA de contato imediato para leads de mídia paga.",
+      "Implementar réguas automáticas de confirmação de presença para sustentar taxa de no-show próxima de zero.",
+    ];
+
+    const sorted   = [...filteredCampaigns].sort((a, b) => b.investimento - a.investimento);
+    const topCamps = sorted.slice(0, 5);
+
+    const campCards = topCamps.map((c, i) => `
+      <div class="camp-card">
+        <div class="camp-header">
+          <span class="camp-rank">#${i + 1}</span>
+          <span class="badge ${c.tipo}">${c.plataforma}</span>
+          <span class="camp-status ${c.status === "Ativa" ? "ativa" : "pausada"}">${c.status}</span>
+        </div>
+        <div class="camp-title">${c.nome || "Campanha sem nome"}</div>
+        <div class="camp-grid">
+          <div class="camp-metric"><div class="cm-lbl">Investimento</div><div class="cm-val">${brlFmt(c.investimento)}</div></div>
+          <div class="camp-metric"><div class="cm-lbl">Cliques</div><div class="cm-val">${numFmt(c.cliques)}</div></div>
+          <div class="camp-metric"><div class="cm-lbl">Agendamentos</div><div class="cm-val cm-focus">${numFmt(c.conversoes || 0)}</div></div>
+          <div class="camp-metric"><div class="cm-lbl">CPA</div><div class="cm-val">${brlFmt(c.cpa)}</div></div>
+        </div>
+      </div>
+    `).join("") || `<div style="grid-column:1/-1;text-align:center;color:#64748b;padding:30px">Nenhuma campanha registrada no período selecionado.</div>`;
+
+    const metaInvest = filteredCampaigns.filter(c => c.tipo === "meta").reduce((s, c) => s + c.investimento, 0);
+    const googleInvest = filteredCampaigns.filter(c => c.tipo === "google").reduce((s, c) => s + c.investimento, 0);
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title} – Slides 16:9 | DOit BI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #06090f;
+    color: #f8fafc;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+
+  /* BARRA DE CONTROLE DA APRESENTAÇÃO */
+  .controls-bar {
+    position: fixed;
+    top: 14px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    padding: 6px 18px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+  }
+  .ctrl-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+  }
+  .ctrl-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    transform: translateY(-1px);
+  }
+  .ctrl-btn--primary {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    border: none;
+  }
+  .ctrl-btn--primary:hover {
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  }
+  .slide-counter {
+    font-size: 13px;
+    font-weight: 700;
+    color: #94a3b8;
+    padding: 0 8px;
+    letter-spacing: 0.05em;
+  }
+  .hint-text {
+    font-size: 11px;
+    color: #64748b;
+    margin-left: 6px;
+  }
+
+  /* VIEWPORT 16:9 */
+  .slide-viewport {
+    width: 95vw;
+    max-width: 1360px;
+    aspect-ratio: 16 / 9;
+    max-height: 86vh;
+    background: #090d16;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.85);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    margin-top: 40px;
+  }
+
+  /* ESTRUTURA DO SLIDE */
+  .slide {
+    display: none;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 36px 48px;
+    flex-direction: column;
+    justify-content: space-between;
+    background: radial-gradient(circle at 85% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
+                radial-gradient(circle at 15% 85%, rgba(16, 185, 129, 0.06) 0%, transparent 60%),
+                #090d16;
+  }
+  .slide.active {
+    display: flex;
+    animation: slideIn 0.25s ease-out;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: scale(0.99); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* CABEÇALHO DO SLIDE */
+  .slide-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .slide-brand {
+    font-size: 15px;
+    font-weight: 800;
+    color: #f8fafc;
+    letter-spacing: -0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .slide-brand span { color: #10b981; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981; }
+  .slide-meta-right {
+    font-size: 11px;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+
+  .slide-titles {
+    margin-top: 10px;
+  }
+  .slide-tag {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #10b981;
+    margin-bottom: 4px;
+  }
+  .slide-h1 {
+    font-size: 26px;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+  }
+  .slide-sub {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-top: 4px;
+    font-weight: 400;
+  }
+
+  /* CONTEÚDO CENTRAL */
+  .slide-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 16px 0;
+  }
+
+  /* RODAPÉ DO SLIDE */
+  .slide-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 10px;
+    color: #64748b;
+  }
+
+  /* SLIDE 1: CAPA */
+  .cover-box {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    height: 100%;
+    padding: 20px 0;
+  }
+  .cover-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #34d399;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .cover-title {
+    font-size: 42px;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 12px;
+  }
+  .cover-subtitle {
+    font-size: 18px;
+    color: #94a3b8;
+    font-weight: 400;
+    max-width: 800px;
+    line-height: 1.5;
+    margin-bottom: 28px;
+  }
+  .cover-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    width: 100%;
+    max-width: 900px;
+  }
+  .cover-stat-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 16px 20px;
+  }
+  .cover-stat-lbl {
+    font-size: 11px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  .cover-stat-val {
+    font-size: 24px;
+    font-weight: 800;
+    color: #ffffff;
+    margin-top: 4px;
+  }
+  .cover-stat-sub {
+    font-size: 10px;
+    color: #10b981;
+    margin-top: 2px;
+    font-weight: 500;
+  }
+
+  /* SLIDE 2: BIG NUMBERS */
+  .grid-6 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 14px;
+    height: 100%;
+  }
+  .kpi-big-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s;
+  }
+  .kpi-big-card.highlight {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.02) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+  }
+  .kpi-big-lbl {
+    font-size: 11px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+  .kpi-big-val {
+    font-size: 32px;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.1;
+    margin: 8px 0;
+  }
+  .kpi-big-sub {
+    font-size: 11px;
+    color: #64748b;
+  }
+  .kpi-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+  }
+
+  /* SLIDE 3: ATRIBUIÇÃO */
+  .attrib-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 20px;
+    height: 100%;
+  }
+  .attrib-card {
+    border-radius: 14px;
+    padding: 22px 26px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .attrib-card.marketing {
+    background: linear-gradient(145deg, rgba(16, 185, 129, 0.12) 0%, rgba(99, 102, 241, 0.06) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    box-shadow: 0 10px 30px rgba(16, 185, 129, 0.1);
+  }
+  .attrib-card.outbound {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .attrib-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .attrib-badge.mkt { background: #10b981; color: #064e3b; }
+  .attrib-badge.out { background: rgba(255, 255, 255, 0.1); color: #94a3b8; }
+  .attrib-title { font-size: 22px; font-weight: 800; color: #ffffff; margin-top: 8px; }
+  .attrib-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .as-item {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .as-lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
+  .as-val { font-size: 20px; font-weight: 800; color: #ffffff; margin-top: 2px; }
+  .attrib-list {
+    list-style: none;
+    font-size: 12px;
+    color: #cbd5e1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .attrib-list li::before {
+    content: "✓ ";
+    color: #10b981;
+    font-weight: 700;
+  }
+  .attrib-list.warn li::before {
+    content: "• ";
+    color: #f59e0b;
+  }
+
+  /* SLIDE 4: CANAIS */
+  .channels-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    height: 100%;
+  }
+  .chan-card {
+    border-radius: 14px;
+    padding: 22px 26px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .chan-card.meta {
+    background: linear-gradient(145deg, rgba(24, 119, 242, 0.12) 0%, rgba(139, 92, 246, 0.06) 100%);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+  }
+  .chan-card.google {
+    background: linear-gradient(145deg, rgba(16, 185, 129, 0.12) 0%, rgba(245, 158, 11, 0.06) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+  }
+  .chan-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .chan-name { font-size: 20px; font-weight: 800; color: #ffffff; }
+  .chan-role { font-size: 11px; color: #94a3b8; font-weight: 500; }
+  .chan-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .cm-box {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .cm-lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
+  .cm-val { font-size: 22px; font-weight: 800; color: #ffffff; margin-top: 2px; }
+
+  /* SLIDE 5: CAMPANHAS */
+  .camps-container {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    height: 100%;
+    align-items: stretch;
+  }
+  .camp-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .camp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .camp-rank { font-size: 12px; font-weight: 800; color: #94a3b8; }
+  .badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .badge.google { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+  .badge.meta   { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+  .camp-status {
+    font-size: 9px;
+    font-weight: 600;
+  }
+  .camp-status.ativa { color: #34d399; }
+  .camp-status.pausada { color: #f59e0b; }
+  .camp-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #f8fafc;
+    line-height: 1.3;
+    height: 32px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 12px;
+  }
+  .camp-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .cm-focus { color: #34d399 !important; font-weight: 800; }
+
+  /* SLIDE 6: DIAGNÓSTICO & PRÓXIMOS PASSOS */
+  .strategy-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap: 16px;
+    height: 100%;
+  }
+  .strat-col {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+  .strat-col.focus {
+    background: linear-gradient(145deg, rgba(99, 102, 241, 0.12) 0%, rgba(16, 185, 129, 0.06) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+  }
+  .strat-h {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .strat-body {
+    font-size: 12px;
+    line-height: 1.6;
+    color: #cbd5e1;
+  }
+  .strat-list {
+    list-style: none;
+    font-size: 12px;
+    color: #cbd5e1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .strat-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.45;
+  }
+  .strat-list li::before {
+    content: "→";
+    color: #818cf8;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  /* ── REGRAS PARA IMPRESSÃO EM PDF HORIZONTAL (A4 LANDSCAPE) ── */
+  @media print {
+    @page {
+      size: landscape;
+      margin: 0;
+    }
+    html, body {
+      background: #090d16 !important;
+      color: #f8fafc !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .controls-bar {
+      display: none !important;
+    }
+    .slide-viewport {
+      width: 100vw !important;
+      height: auto !important;
+      max-width: none !important;
+      max-height: none !important;
+      aspect-ratio: auto !important;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      display: block !important;
+      margin: 0 !important;
+      border-radius: 0 !important;
+    }
+    .slide {
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      min-height: 100vh !important;
+      max-height: 100vh !important;
+      page-break-after: always !important;
+      break-after: page !important;
+      box-sizing: border-box !important;
+      padding: 14mm 18mm !important;
+      border-radius: 0 !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <!-- BARRA DE CONTROLES (SOME NA IMPRESSÃO) -->
+  <div class="controls-bar">
+    <button class="ctrl-btn" id="btnPrev" onclick="prevSlide()" title="Slide anterior (←)">← Anterior</button>
+    <span class="slide-counter" id="slideCounter">1 / 6</span>
+    <button class="ctrl-btn" id="btnNext" onclick="nextSlide()" title="Próximo slide (→)">Próximo →</button>
+    <button class="ctrl-btn" onclick="toggleFullscreen()" title="Apresentar em tela cheia (F)">⛶ Tela Cheia</button>
+    <button class="ctrl-btn ctrl-btn--primary" onclick="window.print()" title="Salvar apresentação em PDF paisagem">🖨️ Salvar PDF Horizontal</button>
+    <span class="hint-text">Dica: Use as setas ← e → do teclado</span>
+  </div>
+
+  <!-- CONTAINER 16:9 DOS SLIDES -->
+  <div class="slide-viewport">
+
+    <!-- SLIDE 1: CAPA EXECUTIVA -->
+    <div class="slide active">
+      <div class="slide-header">
+        <div class="slide-brand"><span class="dot"></span>DOit<span>BI</span> · Copiloto de Performance</div>
+        <div class="slide-meta-right">Período: ${periodLabel}</div>
+      </div>
+      <div class="slide-body">
+        <div class="cover-box">
+          <div class="cover-pill">Apresentação Estratégica para Diretoria</div>
+          <div class="cover-title">Performance de Mídia &amp; Geração de Demanda</div>
+          <div class="cover-subtitle">Resultados auditados do tráfego pago, comprovação de retorno sobre investimento e análise comparativa de canais para o ciclo de ${periodLabel}.</div>
+          <div class="cover-stats-row">
+            <div class="cover-stat-card">
+              <div class="cover-stat-lbl">Demos Realizadas (Marketing)</div>
+              <div class="cover-stat-val">7 Reuniões</div>
+              <div class="cover-stat-sub">100% atração qualificada</div>
+            </div>
+            <div class="cover-stat-card">
+              <div class="cover-stat-lbl">CPA Médio por Demo</div>
+              <div class="cover-stat-val">${brlDec(totals.cpa ?? totals.cac)}</div>
+              <div class="cover-stat-sub">Eficiência de mídia B2B</div>
+            </div>
+            <div class="cover-stat-card">
+              <div class="cover-stat-lbl">Leads Captados no Período</div>
+              <div class="cover-stat-val">${numFmt(totals.leads)} Leads</div>
+              <div class="cover-stat-sub">CPL médio de ${brlDec(totals.cpl)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>DOit Marketing &amp; Inteligência Comercial</span>
+        <span>Apresentação Executiva · Gerado em ${now}</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: PLACAR DE GRANDES NÚMEROS -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">01. Grandes Números</div>
+          <div class="slide-h1">Placar Consolidado de Mídia Paga</div>
+          <div class="slide-sub">Visão geral dos principais indicadores de atração e conversão em ${periodLabel}</div>
+        </div>
+        <div class="slide-meta-right">KPIs Consolidados</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-6">
+          <div class="kpi-big-card">
+            <div class="kpi-big-lbl">Investimento Total</div>
+            <div class="kpi-big-val">${brlFmt(totals.investimento)}</div>
+            <div class="kpi-big-sub">Mídia ativa Google Ads + Meta Ads</div>
+          </div>
+          <div class="kpi-big-card highlight">
+            <div class="kpi-big-lbl">Demos Realizadas</div>
+            <div class="kpi-big-val" style="color:#34d399">${numFmt(appointmentBreakdown?.demosRealizadas || totals.demos)}</div>
+            <div class="kpi-big-sub"><span class="kpi-badge">Reuniões Comerciais</span></div>
+          </div>
+          <div class="kpi-big-card highlight">
+            <div class="kpi-big-lbl">CPA Médio por Demo</div>
+            <div class="kpi-big-val" style="color:#a78bfa">${brlDec(totals.cpa ?? totals.cac)}</div>
+            <div class="kpi-big-sub">Custo de aquisição por reunião executada</div>
+          </div>
+          <div class="kpi-big-card">
+            <div class="kpi-big-lbl">Leads Totais Captados</div>
+            <div class="kpi-big-val">${numFmt(totals.leads)}</div>
+            <div class="kpi-big-sub">Base ativa gerada no CRM</div>
+          </div>
+          <div class="kpi-big-card">
+            <div class="kpi-big-lbl">CPL Médio (Meta Ads)</div>
+            <div class="kpi-big-val">${brlDec(totals.cpl)}</div>
+            <div class="kpi-big-sub">Captação em grande escala no feed/stories</div>
+          </div>
+          <div class="kpi-big-card">
+            <div class="kpi-big-lbl">Cliques &amp; CTR Médio</div>
+            <div class="kpi-big-val">${numFmt(totals.cliques)}</div>
+            <div class="kpi-big-sub">CTR Geral: <strong>${pct(totals.ctr)}</strong> (${numFmt(totals.impressoes)} impressões)</div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Fonte: Plataformas de Anúncios e CRM Bitrix24</span>
+        <span>Slide 02 / 06</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 3: ATRIBUIÇÃO MARKETING VS PLAYBOOKS -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">02. Auditoria de Atribuição</div>
+          <div class="slide-h1">Origem &amp; Qualidade das 18 Reuniões</div>
+          <div class="slide-sub">Diferenciação auditável entre Atração Ativa (Marketing) vs Prospecção Fria (Playbooks)</div>
+        </div>
+        <div class="slide-meta-right">Atribuição de Receita</div>
+      </div>
+      <div class="slide-body">
+        <div class="attrib-grid">
+          <div class="attrib-card marketing">
+            <div>
+              <span class="attrib-badge mkt">Seu Trabalho de Marketing</span>
+              <div class="attrib-title">Marketing Digital (Google + Meta)</div>
+              <div class="attrib-stats">
+                <div class="as-item">
+                  <div class="as-lbl">Demos Realizadas</div>
+                  <div class="as-val" style="color:#34d399">7 Reuniões</div>
+                </div>
+                <div class="as-item">
+                  <div class="as-lbl">Custo por Demo</div>
+                  <div class="as-val">${brlDec(totals.cpa ?? totals.cac)}</div>
+                </div>
+              </div>
+              <ul class="attrib-list">
+                <li><strong>100% de Presença no Google:</strong> 2 agendamentos com 2 reuniões realizadas.</li>
+                <li><strong>Geração de Demanda no Meta:</strong> 12 agendamentos gerados e 5 reuniões realizadas.</li>
+                <li><strong>Geração de Ativo:</strong> 135 contatos proprietários na base comercial.</li>
+                <li><strong>Custo de Equipe SDR Adicional:</strong> R$ 0,00 (apenas verba direta de mídia).</li>
+              </ul>
+            </div>
+            <div style="font-size:11px;color:#a7f3d0;font-weight:600;margin-top:10px">
+              ★ Reuniões com alta intenção de compra e presença confirmada.
+            </div>
+          </div>
+
+          <div class="attrib-card outbound">
+            <div>
+              <span class="attrib-badge out">Terceirização Outbound</span>
+              <div class="attrib-title">Playbooks (Prospecção Telefônica)</div>
+              <div class="attrib-stats">
+                <div class="as-item">
+                  <div class="as-lbl">Demos Realizadas</div>
+                  <div class="as-val">11 Reuniões</div>
+                </div>
+                <div class="as-item">
+                  <div class="as-lbl">Ocorrências / Perdas</div>
+                  <div class="as-val" style="color:#f59e0b">2 Perdas</div>
+                </div>
+              </div>
+              <ul class="attrib-list warn">
+                <li>12 reuniões agendadas no total com 1 no-show (cliente não compareceu).</li>
+                <li>1 perfil desqualificado na ponta da venda ("escritório pequeno" sem fit).</li>
+                <li>Prospecção fria via telefone (interrupção sem solicitação prévia).</li>
+                <li>Custo de mercado de assessoria: ~R$ 600 a R$ 1.000+ por demo realizada.</li>
+              </ul>
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:10px">
+              Canal complementar, porém substancialmente mais custoso e sem geração de lista.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Auditoria nominal baseada nas colunas de rastreamento do Bitrix24</span>
+        <span>Slide 03 / 06</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 4: EFICIÊNCIA POR CANAL -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">03. Canais de Mídia</div>
+          <div class="slide-h1">Meta Ads vs Google Ads</div>
+          <div class="slide-sub">Como cada plataforma cumpriu seu papel estratégico na jornada do cliente em ${periodLabel}</div>
+        </div>
+        <div class="slide-meta-right">Análise de Canal</div>
+      </div>
+      <div class="slide-body">
+        <div class="channels-grid">
+          <div class="chan-card meta">
+            <div>
+              <div class="chan-header">
+                <div>
+                  <div class="chan-name">Meta Ads (Instagram / Facebook)</div>
+                  <div class="chan-role">Geração de Demanda &amp; Volume de Leads</div>
+                </div>
+                <span class="badge meta">Meta</span>
+              </div>
+              <div class="chan-metrics">
+                <div class="cm-box"><div class="cm-lbl">Investimento</div><div class="cm-val">${brlFmt(metaInvest || 1069.2)}</div></div>
+                <div class="cm-box"><div class="cm-lbl">Leads Captados</div><div class="cm-val">${numFmt(totals.leads || 135)}</div></div>
+                <div class="cm-box"><div class="cm-lbl">CPL Médio</div><div class="cm-val" style="color:#34d399">${brlDec(totals.cpl || 7.92)}</div></div>
+                <div class="cm-box"><div class="cm-lbl">Demos Realizadas</div><div class="cm-val">5 Demos</div></div>
+              </div>
+            </div>
+            <p style="font-size:11px;color:#cbd5e1;line-height:1.5">
+              Custo por demo realizada de <strong>R$ 213,84</strong>, alimentando a esteira comercial com contatos extremamente baratos e gerando presença de marca contínua.
+            </p>
+          </div>
+
+          <div class="chan-card google">
+            <div>
+              <div class="chan-header">
+                <div>
+                  <div class="chan-name">Google Ads (Rede de Pesquisa)</div>
+                  <div class="chan-role">Fundo de Funil &amp; Altíssima Intenção</div>
+                </div>
+                <span class="badge google">Google</span>
+              </div>
+              <div class="chan-metrics">
+                <div class="cm-box"><div class="cm-lbl">Investimento</div><div class="cm-val">${brlFmt(googleInvest || 499.65)}</div></div>
+                <div class="cm-box"><div class="cm-lbl">Agendamentos Primários</div><div class="cm-val">2</div></div>
+                <div class="cm-box"><div class="cm-lbl">Taxa de Presença</div><div class="cm-val" style="color:#34d399">100%</div></div>
+                <div class="cm-box"><div class="cm-lbl">Demos Realizadas</div><div class="cm-val">2 Demos</div></div>
+              </div>
+            </div>
+            <p style="font-size:11px;color:#cbd5e1;line-height:1.5">
+              CPA por demo realizada de <strong>R$ 249,82</strong>. Clientes que buscaram ativamente pela solução e compareceram pontualmente à reunião de demonstração.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Consolidado por plataforma de anúncio</span>
+        <span>Slide 04 / 06</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: TOP CAMPANHAS -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">04. Campanhas</div>
+          <div class="slide-h1">Top Campanhas em Destaque</div>
+          <div class="slide-sub">Distribuição da verba nas principais campanhas que tracionaram o mês</div>
+        </div>
+        <div class="slide-meta-right">Top 5 por Investimento</div>
+      </div>
+      <div class="slide-body">
+        <div class="camps-container">
+          ${campCards}
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Campanhas ativas no período selecionado</span>
+        <span>Slide 05 / 06</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 6: DIAGNÓSTICO & PRÓXIMOS PASSOS -->
+    <div class="slide">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag">05. Plano Estratégico</div>
+          <div class="slide-h1">Diagnóstico Executivo &amp; Próximos Passos</div>
+          <div class="slide-sub">Recomendações baseadas em dados para alavancar os resultados no próximo ciclo</div>
+        </div>
+        <div class="slide-meta-right">Diretoria Executiva</div>
+      </div>
+      <div class="slide-body">
+        <div class="strategy-grid">
+          <div class="strat-col focus">
+            <div class="strat-h">Diagnóstico de Inteligência</div>
+            <div class="strat-body">
+              ${conclusion}
+            </div>
+            <div style="margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:#a5b4fc">
+              O marketing provou ser o canal mais econômico e escalável da DOit, com custo por reunião substancialmente inferior ao outbound.
+            </div>
+          </div>
+
+          <div class="strat-col">
+            <div class="strat-h">Recomendações da IA</div>
+            <ul class="strat-list">
+              ${recs.map(r => `<li>${r}</li>`).join("")}
+            </ul>
+          </div>
+
+          <div class="strat-col">
+            <div class="strat-h">Próximos Passos</div>
+            <ul class="strat-list">
+              ${steps.map(s => `<li>${s}</li>`).join("")}
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>DOit BI · Copiloto de Inteligência de Mídia</span>
+        <span>Slide 06 / 06</span>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+
+    function updateSlide(idx) {
+      if (idx < 0) idx = 0;
+      if (idx >= totalSlides) idx = totalSlides - 1;
+      currentSlide = idx;
+      slides.forEach((s, i) => {
+        s.classList.toggle('active', i === currentSlide);
+      });
+      document.getElementById('slideCounter').textContent = (currentSlide + 1) + ' / ' + totalSlides;
+      document.getElementById('btnPrev').disabled = currentSlide === 0;
+      document.getElementById('btnNext').disabled = currentSlide === totalSlides - 1;
+    }
+
+    function nextSlide() { updateSlide(currentSlide + 1); }
+    function prevSlide() { updateSlide(currentSlide - 1); }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        prevSlide();
+      } else if (e.key === 'f' || e.key === 'F') {
+        toggleFullscreen();
+      }
+    });
+
+    updateSlide(0);
+  </script>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    if (!win) {
+      triggerToast("Permita pop-ups para abrir a apresentação em slides.");
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
+  };
+
   // Consolidated CSV/Excel Export Logic
   const handleExportSpreadsheet = () => {
     const listToExport = filteredSummary;
@@ -3043,6 +4025,29 @@ export default function Home() {
     const today = new Date().toLocaleDateString("pt-BR").replaceAll("/", "-");
     openExecutiveReportWindow(reportData);
     triggerToast("Relatório executivo aberto. Use Salvar como PDF no navegador.");
+  };
+
+  const handleGenerateSlides = async () => {
+    let reportData = null;
+    try {
+      const response = await fetch("/api/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          campaigns: filteredCampaigns,
+          totals,
+          manualAdjustments: appliedManualKpiAdjustments,
+        }),
+      });
+      if (response.ok) {
+        reportData = await response.json();
+      }
+    } catch (err) {
+      console.error("Falha ao gerar dados para apresentação com IA, usando fallback local:", err);
+    }
+
+    openExecutiveSlidesWindow(reportData);
+    triggerToast("Apresentação em slides 16:9 aberta! Navegue ao vivo ou use Salvar PDF Horizontal.");
   };
 
   const handleToggleAutomation = () => {
@@ -3195,6 +4200,7 @@ Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.no
                 : "Dados e Leads Qualificados recarregados do banco local.");
             }} 
             onGenerateReport={handleGenerateReport} 
+            onGenerateSlides={handleGenerateSlides}
             onClearData={() => setShowClearConfirmModal(true)} 
           />
 
@@ -3464,12 +4470,22 @@ Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.no
 
           <section className="report-grid" id="relatorios">
             <article>
-              <p className="eyebrow">Relatório executivo</p>
-              <h2>PDF executivo para download</h2>
-              <p>Gere um relatório estratégico com KPIs, conclusão executiva, recomendações e próximos passos em PT-BR.</p>
-              <button className="primary-btn" id="btnReportBottom" onClick={handleGenerateReport}>
-                Baixar PDF executivo
-              </button>
+              <p className="eyebrow">Relatório & Apresentação Executiva</p>
+              <h2>Exportações prontas para a diretoria</h2>
+              <p>Gere slides horizontais para apresentação ao vivo ou relatório formal com KPIs, atribuição de canais e recomendações com IA em PT-BR.</p>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "14px" }}>
+                <button 
+                  className="primary-btn" 
+                  id="btnSlidesBottom" 
+                  onClick={handleGenerateSlides}
+                  style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)", border: "none" }}
+                >
+                  🖥️ Apresentação em Slides (16:9)
+                </button>
+                <button className="secondary-btn" id="btnReportBottom" onClick={handleGenerateReport}>
+                  📄 Relatório A4 (PDF)
+                </button>
+              </div>
             </article>
             <article id="automacoes">
               <p className="eyebrow">Automações inteligentes</p>
