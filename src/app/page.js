@@ -76,8 +76,12 @@ function calculateSummaryTotals(rows = []) {
   const receita = rows.reduce((sum, item) => sum + (item.revenue || 0), 0);
   const leads = rows.reduce((sum, item) => {
     const isPaid = !item.is_crm && (item.platform === "google" || item.platform === "meta");
-    const val = (item.leads && item.leads > 0) ? item.leads : (isPaid && item.conversions > 0 ? item.conversions : (item.leads || 0));
-    return sum + val;
+    const itemLeads = Number(item.leads) || 0;
+    const itemClicks = Number(item.clicks) || 0;
+    if (item.leads_is_derived) return sum;
+    // Trava de sanidade física: em mídia paga, leads nunca pode exceder cliques (evita contaminação de engajamento/Resultados)
+    if (isPaid && itemClicks > 0 && itemLeads > itemClicks) return sum;
+    return sum + itemLeads;
   }, 0);
   const conversoes = rows.reduce(
     (sum, item) => sum + (item.is_crm ? (item.conversions || 0) : 0),
@@ -1433,7 +1437,14 @@ export default function Home() {
 
       const spend = s.spend || 0;
       const isPaid = !s.is_crm && (s.platform === "google" || s.platform === "meta");
-      const rowLeads = (s.leads && s.leads > 0) ? s.leads : (isPaid && s.conversions > 0 ? s.conversions : (s.leads || 0));
+      const rawLeads = Number(s.leads) || 0;
+      const clicks = Number(s.clicks) || 0;
+      // Trava de sanidade e descarte de fallback distorcido:
+      // Nunca herda conversões genéricas de mídia paga como leads.
+      // Leads não pode superar cliques em mídia paga (anomalia de engajamentos/visualizações da Meta).
+      const rowLeads = (!s.leads_is_derived && !(isPaid && clicks > 0 && rawLeads > clicks))
+        ? rawLeads
+        : 0;
       months[mKey].receita      += s.revenue      || 0;
       months[mKey].investimento += spend;
       months[mKey].leads        += rowLeads;

@@ -199,6 +199,17 @@ export function getDatabase() {
           r.reference_month = standardMonth;
           needsSave = true;
         }
+        // Sanitiza anomalia de leads herdados de engajamento no legado:
+        // Se leads_is_derived for true OU leads for maior que cliques em mídia paga,
+        // zera o lead corrompido para não poluir o histórico consolidado.
+        const isPaid = (r.platform === "google" || r.platform === "meta");
+        if (isPaid && r.leads && r.leads > 0) {
+          if (r.leads_is_derived || (r.clicks > 0 && r.leads > r.clicks)) {
+            r.leads = 0;
+            r.cpl = 0;
+            needsSave = true;
+          }
+        }
       });
     };
     
@@ -586,11 +597,19 @@ export function consolidateSummary(db) {
     }
 
     const g = groups[key];
+    const isPaid = (r.platform === "google" || r.platform === "meta");
+    const rawLeads = Number(r.leads) || 0;
+    const clicks = Number(r.clicks) || 0;
+    // Trava de sanidade física: leads não pode superar cliques em mídia paga
+    const validLeads = (!r.leads_is_derived && !(isPaid && clicks > 0 && rawLeads > clicks))
+      ? rawLeads
+      : 0;
+
     g.spend += r.spend || 0;
     g.clicks += r.clicks || 0;
     g.impressions += r.impressions || 0;
     g.conversions += r.conversions || 0;
-    g.leads += r.leads || 0;
+    g.leads += validLeads;
     g.reach += r.reach || 0;
     g.revenue += r.revenue || 0;
   };
