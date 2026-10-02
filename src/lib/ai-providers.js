@@ -119,7 +119,7 @@ async function callOpenAI({ apiKey, systemPrompt, userText, uploadedFiles, wants
 
 async function callGemini({ apiKey, systemPrompt, userText, uploadedFiles, wantsJson }) {
   const ai = new GoogleGenAI({ apiKey });
-  const modelsToTry = [DEFAULT_GEMINI_MODEL, "gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.0-flash"];
+  const modelsToTry = [DEFAULT_GEMINI_MODEL || "gemini-3.8-flash", "gemini-3.8-flash"];
   const uniqueModels = [...new Set(modelsToTry)];
   let lastError = null;
 

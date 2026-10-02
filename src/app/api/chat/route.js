@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { generateProviderText } from "@/lib/ai-providers";
 import bingSeptemberSnapshot from "@/lib/bing-september-2026.json";
 
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 export async function POST(request) {
   try {
     const {
@@ -128,8 +131,16 @@ ${adjustmentContext}
 
 ${aiContext}
 
-=== CAMPANHAS ATIVAS NO RECORTE ATUAL ===
-${JSON.stringify((campaigns || []).slice(0, 30), null, 2)}
+=== CAMPANHAS ATIVAS NO RECORTE ATUAL (TOP 10) ===
+${JSON.stringify((campaigns || []).slice(0, 10).map(c => ({
+  nome: c.nome,
+  plataforma: c.plataforma || c.tipo,
+  investimento: c.investimento,
+  conversoes: c.conversoes,
+  cliques: c.cliques,
+  roas: c.roas,
+  cpa: c.cpa,
+})), null, 2)}
 
 Diretrizes de Formatação:
 - Responda SEMPRE em português do Brasil (PT-BR).

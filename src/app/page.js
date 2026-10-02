@@ -100,6 +100,18 @@ function getSanitaryLeadCount(item) {
   // AUDITORIA 2026-10: removido critério de CPL >= R$4 e hardcode de meses.
   // Critério de preço excluía campanhas legítimas com CPL baixo e criava falsos negativos.
   if (item.platform === "meta") {
+    // Se conversions for igual ao alcance, impressões ou cliques, trata-se de métrica de distribuição/tráfego (ex: 65.341 de alcance), NÃO de cadastros.
+    const isReachOrImpression = conversions > 0 && (
+      conversions === item.reach ||
+      conversions === item.impressions ||
+      conversions === item.clicks ||
+      (conversions > 1000 && (item.spend || 0) < conversions * 0.5)
+    );
+
+    if (isReachOrImpression) {
+      return leads > 0 ? leads : 0;
+    }
+
     // 3a: sem coluna de leads no arquivo → conversions é o dado mais próximo de leads
     if (item.leads_is_derived && conversions > 0) {
       return conversions;
@@ -4327,20 +4339,25 @@ export default function Home() {
       meta: { spend: 0, leads: 0, clicks: 0 },
       google: { spend: 0, leads: 0, clicks: 0 },
     };
-    (filteredCampaigns || []).forEach((c) => {
-      const p = String(c.platform || "").toLowerCase();
-      if (p.includes("meta") || p.includes("face") || p.includes("insta")) {
-        summary.meta.spend += Number(c.spend || 0);
-        summary.meta.leads += Number(c.leads || c.conversions || 0);
-        summary.meta.clicks += Number(c.clicks || 0);
-      } else if (p.includes("google")) {
-        summary.google.spend += Number(c.spend || 0);
-        summary.google.leads += Number(c.leads || c.conversions || 0);
-        summary.google.clicks += Number(c.clicks || 0);
+    (reconciledSummary || []).filter(matchesCoreFilters).forEach((r) => {
+      if (r.is_crm) return;
+      const p = String(r.platform || "").toLowerCase();
+      const spend = Number(r.spend || 0);
+      const rowLeads = getSanitaryLeadCount(r);
+      const clicks = Number(r.clicks || 0);
+
+      if (p === "meta" || p.includes("meta") || p.includes("face") || p.includes("insta")) {
+        summary.meta.spend += spend;
+        summary.meta.leads += rowLeads;
+        summary.meta.clicks += clicks;
+      } else if (p === "google") {
+        summary.google.spend += spend;
+        summary.google.leads += rowLeads;
+        summary.google.clicks += clicks;
       }
     });
     return summary;
-  }, [filteredCampaigns]);
+  }, [reconciledSummary, platform, period, startDate, endDate, campaign]);
 
   // AI Chat Assistant simulator queries
   const getSimulatedAnswer = (text) => {
@@ -4440,9 +4457,9 @@ Identificamos fadiga criativa e retorno abaixo da média na campanha "${worst.no
     setMessages((prev) => [...prev, newUserMessage]);
     setChatPending(true);
 
-    // A-06 FIX: AbortController with 30s timeout to prevent infinite pending state
+    // AbortController with 60s timeout to allow deep AI reasoning
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     try {
       const response = await fetch("/api/chat", {
