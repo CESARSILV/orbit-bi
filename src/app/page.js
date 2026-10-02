@@ -140,6 +140,14 @@ function calculateSummaryTotals(rows = []) {
     (sum, item) => sum + (item.is_crm && (item.platform === "google" || item.platform === "meta") ? (item.crm_demos || 0) : 0),
     0
   );
+  const demosGoogle = rows.reduce(
+    (sum, item) => sum + (item.is_crm && item.platform === "google" ? (item.crm_demos || 0) : 0),
+    0
+  );
+  const demosMeta = rows.reduce(
+    (sum, item) => sum + (item.is_crm && item.platform === "meta" ? (item.crm_demos || 0) : 0),
+    0
+  );
   const cliques = rows.reduce((sum, item) => sum + (item.clicks || 0), 0);
   const impressoes = rows.reduce((sum, item) => sum + (item.impressions || 0), 0);
   const alcance = rows.reduce((sum, item) => sum + (item.reach || 0), 0);
@@ -159,6 +167,8 @@ function calculateSummaryTotals(rows = []) {
     qualificados,
     demos,
     marketingDemos,
+    demosGoogle,
+    demosMeta,
     cliques,
     impressoes,
     alcance,
@@ -1272,12 +1282,17 @@ export default function Home() {
         return (order[a.canal] || 5) - (order[b.canal] || 5);
       });
 
+    const demosGoogle = leadsList.filter((l) => l.canal === "google" && l.isRealizada).length;
+    const demosMeta = leadsList.filter((l) => l.canal === "meta" && l.isRealizada).length;
+
     return {
       total,
       meta: platformCounts.meta,
       google: platformCounts.google,
       playbooksOutras,
       demosRealizadas,
+      demosGoogle,
+      demosMeta,
       leadsList,
       isTotalAdjusted: manualKpiAdjustments.some(
         (adjustment) => adjustment.metric === "conversoes" && adjustment.isAppliedInView

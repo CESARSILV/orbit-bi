@@ -40,8 +40,8 @@ function valueForInput(kpi, value) {
   return String(Number(displayValue.toFixed(6))).replace(".", ",");
 }
 
-function KpiCard({ label, value, formatFn, meta, accent, index, adjustmentState, onEdit, onDetails }) {
-  const formattedValue = formatFn(value);
+function KpiCard({ label, value, formatFn, meta, accent, index, adjustmentState, onEdit, onDetails, customValue }) {
+  const formattedValue = formatFn ? formatFn(value) : value;
   const statusLabel = adjustmentState === "manual"
     ? "Ajustado manualmente"
     : adjustmentState === "blocked"
@@ -76,19 +76,25 @@ function KpiCard({ label, value, formatFn, meta, accent, index, adjustmentState,
           </span>
         )}
       </div>
-      <div className="kpi-value">{formattedValue}</div>
+      {customValue ? (
+        <div className="kpi-value kpi-value--custom">{customValue}</div>
+      ) : (
+        <div className="kpi-value">{formattedValue}</div>
+      )}
       <div className="kpi-meta">
         <span>{meta}</span>
       </div>
       <div className="kpi-card-actions">
-        <button
-          type="button"
-          className="kpi-card-edit-button"
-          onClick={onEdit}
-          aria-label={`Ajustar ${label}`}
-        >
-          <span aria-hidden="true">✎</span> Ajustar
-        </button>
+        {onEdit && (
+          <button
+            type="button"
+            className="kpi-card-edit-button"
+            onClick={onEdit}
+            aria-label={`Ajustar ${label}`}
+          >
+            <span aria-hidden="true">✎</span> Ajustar
+          </button>
+        )}
         {onDetails && (
           <button
             type="button"
@@ -749,6 +755,18 @@ export default function KpiGrid({
   const openAppointments = useCallback(() => setIsAppointmentsOpen(true), []);
   const closeAdjustment = useCallback(() => setSelectedKpiKey(null), []);
 
+  const leads = Array.isArray(appointmentBreakdown?.leadsList) ? appointmentBreakdown.leadsList : [];
+  const googleRealizadasDemos = leads.filter((l) => l.canal === "google" && l.isRealizada).length;
+  const metaRealizadasDemos = leads.filter((l) => l.canal === "meta" && l.isRealizada).length;
+
+  const googleDemosCount = appointmentBreakdown?.demosGoogle !== undefined
+    ? appointmentBreakdown.demosGoogle
+    : (totals.demosGoogle !== undefined ? totals.demosGoogle : googleRealizadasDemos);
+
+  const metaDemosCount = appointmentBreakdown?.demosMeta !== undefined
+    ? appointmentBreakdown.demosMeta
+    : (totals.demosMeta !== undefined ? totals.demosMeta : metaRealizadasDemos);
+
   const kpis = [
     {
       key: "investimento",
@@ -792,12 +810,27 @@ export default function KpiGrid({
       accent: "#ffd481",
     },
     {
-      key: "ctr",
-      label: "CTR Médio",
-      value: totals.ctr || 0,
-      formatFn: formatPercentage,
-      meta: "Taxa de cliques (Cliques/Impressões)",
-      accent: "#ffd481",
+      key: "demos_canais",
+      label: "Demos Google | Demos Meta",
+      value: { google: googleDemosCount, meta: metaDemosCount },
+      formatFn: () => `${googleDemosCount} Google | ${metaDemosCount} Meta`,
+      meta: "Reuniões efetivamente realizadas por canal",
+      accent: "#7cf7be",
+      onEdit: null,
+      onDetails: openAppointments,
+      customValue: (
+        <div style={{ display: "flex", alignItems: "baseline", gap: "10px", flexWrap: "wrap", margin: "2px 0 4px" }}>
+          <div style={{ display: "inline-flex", alignItems: "baseline", gap: "6px" }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#60a5fa", letterSpacing: "0.04em", textTransform: "uppercase" }}>Google</span>
+            <span style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>{googleDemosCount}</span>
+          </div>
+          <span style={{ color: "var(--border-soft)", fontWeight: 300, fontSize: "1.2rem", userSelect: "none" }}>|</span>
+          <div style={{ display: "inline-flex", alignItems: "baseline", gap: "6px" }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#34d399", letterSpacing: "0.04em", textTransform: "uppercase" }}>Meta</span>
+            <span style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>{metaDemosCount}</span>
+          </div>
+        </div>
+      ),
     },
     {
       key: "cpl",
@@ -847,7 +880,7 @@ export default function KpiGrid({
               {...kpi}
               index={index}
               adjustmentState={adjustmentState}
-              onEdit={() => setSelectedKpiKey(kpi.key)}
+              onEdit={kpi.onEdit !== undefined ? kpi.onEdit : () => setSelectedKpiKey(kpi.key)}
             />
           );
         })}
