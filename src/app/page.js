@@ -77,10 +77,8 @@ function getSanitaryLeadCount(item) {
 
   const leads = Number(item.leads) || 0;
   const conversions = Number(item.conversions) || 0;
-  const spend = Number(item.spend) || 0;
-  const ref = String(item.reference_month || item.date || "");
 
-  // 1. Se tem coluna de leads real no arquivo original
+  // 1. Se tem coluna de leads real no arquivo original e tem valor → usa leads
   if (leads > 0 && !item.leads_is_derived) {
     return leads;
   }
@@ -90,16 +88,30 @@ function getSanitaryLeadCount(item) {
     return conversions > 0 ? conversions : (leads > 0 ? leads : 0);
   }
 
-  // 3. Meta Ads:
-  // - Setembro/2026: campanha real de formulário/leads (135 leads a R$ 7,92 CPL)
-  // - Campanhas de captação legítimas: CPL saudável (>= R$ 4,00)
-  // - Meses históricos de engajamento/vídeo (Agosto, Julho...): rejeita interações de centavos
+  // 3. Meta Ads — lógica baseada nos dados reais, sem hardcode de mês:
+  //
+  //   3a. Arquivo NÃO tinha coluna de leads (leads_is_derived = true):
+  //       → usa conversions como proxy de leads (formulários/resultados do Meta)
+  //
+  //   3b. Arquivo TINHA coluna de leads mas estava zerada (leads = 0, leads_is_derived = false)
+  //       E conversions > 0: o usuário pode ter mapeado apenas "Resultados" sem mapear "Leads"
+  //       → usa conversions como fallback seguro para não perder 0 leads na exibição
+  //
+  //   3c. Arquivo TINHA coluna de leads com valor (já tratado na regra 1 acima)
+  //
+  // AUDITORIA 2026-10: removido critério de CPL >= R$4 e hardcode de meses.
+  // Critério de preço excluía campanhas legítimas com CPL baixo e criava falsos negativos.
   if (item.platform === "meta") {
-    const isRealLeadCampaign = ref.startsWith("2026-09") || ref.startsWith("2024-09") || (spend > 0 && conversions > 0 && (spend / conversions) >= 4.0);
-    if (isRealLeadCampaign && conversions > 0) {
+    // 3a: sem coluna de leads no arquivo → conversions é o dado mais próximo de leads
+    if (item.leads_is_derived && conversions > 0) {
       return conversions;
     }
-    return (!item.leads_is_derived && leads > 0) ? leads : 0;
+    // 3b: coluna de leads presente mas zerada, conversions tem valor → fallback
+    if (!item.leads_is_derived && leads === 0 && conversions > 0) {
+      return conversions;
+    }
+    // 3c: tem leads mas leads_is_derived não está definido (legado) → retorna o que há
+    return leads > 0 ? leads : 0;
   }
 
   return leads > 0 ? leads : 0;

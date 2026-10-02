@@ -779,7 +779,7 @@ export default function KpiGrid({
       label: "Leads",
       value: totals.leads || 0,
       formatFn: formatCount,
-      meta: "Contatos e cadastros capturados",
+      meta: "Formulários captados via Meta Ads e Google Ads",
       accent: "#7bb7ff",
     },
     {
@@ -787,7 +787,7 @@ export default function KpiGrid({
       label: "Leads Qualificados",
       value: totals.qualificados || 0,
       formatFn: formatCount,
-      meta: "Clientes únicos no primeiro agendamento",
+      meta: "Clientes únicos em etapa qualificada no CRM (Bitrix24)",
       accent: "#b99cff",
     },
     {
@@ -795,7 +795,7 @@ export default function KpiGrid({
       label: "Agendamentos",
       value: totals.conversoes || 0,
       formatFn: formatCount,
-      meta: "Clientes únicos por mês com agendamento",
+      meta: "Agendamentos confirmados no DOitSA (por cliente/mês)",
       accent: "#7cf7be",
       onDetails: openAppointments,
     },
@@ -804,7 +804,7 @@ export default function KpiGrid({
       label: "Demos Realizadas",
       value: totals.demos || 0,
       formatFn: formatCount,
-      meta: "Uma demo por cliente e mês de realização",
+      meta: "Reuniões efetivamente realizadas — fonte: DOitSA",
       accent: "#ffd481",
     },
     {
