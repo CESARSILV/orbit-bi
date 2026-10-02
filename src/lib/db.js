@@ -199,17 +199,6 @@ export function getDatabase() {
           r.reference_month = standardMonth;
           needsSave = true;
         }
-        // Sanitiza anomalia de leads herdados de engajamento no legado:
-        // Se leads_is_derived for true OU leads for maior que cliques em mídia paga,
-        // zera o lead corrompido para não poluir o histórico consolidado.
-        const isPaid = (r.platform === "google" || r.platform === "meta");
-        if (isPaid && r.leads && r.leads > 0) {
-          if (r.leads_is_derived || (r.clicks > 0 && r.leads > r.clicks)) {
-            r.leads = 0;
-            r.cpl = 0;
-            needsSave = true;
-          }
-        }
       });
     };
     
@@ -600,15 +589,7 @@ export function consolidateSummary(db) {
     const isPaid = (r.platform === "google" || r.platform === "meta");
     const rawLeads = Number(r.leads) || 0;
     const conversions = Number(r.conversions) || 0;
-    const clicks = Number(r.clicks) || 0;
-
-    let validLeads = 0;
-    if (rawLeads > 0 && (!isPaid || clicks === 0 || rawLeads <= clicks)) {
-      validLeads = rawLeads;
-    } else if (isPaid && conversions > 0 && clicks > 0 && conversions <= clicks) {
-      // Aceita conversões legítimas de cadastro (ex: Meta Ads formulário instantâneo 'Resultados' = 135)
-      validLeads = conversions;
-    }
+    const validLeads = rawLeads > 0 ? rawLeads : (isPaid && conversions > 0 ? conversions : 0);
 
     g.spend += r.spend || 0;
     g.clicks += r.clicks || 0;

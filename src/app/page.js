@@ -74,20 +74,10 @@ function getSanitaryLeadCount(item) {
   const isPaid = !item.is_crm && (item.platform === "google" || item.platform === "meta");
   const leads = Number(item.leads) || 0;
   const conversions = Number(item.conversions) || 0;
-  const clicks = Number(item.clicks) || 0;
 
-  // 1. Se tem leads declarado e válido (leads <= clicks se houver cliques)
-  if (leads > 0 && (!isPaid || clicks === 0 || leads <= clicks)) {
-    return leads;
-  }
-
-  // 2. Se leads for 0 ou derivado, aceita conversions de mídia paga (ex: formulário de cadastro Meta Ads 'Resultados' = 135)
-  // desde que passe na trava de sanidade física (conversions <= clicks)
-  if (isPaid && conversions > 0 && clicks > 0 && conversions <= clicks) {
-    return conversions;
-  }
-
-  return 0;
+  if (leads > 0) return leads;
+  if (isPaid && conversions > 0) return conversions;
+  return leads;
 }
 
 function calculateSummaryTotals(rows = []) {
